@@ -1,8 +1,7 @@
 import { useQuery } from '@apollo/client/react'
-import { ROCKET_CONFIGS_BY_IDS } from './graphql/queries'
-import type { RocketConfigsByIdsQuery, RocketConfigsByIdsVariables } from './graphql/types'
+import { ROCKET_CONFIGS_BY_IDS } from '@orbitq/graphql'
+import type { RocketConfigsByIdsQuery, RocketConfigsByIdsVariables } from '@orbitq/graphql'
 
-// Smoke test: Falcon 9 Block 5 (164) vs Ariane 62 (121) — remove when canvas is wired up
 const SMOKE_TEST_IDS = [164, 121];
 
 export default function App() {

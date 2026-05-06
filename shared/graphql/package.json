@@ -1,0 +1,13 @@
+{
+  "name": "@orbitq/graphql",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "@apollo/client": "^3.0.0 || ^4.0.0",
+    "graphql": "^16.0.0"
+  }
+}

@@ -1,0 +1,10 @@
+import { createApp } from 'vue'
+import { DefaultApolloClient } from '@vue/apollo-composable'
+import { client } from './lib/apollo'
+import { router } from './router'
+import App from './App.vue'
+
+createApp(App)
+  .use(router)
+  .provide(DefaultApolloClient, client)
+  .mount('#root')
