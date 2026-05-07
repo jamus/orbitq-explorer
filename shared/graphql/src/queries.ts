@@ -5,6 +5,9 @@ export const ROCKET_CONFIGS = gql`
     rocketConfigs {
       id
       fullName
+      manufacturer {
+        name
+      }
     }
   }
 `;

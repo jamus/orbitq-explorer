@@ -49,7 +49,11 @@ export type RocketConfig = {
 };
 
 export type RocketConfigsQuery = {
-  rocketConfigs: { id: number; fullName: string }[];
+  rocketConfigs: {
+    id: number;
+    fullName: string;
+    manufacturer: { name: string } | null;
+  }[];
 };
 
 export type RocketConfigsByIdsQuery = {
