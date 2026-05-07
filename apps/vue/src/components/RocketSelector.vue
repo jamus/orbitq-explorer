@@ -15,10 +15,10 @@ type Rocket = RocketConfigsQuery["rocketConfigs"][number];
 
 const { result, loading, error } = useQuery<RocketConfigsQuery>(ROCKET_CONFIGS);
 
-const rocketA = ref<Rocket | null>(null);
+const rocketA = defineModel<Rocket | null>("rocketA", { default: null });
 const queryA = ref("");
 
-const rocketB = ref<Rocket | null>(null);
+const rocketB = defineModel<Rocket | null>("rocketB", { default: null });
 const queryB = ref("");
 
 function filterRockets(query: string) {
@@ -30,6 +30,14 @@ function filterRockets(query: string) {
 
 const filteredA = computed(() => filterRockets(queryA.value));
 const filteredB = computed(() => filterRockets(queryB.value));
+
+function handleSelectA(val: Rocket | null) {
+  rocketA.value = val?.id === rocketA.value?.id ? null : val;
+}
+
+function handleSelectB(val: Rocket | null) {
+  rocketB.value = val?.id === rocketB.value?.id ? null : val;
+}
 </script>
 
 <template>
@@ -44,7 +52,13 @@ const filteredB = computed(() => filterRockets(queryB.value));
       Error: {{ error.message }}
     </p>
     <div v-else class="flex gap-4">
-      <Combobox v-model="rocketA" nullable as="div" class="relative flex-1">
+      <Combobox
+        :modelValue="rocketA"
+        @update:modelValue="handleSelectA"
+        nullable
+        as="div"
+        class="relative flex-1"
+      >
         <div class="relative">
           <ComboboxInput
             class="w-full border border-orbitq-700 text-orbitq-50 font-mono text-sm rounded-sm px-3 py-2 pr-8 focus:outline-none focus:border-orbitq-600 transition-colors placeholder:text-orbitq-600"
@@ -78,12 +92,14 @@ const filteredB = computed(() => filterRockets(queryB.value));
             v-for="rocket in filteredA"
             :key="rocket.id"
             :value="rocket"
-            v-slot="{ active, selected }"
+            :disabled="rocket.id === rocketB?.id"
+            v-slot="{ active, selected, disabled }"
           >
             <div
               :class="[
-                'flex flex-col gap-0.5 px-3 py-2 cursor-pointer',
-                active && 'bg-orbitq-700',
+                'flex flex-col gap-0.5 px-3 py-2',
+                disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer',
+                active && !disabled && 'bg-orbitq-700',
               ]"
             >
               <span
@@ -111,7 +127,13 @@ const filteredB = computed(() => filterRockets(queryB.value));
         </ComboboxOptions>
       </Combobox>
 
-      <Combobox v-model="rocketB" nullable as="div" class="relative flex-1">
+      <Combobox
+        :modelValue="rocketB"
+        @update:modelValue="handleSelectB"
+        nullable
+        as="div"
+        class="relative flex-1"
+      >
         <div class="relative">
           <ComboboxInput
             class="w-full border border-orbitq-700 text-orbitq-50 font-mono text-sm rounded-sm px-3 py-2 pr-8 focus:outline-none focus:border-orbitq-600 transition-colors placeholder:text-orbitq-600"
@@ -144,12 +166,14 @@ const filteredB = computed(() => filterRockets(queryB.value));
             v-for="rocket in filteredB"
             :key="rocket.id"
             :value="rocket"
-            v-slot="{ active, selected }"
+            :disabled="rocket.id === rocketA?.id"
+            v-slot="{ active, selected, disabled }"
           >
             <div
               :class="[
-                'flex flex-col gap-0.5 px-3 py-2 cursor-pointer',
-                active && 'bg-orbitq-700',
+                'flex flex-col gap-0.5 px-3 py-2',
+                disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer',
+                active && !disabled && 'bg-orbitq-700',
               ]"
             >
               <span
