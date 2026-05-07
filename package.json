@@ -8,7 +8,8 @@
     "dev:vue": "pnpm --filter @orbitq/vue dev",
     "build:react": "pnpm --filter @orbitq/react build",
     "build:vue": "pnpm --filter @orbitq/vue build",
-    "lint": "oxlint apps/react/src apps/vue/src shared/graphql/src"
+    "lint": "oxlint apps/react/src apps/vue/src shared/graphql/src",
+    "typecheck": "pnpm --filter @orbitq/react typecheck && pnpm --filter @orbitq/vue typecheck"
   },
   "devDependencies": {
     "oxlint": "^0.16.6"
