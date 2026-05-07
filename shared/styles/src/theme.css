@@ -22,10 +22,17 @@
 }
 
 @utility bg-grid {
-  background-image:
-    linear-gradient(to right, #2c2d2f 1px, transparent 1px),
-    linear-gradient(to bottom, #2c2d2f 1px, transparent 1px);
-  background-size: 40px 40px;
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    -webkit-mask-image: url(@shared/assets/src/grid-lines.svg);
+    mask-image: url(@shared/assets/src/grid-lines.svg);
+    mask-size: 20px 20px;
+    background-color: currentColor;
+    pointer-events: none;
+  }
 }
 
 *, *::before, *::after {
