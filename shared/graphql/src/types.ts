@@ -1,4 +1,8 @@
-export type LauncherStatus = 'ACTIVE' | 'RETIRED' | 'IN_DEVELOPMENT' | 'UNKNOWN';
+export type LauncherStatus =
+  | "ACTIVE"
+  | "RETIRED"
+  | "IN_DEVELOPMENT"
+  | "UNKNOWN";
 
 export type Agency = {
   name: string;
@@ -42,6 +46,10 @@ export type RocketConfig = {
   failedLaunches: number;
   consecutiveSuccessfulLaunches: number;
   landingStats: LandingStats | null;
+};
+
+export type RocketConfigsQuery = {
+  rocketConfigs: { id: number; fullName: string }[];
 };
 
 export type RocketConfigsByIdsQuery = {

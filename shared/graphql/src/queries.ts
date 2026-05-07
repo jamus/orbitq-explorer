@@ -1,4 +1,13 @@
-import { gql } from '@apollo/client';
+import { gql } from "@apollo/client";
+
+export const ROCKET_CONFIGS = gql`
+  query RocketConfigs {
+    rocketConfigs {
+      id
+      fullName
+    }
+  }
+`;
 
 export const ROCKET_CONFIGS_BY_IDS = gql`
   query RocketConfigsByIds($ids: [Int!]!) {
@@ -10,8 +19,14 @@ export const ROCKET_CONFIGS_BY_IDS = gql`
       status
       description
       imageUrl
-      manufacturer { name abbrev countryCode }
-      families { name }
+      manufacturer {
+        name
+        abbrev
+        countryCode
+      }
+      families {
+        name
+      }
       length
       diameter
       launchMass
@@ -26,7 +41,12 @@ export const ROCKET_CONFIGS_BY_IDS = gql`
       successfulLaunches
       failedLaunches
       consecutiveSuccessfulLaunches
-      landingStats { attempted successful failed consecutiveSuccessful }
+      landingStats {
+        attempted
+        successful
+        failed
+        consecutiveSuccessful
+      }
     }
   }
 `;
