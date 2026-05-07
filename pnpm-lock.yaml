@@ -17,6 +17,9 @@ importers:
       '@apollo/client':
         specifier: ^4.1.9
         version: 4.1.9(graphql@16.13.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rxjs@7.8.2)
+      '@orbitq/assets':
+        specifier: workspace:*
+        version: link:../../shared/assets
       '@orbitq/graphql':
         specifier: workspace:*
         version: link:../../shared/graphql
