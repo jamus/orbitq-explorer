@@ -1,13 +1,35 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useQuery } from "@vue/apollo-composable";
 import { ROCKET_CONFIGS } from "@orbitq/graphql";
 import type { RocketConfigsQuery } from "@orbitq/graphql";
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxButton,
+  ComboboxOptions,
+  ComboboxOption,
+} from "@headlessui/vue";
+
+type Rocket = RocketConfigsQuery["rocketConfigs"][number];
 
 const { result, loading, error } = useQuery<RocketConfigsQuery>(ROCKET_CONFIGS);
 
-const rocketAId = ref<number | null>(null);
-const rocketBId = ref<number | null>(null);
+const rocketA = ref<Rocket | null>(null);
+const queryA = ref("");
+
+const rocketB = ref<Rocket | null>(null);
+const queryB = ref("");
+
+function filterRockets(query: string) {
+  const rockets = result.value?.rocketConfigs ?? [];
+  if (!query) return rockets;
+  const q = query.toLowerCase();
+  return rockets.filter((r) => r.fullName.toLowerCase().includes(q));
+}
+
+const filteredA = computed(() => filterRockets(queryA.value));
+const filteredB = computed(() => filterRockets(queryB.value));
 </script>
 
 <template>
@@ -22,112 +44,138 @@ const rocketBId = ref<number | null>(null);
       Error: {{ error.message }}
     </p>
     <div v-else class="flex gap-4">
-      <select v-model="rocketAId" class="rocket-select flex-1">
-        <button>
-          <selectedcontent></selectedcontent>
-        </button>
-        <option :value="null" disabled>Select rocket A</option>
-        <option
-          v-for="rocket in result?.rocketConfigs"
-          :key="rocket.id"
-          :value="rocket.id"
+      <Combobox v-model="rocketA" nullable as="div" class="relative flex-1">
+        <div class="relative">
+          <ComboboxInput
+            class="w-full border border-orbitq-700 text-orbitq-50 font-mono text-sm rounded-sm px-3 py-2 pr-8 focus:outline-none focus:border-orbitq-600 transition-colors placeholder:text-orbitq-600"
+            :displayValue="(r: unknown) => (r as Rocket | null)?.fullName ?? ''"
+            placeholder="Select rocket A"
+            @focus="queryA = ''"
+            @change="queryA = ($event.target as HTMLInputElement).value"
+          />
+          <ComboboxButton
+            class="absolute inset-y-0 right-0 flex items-center pr-2 text-orbitq-600 hover:text-orbitq-50 transition-colors"
+          >
+            <svg
+              class="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              x
+              <path
+                fill-rule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </ComboboxButton>
+        </div>
+        <ComboboxOptions
+          class="absolute z-10 mt-0.5 w-full bg-orbitq-850 border border-orbitq-700 rounded-sm py-1 shadow-lg max-h-60 overflow-auto focus:outline-none"
         >
-          <span class="option-name">{{ rocket.fullName }}</span>
-          <span v-if="rocket.manufacturer" class="option-manufacturer">{{
-            rocket.manufacturer.name
-          }}</span>
-        </option>
-      </select>
-      <select v-model="rocketBId" class="rocket-select flex-1">
-        <button>
-          <selectedcontent></selectedcontent>
-        </button>
-        <option :value="null" disabled>Select rocket B</option>
-        <option
-          v-for="rocket in result?.rocketConfigs"
-          :key="rocket.id"
-          :value="rocket.id"
+          <ComboboxOption
+            v-for="rocket in filteredA"
+            :key="rocket.id"
+            :value="rocket"
+            v-slot="{ active, selected }"
+          >
+            <div
+              :class="[
+                'flex flex-col gap-0.5 px-3 py-2 cursor-pointer',
+                active && 'bg-orbitq-700',
+              ]"
+            >
+              <span
+                :class="[
+                  'font-mono text-sm text-orbitq-50',
+                  selected && 'font-semibold',
+                ]"
+              >
+                {{ rocket.fullName }}
+              </span>
+              <span
+                v-if="rocket.manufacturer"
+                class="font-mono text-xs text-orbitq-600"
+              >
+                {{ rocket.manufacturer.name }}
+              </span>
+            </div>
+          </ComboboxOption>
+          <p
+            v-if="filteredA.length === 0"
+            class="px-3 py-2 font-mono text-sm text-orbitq-600"
+          >
+            No results
+          </p>
+        </ComboboxOptions>
+      </Combobox>
+
+      <Combobox v-model="rocketB" nullable as="div" class="relative flex-1">
+        <div class="relative">
+          <ComboboxInput
+            class="w-full border border-orbitq-700 text-orbitq-50 font-mono text-sm rounded-sm px-3 py-2 pr-8 focus:outline-none focus:border-orbitq-600 transition-colors placeholder:text-orbitq-600"
+            :displayValue="(r: unknown) => (r as Rocket | null)?.fullName ?? ''"
+            placeholder="Select rocket B"
+            @focus="queryB = ''"
+            @change="queryB = ($event.target as HTMLInputElement).value"
+          />
+          <ComboboxButton
+            class="absolute inset-y-0 right-0 flex items-center pr-2 text-orbitq-600 hover:text-orbitq-50 transition-colors"
+          >
+            <svg
+              class="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </ComboboxButton>
+        </div>
+        <ComboboxOptions
+          class="absolute z-10 mt-0.5 w-full bg-orbitq-850 border border-orbitq-700 rounded-sm py-1 shadow-lg max-h-60 overflow-auto focus:outline-none"
         >
-          <span class="option-name">{{ rocket.fullName }}</span>
-          <span v-if="rocket.manufacturer" class="option-manufacturer">{{
-            rocket.manufacturer.name
-          }}</span>
-        </option>
-      </select>
+          <ComboboxOption
+            v-for="rocket in filteredB"
+            :key="rocket.id"
+            :value="rocket"
+            v-slot="{ active, selected }"
+          >
+            <div
+              :class="[
+                'flex flex-col gap-0.5 px-3 py-2 cursor-pointer',
+                active && 'bg-orbitq-700',
+              ]"
+            >
+              <span
+                :class="[
+                  'font-mono text-sm text-orbitq-50',
+                  selected && 'font-semibold',
+                ]"
+              >
+                {{ rocket.fullName }}
+              </span>
+              <span
+                v-if="rocket.manufacturer"
+                class="font-mono text-xs text-orbitq-600"
+              >
+                {{ rocket.manufacturer.name }}
+              </span>
+            </div>
+          </ComboboxOption>
+          <p
+            v-if="filteredB.length === 0"
+            class="px-3 py-2 font-mono text-sm text-orbitq-600"
+          >
+            No results
+          </p>
+        </ComboboxOptions>
+      </Combobox>
     </div>
   </section>
 </template>
-
-<!-- Not scoped: ::picker(select) renders in the top layer outside Vue's scoped DOM -->
-<style>
-.rocket-select,
-.rocket-select::picker(select) {
-  appearance: base-select;
-}
-
-.rocket-select {
-  background-color: var(--color-orbitq-800);
-  border: 1px solid var(--color-orbitq-700);
-  color: var(--color-orbitq-50);
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  border-radius: 0.125rem;
-  padding: 0.5rem 0.75rem;
-  transition: border-color 0.15s;
-}
-
-.rocket-select:hover,
-.rocket-select:focus {
-  border-color: var(--color-orbitq-600);
-  outline: none;
-}
-
-.rocket-select::picker-icon {
-  color: var(--color-orbitq-600);
-  transition: rotate 0.2s;
-}
-
-.rocket-select:open::picker-icon {
-  rotate: 180deg;
-}
-
-.rocket-select::picker(select) {
-  background-color: var(--color-orbitq-850);
-  border: 1px solid var(--color-orbitq-700);
-  border-radius: 0.25rem;
-  padding: 0.25rem;
-  margin-top: 2px;
-}
-
-.rocket-select option {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  color: var(--color-orbitq-50);
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.125rem;
-  cursor: pointer;
-}
-
-.rocket-select option:hover,
-.rocket-select option:focus {
-  background-color: var(--color-orbitq-700);
-  outline: none;
-}
-
-.rocket-select option:checked {
-  font-weight: 600;
-}
-
-.rocket-select .option-manufacturer {
-  font-size: 0.75rem;
-  color: var(--color-orbitq-600);
-}
-
-/* Hide manufacturer in the closed select button — selectedcontent clones the full option */
-.rocket-select selectedcontent .option-manufacturer {
-  display: none;
-}
-</style>
