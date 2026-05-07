@@ -8,13 +8,28 @@
     "dev:vue": "pnpm --filter @orbitq/vue dev",
     "build:react": "pnpm --filter @orbitq/react build",
     "build:vue": "pnpm --filter @orbitq/vue build",
-    "lint": "oxlint apps/react/src apps/vue/src shared/graphql/src"
+    "format": "oxfmt format apps/react/src apps/vue/src shared",
+    "lint": "oxlint apps/react/src apps/vue/src shared/graphql/src",
+    "typecheck": "pnpm --filter @orbitq/react typecheck && pnpm --filter @orbitq/vue typecheck",
+    "prepare": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm lint-staged"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,vue}": "oxfmt format"
   },
   "devDependencies": {
-    "oxlint": "^0.16.6"
+    "lint-staged": "^17.0.2",
+    "oxfmt": "^0.48.0",
+    "oxlint": "^0.16.6",
+    "simple-git-hooks": "^2.13.1"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["vue-demi"],
+    "onlyBuiltDependencies": [
+      "simple-git-hooks",
+      "vue-demi"
+    ],
     "peerDependencyRules": {
       "allowedVersions": {
         "@vue/apollo-composable>@apollo/client": "3 || 4"
