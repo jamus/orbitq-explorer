@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@apollo/client": "^3.13.0",
+    "@headlessui/vue": "^1.7.23",
     "@orbitq/assets": "workspace:*",
     "@orbitq/graphql": "workspace:*",
     "@vue/apollo-composable": "^4.0.0",
