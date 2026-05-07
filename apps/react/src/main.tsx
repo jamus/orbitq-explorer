@@ -1,3 +1,8 @@
+import './style.css'
+
+if (import.meta.env.DEV) {
+  document.title = 'OrbitQ Explorer (react)'
+}
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'

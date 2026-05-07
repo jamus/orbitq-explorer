@@ -1,0 +1,49 @@
+@theme {
+  --color-orbitq-50: #eff0f1;
+  --color-orbitq-100: #d6d7d8;
+  --color-orbitq-200: #bdbebf;
+  --color-orbitq-300: #a4a5a6;
+  --color-orbitq-400: #aeafb0;
+  --color-orbitq-600: #8b8d93;
+  --color-orbitq-700: #353638;
+  --color-orbitq-800: #8a8a8a;
+  --color-orbitq-850: #323232;
+  --color-orbitq-900: #1e1e1e;
+  --color-orbitq-950: #1e1f21;
+
+  --color-status-positive: rgba(120, 174, 93, 1);
+  --color-status-info: rgba(74, 144, 226, 1);
+  --color-status-info-tint: rgba(24, 77, 138, 0.3);
+  --color-status-negative: rgba(201, 72, 37, 1);
+  --color-status-warning: rgba(245, 166, 35, 1);
+
+  --font-grotesk: 'Space Grotesk', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+}
+
+@utility bg-grid {
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    -webkit-mask-image: url(@shared/assets/src/grid-lines.svg);
+    mask-image: url(@shared/assets/src/grid-lines.svg);
+    mask-size: 20px 20px;
+    background-color: currentColor;
+    pointer-events: none;
+  }
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-grotesk);
+  background-color: var(--color-orbitq-900);
+  color: var(--color-orbitq-50);
+  -webkit-font-smoothing: antialiased;
+}
