@@ -43,7 +43,7 @@ _Avoid_: metric grid, scale grid
 ### Layout
 
 **Duel**:
-A two-rocket comparison — the only layout v1 supports. The canvas is hard-capped at two rockets. The taller rocket is always positioned on the left.
+A two-rocket comparison — the only layout v1 supports. The canvas is hard-capped at two rockets. The first selected rocket is positioned on the left, the second on the right.
 _Avoid_: comparison, side-by-side
 
 **Zone**:
