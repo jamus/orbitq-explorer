@@ -15,5 +15,5 @@ export const diagrams: { [key: number]: DiagramEntry } = {
   26: { url: url26, nativeWidth: 36, nativeHeight: 110 },
   128: { url: url128, nativeWidth: 36, nativeHeight: 110 },
   143: { url: url143, nativeWidth: 36, nativeHeight: 110 },
-  522: { url: url522, nativeWidth: 36, nativeHeight: 110 },
+  522: { url: url522, nativeWidth: 282, nativeHeight: 2139 }, // 159 2160
 };
