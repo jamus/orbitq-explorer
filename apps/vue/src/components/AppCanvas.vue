@@ -9,6 +9,7 @@ import type {
   RocketConfig,
 } from "@orbitq/graphql";
 import RocketImage from "./RocketImage.vue";
+import HumanFigure from "./HumanFigure.vue";
 
 type SlimRocket = RocketConfigsQuery["rocketConfigs"][number];
 
@@ -62,14 +63,18 @@ const maxLength = computed(() =>
   Math.max(rocketAData.value?.length ?? 0, rocketBData.value?.length ?? 0),
 );
 
+// When no rockets are loaded, fall back to a scale where the human fills ~40% of
+// the canvas — keeping it visible as a standing reference figure.
+const humanOnlyScale = (canvasHeight * 0.4) / 1.75;
 const worldScale = computed(() =>
-  maxLength.value > 0 ? (canvasHeight * 0.7) / maxLength.value : 1,
+  maxLength.value > 0 ? (canvasHeight * 0.7) / maxLength.value : humanOnlyScale,
 );
 
 // Rocket A is anchored at the 30% horizontal mark, rocket B at 70%,
 // giving each side equal breathing room from the canvas edges and from each other.
 const xA = canvasWidth * 0.3;
 const xB = canvasWidth * 0.7;
+const xHuman = canvasWidth * 0.5;
 
 const stageConfig = { width: canvasWidth, height: canvasHeight };
 </script>
@@ -89,6 +94,11 @@ const stageConfig = { width: canvasWidth, height: canvasHeight };
           v-if="rocketBData"
           :rocket="rocketBData"
           :x="xB"
+          :baselineY="baselineY"
+          :worldScale="worldScale"
+        />
+        <HumanFigure
+          :x="xHuman"
           :baselineY="baselineY"
           :worldScale="worldScale"
         />
