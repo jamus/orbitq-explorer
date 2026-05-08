@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useImage } from "vue-konva";
-import humanUrl from "../assets/images/human.svg?url";
-
-const NATIVE_WIDTH = 30;
-const NATIVE_HEIGHT = 175;
+import humanUrl from "@shared/assets/images/diagrams/human.svg?url";
+const NATIVE_WIDTH = 110;
+const NATIVE_HEIGHT = 135;
 const REAL_HEIGHT_M = 1.75;
 
 const props = defineProps<{
