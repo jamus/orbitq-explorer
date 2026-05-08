@@ -1,8 +1,8 @@
-import url14 from "../assets/images/diagrams/14.svg?url";
-import url26 from "../assets/images/diagrams/26.svg?url";
-import url128 from "../assets/images/diagrams/128.svg?url";
-import url143 from "../assets/images/diagrams/143.svg?url";
-import url522 from "../assets/images/diagrams/522.svg?url";
+import url14 from "@shared/assets/images/diagrams/14.svg?url";
+import url26 from "@shared/assets/images/diagrams/26.svg?url";
+import url128 from "@shared/assets/images/diagrams/128.svg?url";
+import url143 from "@shared/assets/images/diagrams/143.svg?url";
+import url522 from "@shared/assets/images/diagrams/522.svg?url";
 
 export type DiagramEntry = {
   url: string;

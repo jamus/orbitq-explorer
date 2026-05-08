@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useImage } from "vue-konva";
 import type { RocketConfig } from "@orbitq/graphql";
-import { diagrams } from "../const/diagrams";
+import { diagrams } from "@shared/const/diagrams";
 
 const props = defineProps<{
   rocket: RocketConfig;
