@@ -83,7 +83,7 @@ The sole focus of v1 is a polished, two-slot comparison canvas — a "duel" betw
 - Two rockets are selected for comparison. The mechanism for selection is TBD and not a v1 focus — the canvas is the product.
 - The canvas is **hard-capped at two rockets**. The canvas owns layout entirely; the user has no free positioning.
 - Both rockets are rendered as **canvas silhouettes at true relative scale** (`length` × `diameter` from the `RocketConfig` GraphQL type), drawn as Konva shapes.
-- Both rockets sit on a **shared baseline**, **auto-sorted by height** (taller rocket on the left).
+- Both rockets sit on a **shared baseline**. The first selected rocket is on the left, the second on the right.
 - The canvas renders over a **fine grid**, giving a technical-poster aesthetic and spatial reference at all zoom levels.
 - The canvas supports **pan and zoom** (scroll wheel, pinch-to-zoom, drag to pan). The default view fits both rockets. Double-click resets.
 - A single additional dimension — **liftoff thrust (`toThrust`)** — is rendered as a below-baseline overlay anchored to each rocket, proportional to actual thrust.
