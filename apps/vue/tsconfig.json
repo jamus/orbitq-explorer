@@ -17,7 +17,13 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* Monorepo path aliases */
+    "paths": {
+      "@shared/assets/*": ["../../shared/assets/src/*"],
+      "@shared/const/*": ["../../shared/const/src/*"]
+    }
   },
   "include": ["src"]
 }

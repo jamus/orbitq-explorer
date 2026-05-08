@@ -11,7 +11,7 @@ import type {
 import Konva from "konva";
 import RocketImage from "./RocketImage.vue";
 import HumanFigure from "./HumanFigure.vue";
-import { diagrams } from "../const/diagrams";
+import { diagrams } from "@shared/const/diagrams";
 
 type SlimRocket = RocketConfigsQuery["rocketConfigs"][number];
 
