@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import type { RocketConfigsQuery } from "@orbitq/graphql";
 import RocketSelector from "../components/RocketSelector.vue";
-import Canvas from "../components/Canvas.vue";
+import Canvas from "../components/AppCanvas.vue";
 
 type Rocket = RocketConfigsQuery["rocketConfigs"][number];
 
