@@ -11,6 +11,7 @@ import type {
 import Konva from "konva";
 import RocketImage from "./RocketImage.vue";
 import HumanFigure from "./HumanFigure.vue";
+import { diagrams } from "../const/diagrams";
 
 type SlimRocket = RocketConfigsQuery["rocketConfigs"][number];
 
@@ -77,14 +78,17 @@ let onComplete: (() => void) | null = null;
 
 onMounted(() => {
   scaleAnimation = new Konva.Animation(
-    (frame) => {
-      if (!frame) return; // Konva may call with no frame on the first tick
-      if (animStartTime === null) animStartTime = frame.time; // anchor elapsed time to this sequence, not the animation's lifetime
-      const t = Math.min((frame.time - animStartTime) / DURATION, 1); // 0→1 progress, clamped
-      const eased = 1 - (1 - t) ** 3; // ease-out-cubic: fast start, smooth landing
+    (animationFrame) => {
+      if (!animationFrame) return; // Konva may call with no frame on the first tick
+      if (animStartTime === null) animStartTime = animationFrame.time; // anchor elapsed time to this sequence, not the animation's lifetime
+      const progress = Math.min(
+        (animationFrame.time - animStartTime) / DURATION,
+        1,
+      ); // 0→1 progress, clamped
+      const easedProgress = 1 - (1 - progress) ** 3; // ease-out-cubic: fast start, smooth landing
       animatedWorldScale.value =
-        startScale + (targetScale - startScale) * eased; // interpolate; writing the ref repaints all three canvas images
-      if (t >= 1) {
+        startScale + (targetScale - startScale) * easedProgress; // interpolate; writing the ref repaints all three canvas images
+      if (progress >= 1) {
         scaleAnimation!.stop();
         animStartTime = null; // reset so the next .start() gets a fresh baseline
         const cb = onComplete;
@@ -124,11 +128,47 @@ watch([rocketAData, rocketBData], ([newA, newB]) => {
   });
 });
 
-// Rocket A is anchored at the 30% horizontal mark, rocket B at 70%,
-// giving each side equal breathing room from the canvas edges and from each other.
-const xA = canvasWidth * 0.3;
-const xB = canvasWidth * 0.7;
+const HUMAN_NATIVE_W = 30;
+const HUMAN_NATIVE_H = 175;
+const HUMAN_REAL_H_M = 1.75;
+const EDGE_GAP = 80; // px between human edge and rocket edge, constant in screen space
+const CANVAS_PAD = 20;
+
 const xHuman = canvasWidth * 0.5;
+
+const humanHalfW = computed(
+  () =>
+    (HUMAN_NATIVE_W *
+      (HUMAN_REAL_H_M / HUMAN_NATIVE_H) *
+      animatedWorldScale.value) /
+    2,
+);
+
+function rocketHalfW(rocket: RocketConfig | null): number {
+  if (!rocket) return 0;
+  const entry = diagrams[rocket.id];
+  if (!entry) return 0;
+  if (!rocket.length) return 0;
+  return (
+    (entry.nativeWidth *
+      (rocket.length / entry.nativeHeight) *
+      animatedWorldScale.value) /
+    2
+  );
+}
+
+const rocketAnchorX = (rocketHalfWidth: number, direction: -1 | 1) =>
+  xHuman + direction * (humanHalfW.value + EDGE_GAP + rocketHalfWidth);
+
+const leftRocketX = computed(() => {
+  const hw = rocketHalfW(displayRocketA.value);
+  return Math.max(rocketAnchorX(hw, -1), hw + CANVAS_PAD);
+});
+
+const rightRocketX = computed(() => {
+  const hw = rocketHalfW(displayRocketB.value);
+  return Math.min(rocketAnchorX(hw, 1), canvasWidth - hw - CANVAS_PAD);
+});
 
 const stageConfig = { width: canvasWidth, height: canvasHeight };
 </script>
@@ -140,14 +180,14 @@ const stageConfig = { width: canvasWidth, height: canvasHeight };
         <RocketImage
           v-if="displayRocketA"
           :rocket="displayRocketA"
-          :x="xA"
+          :x="leftRocketX"
           :baselineY="baselineY"
           :worldScale="animatedWorldScale"
         />
         <RocketImage
           v-if="displayRocketB"
           :rocket="displayRocketB"
-          :x="xB"
+          :x="rightRocketX"
           :baselineY="baselineY"
           :worldScale="animatedWorldScale"
         />
@@ -163,7 +203,10 @@ const stageConfig = { width: canvasWidth, height: canvasHeight };
       class="absolute top-2 right-2 font-mono text-xs text-status-warning space-y-0.5 pointer-events-none text-right"
     >
       <div>animatedWorldScale: {{ animatedWorldScale.toFixed(4) }}</div>
-      <div>baselineY: {{ baselineY.toFixed(0) }} xA: {{ xA }} xB: {{ xB }}</div>
+      <div>
+        baselineY: {{ baselineY.toFixed(0) }} xA: {{ leftRocketX }} xB:
+        {{ rightRocketX }}
+      </div>
       <div>
         A:
         {{
