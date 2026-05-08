@@ -17,25 +17,27 @@
   --color-status-negative: rgba(201, 72, 37, 1);
   --color-status-warning: rgba(245, 166, 35, 1);
 
-  --font-grotesk: 'Space Grotesk', sans-serif;
-  --font-mono: 'Space Mono', monospace;
+  --font-grotesk: "Space Grotesk", sans-serif;
+  --font-mono: "Space Mono", monospace;
 }
 
 @utility bg-grid {
   position: relative;
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
-    -webkit-mask-image: url(@shared/assets/grid-lines.svg);
-    mask-image: url(@shared/assets/grid-lines.svg);
+    -webkit-mask-image: url(@shared/assets/images/grid-lines.svg);
+    mask-image: url(@shared/assets/images/grid-lines.svg);
     mask-size: 20px 20px;
     background-color: currentColor;
     pointer-events: none;
   }
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
