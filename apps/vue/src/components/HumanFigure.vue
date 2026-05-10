@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useImage } from "vue-konva";
-import humanUrl from "@shared/assets/images/diagrams/human.svg?url";
-const NATIVE_WIDTH = 110;
-const NATIVE_HEIGHT = 135;
+import rawHuman from "@shared/assets/images/diagrams/human.svg?raw";
+import { parseSvgPaths } from "@shared/utils/parseSvgPaths";
+
 const REAL_HEIGHT_M = 1.75;
 
 const props = defineProps<{
@@ -12,23 +11,33 @@ const props = defineProps<{
   worldScale: number;
 }>();
 
-const [image] = useImage(humanUrl);
+const { paths, viewBox } = parseSvgPaths(rawHuman);
 
-const imageConfig = computed(() => {
-  if (!image.value) return null;
-  const scale = (REAL_HEIGHT_M / NATIVE_HEIGHT) * props.worldScale;
-  const w = NATIVE_WIDTH * scale;
-  const h = NATIVE_HEIGHT * scale;
-  return {
-    image: image.value,
-    x: props.x - w / 2,
-    y: props.baselineY - h,
-    width: w,
-    height: h,
-  };
-});
+const scaleFactor = computed(
+  () => (REAL_HEIGHT_M / viewBox.height) * props.worldScale,
+);
+
+const groupConfig = computed(() => ({
+  x: props.x,
+  y: props.baselineY,
+  offsetX: viewBox.minX + viewBox.width / 2,
+  offsetY: viewBox.minY + viewBox.height,
+  scaleX: scaleFactor.value,
+  scaleY: scaleFactor.value,
+}));
+
+const pathConfig = {
+  fill: "white",
+  listening: false,
+};
 </script>
 
 <template>
-  <v-image v-if="imageConfig" :config="imageConfig" />
+  <v-group :config="groupConfig">
+    <v-path
+      v-for="(path, i) in paths"
+      :key="i"
+      :config="{ ...pathConfig, data: path.d }"
+    />
+  </v-group>
 </template>

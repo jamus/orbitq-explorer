@@ -1,41 +1,55 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useImage } from "vue-konva";
 import type { RocketConfig } from "@orbitq/graphql";
 import { diagrams } from "@shared/const/diagrams";
 
-const props = defineProps<{
-  rocket: RocketConfig;
-  x: number;
-  baselineY: number;
-  worldScale: number;
-}>();
+const props = withDefaults(
+  defineProps<{
+    rocket: RocketConfig;
+    x: number;
+    baselineY: number;
+    worldScale: number;
+    stroke?: string;
+    strokeWidth?: number;
+  }>(),
+  { stroke: "#eff0f1", strokeWidth: 1.5 },
+);
 
 const entry = computed(() => diagrams[props.rocket.id]);
 
-const [image] = useImage(() => entry.value?.url ?? "");
-
-const pathScaleFactor = computed(() => {
+const scaleFactor = computed(() => {
   if (!entry.value || !props.rocket.length) return null;
   return (props.rocket.length / entry.value.nativeHeight) * props.worldScale;
 });
 
-const imageConfig = computed(() => {
-  if (!image.value || !entry.value || !pathScaleFactor.value) return null;
-  const scaledWidth = entry.value.nativeWidth * pathScaleFactor.value;
-  const scaledHeight = entry.value.nativeHeight * pathScaleFactor.value;
+const groupConfig = computed(() => {
+  if (!entry.value || !scaleFactor.value) return null;
+  const { viewBox } = entry.value;
   return {
-    image: image.value,
-    x: props.x - scaledWidth / 2,
-    y: props.baselineY - scaledHeight,
-    width: scaledWidth,
-    height: scaledHeight,
+    x: props.x,
+    y: props.baselineY,
+    offsetX: viewBox.minX + viewBox.width / 2,
+    offsetY: viewBox.minY + viewBox.height,
+    scaleX: scaleFactor.value,
+    scaleY: scaleFactor.value,
   };
 });
+
+const pathConfig = computed(() => ({
+  fill: "transparent",
+  stroke: props.stroke,
+  strokeWidth: props.strokeWidth,
+  strokeScaleEnabled: false,
+  listening: false,
+}));
 </script>
 
 <template>
-  <template v-if="imageConfig">
-    <v-image :config="imageConfig" />
-  </template>
+  <v-group v-if="groupConfig" :config="groupConfig">
+    <v-path
+      v-for="(path, i) in entry!.paths"
+      :key="i"
+      :config="{ ...pathConfig, data: path.d }"
+    />
+  </v-group>
 </template>
