@@ -1,19 +1,37 @@
-import url14 from "@shared/assets/images/diagrams/14.svg?url";
-import url26 from "@shared/assets/images/diagrams/26.svg?url";
-import url128 from "@shared/assets/images/diagrams/128.svg?url";
-import url143 from "@shared/assets/images/diagrams/143.svg?url";
-import url522 from "@shared/assets/images/diagrams/522.svg?url";
+import raw14 from "@shared/assets/images/diagrams/falcon-9v1.1.svg?raw";
+import raw26 from "@shared/assets/images/diagrams/electron.svg?raw";
+import raw128 from "@shared/assets/images/diagrams/128.svg?raw";
+import raw143 from "@shared/assets/images/diagrams/143.svg?raw";
+import raw522 from "@shared/assets/images/diagrams/starship-v3.svg?raw";
+import {
+  parseSvgPaths,
+  type PathData,
+  type ViewBox,
+} from "../utils/parseSvgPaths";
+
+export type { PathData, ViewBox };
 
 export type DiagramEntry = {
-  url: string;
+  paths: PathData[];
+  viewBox: ViewBox;
   nativeWidth: number;
   nativeHeight: number;
 };
 
+function makeDiagramEntry(svgRaw: string): DiagramEntry {
+  const { paths, viewBox } = parseSvgPaths(svgRaw);
+  return {
+    paths,
+    viewBox,
+    nativeWidth: viewBox.width,
+    nativeHeight: viewBox.height,
+  };
+}
+
 export const diagrams: { [key: number]: DiagramEntry } = {
-  14: { url: url14, nativeWidth: 36, nativeHeight: 110 },
-  26: { url: url26, nativeWidth: 36, nativeHeight: 110 },
-  128: { url: url128, nativeWidth: 36, nativeHeight: 110 },
-  143: { url: url143, nativeWidth: 36, nativeHeight: 110 },
-  522: { url: url522, nativeWidth: 282, nativeHeight: 2139 }, // 159 2160
+  14: makeDiagramEntry(raw14),
+  26: makeDiagramEntry(raw26),
+  128: makeDiagramEntry(raw128),
+  143: makeDiagramEntry(raw143),
+  522: makeDiagramEntry(raw522),
 };
