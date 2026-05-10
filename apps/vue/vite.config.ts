@@ -9,6 +9,7 @@ export default defineConfig({
     alias: {
       "@shared/assets": path.resolve(__dirname, "../../shared/assets"),
       "@shared/const": path.resolve(__dirname, "../../shared/const"),
+      "@shared/utils": path.resolve(__dirname, "../../shared/utils"),
     },
   },
   server: {

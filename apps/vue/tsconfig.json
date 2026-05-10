@@ -22,7 +22,8 @@
     /* Monorepo path aliases */
     "paths": {
       "@shared/assets/*": ["../../shared/assets/*"],
-      "@shared/const/*": ["../../shared/const/*"]
+      "@shared/const/*": ["../../shared/const/*"],
+      "@shared/utils/*": ["../../shared/utils/*"]
     }
   },
   "include": ["src"]
