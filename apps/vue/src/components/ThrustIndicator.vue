@@ -6,20 +6,11 @@ const props = defineProps<{
   baselineY: number;
   rocketWidth: number;
   thrust: number | null;
-  maxThrust: number;
+  plumeHeight: number;
 }>();
 
-const MIN_PLUME_PX = 8;
-const MAX_ASPECT = 6;
-
 const topWidth = computed(() => props.rocketWidth);
-
-const plumeHeight = computed(() =>
-  Math.max(
-    topWidth.value * MAX_ASPECT * (props.thrust! / props.maxThrust),
-    MIN_PLUME_PX,
-  ),
-);
+const plumeHeight = computed(() => props.plumeHeight);
 
 const groupConfig = computed(() => ({ x: props.x, y: props.baselineY }));
 

@@ -62,10 +62,11 @@ const rocketBData = computed(() => {
 const canvasWidth = window.innerWidth;
 const canvasHeight = window.innerHeight - 56;
 
-// BASE_BELOW_FRACTION: minimum fraction of canvas height reserved below
-// baselineY when no layers are active. Each active layer's groundCost adds to
-// this, pushing baselineY upward to make room for its content.
-const BASE_BELOW_FRACTION = 0.18;
+// World-space layout constants, expressed as fractions of the tallest rocket's length.
+// The canvas fits: TOP_PADDING + rocket + BOTTOM_PADDING + active layer heights.
+// worldScale = canvasHeight / (maxLength × totalWorldFrac()).
+const TOP_PADDING_FRAC = 0.14;
+const BOTTOM_PADDING_FRAC = 0.25;
 
 // When no rockets are loaded, fall back to a scale where the human fills ~40% of
 // the canvas — keeping it visible as a standing reference figure.
@@ -74,17 +75,35 @@ const humanOnlyScale = (canvasHeight * 0.4) / 1.75;
 // ---------------------------------------------------------------------------
 // Layer registry
 //
-// Each entry defines a toggleable canvas element:
-//   rocketHeightCost – fraction of canvas height deducted from the rocket so
-//                      it doesn't intrude into the layer's reserved space.
-//   groundCost       – extra fraction of canvas height reserved *below*
-//                      baselineY for this layer's content. Together with the
-//                      static BASE_BELOW_FRACTION, this drives baselineY so
-//                      the layer always has enough room to render.
+// Each entry declares how much world-space height it needs below the baseline.
+// worldHeightFrac receives the active rockets and maxLength so it can derive
+// its true extent from rocket geometry rather than a hardcoded guess.
 // ---------------------------------------------------------------------------
+type LayerDef = {
+  label: string;
+  worldHeightFrac: (
+    rockets: (RocketConfig | null)[],
+    maxLength: number,
+  ) => number;
+};
+
+// 1 metre of plume height per this many kilonewtons of thrust.
+// Drives both the canvas layout reservation and ThrustIndicator rendering.
+const KN_PER_PLUME_METRE = 250;
+
 const LAYER_REGISTRY = {
-  thrust: { label: "Thrust", rocketHeightCost: 0.12, groundCost: 0.12 },
-} as const;
+  thrust: {
+    label: "Thrust",
+    worldHeightFrac: (rockets, maxLength) => {
+      if (maxLength <= 0) return 0;
+      const maxPlumeM = Math.max(
+        ...rockets.map((r) => (r?.toThrust ?? 0) / KN_PER_PLUME_METRE),
+        0,
+      );
+      return maxPlumeM / maxLength;
+    },
+  },
+} satisfies Record<string, LayerDef>;
 
 type LayerId = keyof typeof LAYER_REGISTRY;
 
@@ -109,32 +128,39 @@ function toggleLayer(id: LayerId): void {
   }
 }
 
-// BASE_ROCKET_FRACTION: the fraction of canvas height the tallest rocket fills
-// when no layers are active. Each active layer deducts its cost, shrinking the
-// rocket to make room for its ground-strip content.
-const BASE_ROCKET_FRACTION = 0.72;
-
-const rocketHeightFraction = computed(() => {
-  let fraction = BASE_ROCKET_FRACTION;
+// Total world height as a multiple of maxLength:
+// TOP_PADDING + 1 (rocket) + BOTTOM_PADDING + active layer heights.
+function totalWorldFrac(
+  rockets: (RocketConfig | null)[],
+  maxLength: number,
+): number {
+  let frac = 1 + TOP_PADDING_FRAC + BOTTOM_PADDING_FRAC;
   for (const id of Object.keys(LAYER_REGISTRY) as LayerId[]) {
-    if (activeLayers[id]) fraction -= LAYER_REGISTRY[id].rocketHeightCost;
+    if (activeLayers[id])
+      frac += LAYER_REGISTRY[id].worldHeightFrac(rockets, maxLength);
   }
-  return Math.max(fraction, 0.3);
-});
+  return frac;
+}
 
-const belowFraction = computed(() => {
-  let fraction = BASE_BELOW_FRACTION;
+function targetBaselineY(
+  maxLength: number,
+  rockets: (RocketConfig | null)[],
+): number {
+  if (maxLength <= 0) return DEFAULT_BASELINE;
+  let belowFrac = BOTTOM_PADDING_FRAC;
   for (const id of Object.keys(LAYER_REGISTRY) as LayerId[]) {
-    if (activeLayers[id]) fraction += LAYER_REGISTRY[id].groundCost;
+    if (activeLayers[id])
+      belowFrac += LAYER_REGISTRY[id].worldHeightFrac(rockets, maxLength);
   }
-  return fraction;
-});
+  return canvasHeight * (1 - belowFrac / totalWorldFrac(rockets, maxLength));
+}
 
-const baselineY = computed(() => canvasHeight * (1 - belowFraction.value));
-
-function targetScaleForLength(maxLength: number): number {
+function targetScaleForLength(
+  maxLength: number,
+  rockets: (RocketConfig | null)[],
+): number {
   return maxLength > 0
-    ? (canvasHeight * rocketHeightFraction.value) / maxLength
+    ? canvasHeight / (maxLength * totalWorldFrac(rockets, maxLength))
     : humanOnlyScale;
 }
 
@@ -145,10 +171,11 @@ const displayRocketB = shallowRef<RocketConfig | null>(null);
 // --- Animated values driven by Konva.Animation ---
 const animatedWorldScale = ref<number>(humanOnlyScale);
 // Initialise from the no-content default, not baselineY.value — at startup there
-// are no rockets so the layer cost in belowFraction shouldn't apply yet.
-const DEFAULT_BASELINE = canvasHeight * (1 - BASE_BELOW_FRACTION);
+// are no rockets so active layer costs shouldn't apply yet.
+const DEFAULT_BASELINE =
+  canvasHeight *
+  (1 - BOTTOM_PADDING_FRAC / (1 + TOP_PADDING_FRAC + BOTTOM_PADDING_FRAC));
 const animatedBaselineY = ref<number>(DEFAULT_BASELINE);
-const animatedMaxThrust = ref<number>(0);
 const layerRef = ref(null);
 
 const DURATION = 400; // ms
@@ -158,8 +185,6 @@ let startScale = humanOnlyScale;
 let targetScale = humanOnlyScale;
 let startBaseline = DEFAULT_BASELINE;
 let targetBaseline = DEFAULT_BASELINE;
-let startMaxThrust = 0;
-let targetMaxThrust = 0;
 let onComplete: (() => void) | null = null;
 
 onMounted(() => {
@@ -176,8 +201,6 @@ onMounted(() => {
         startScale + (targetScale - startScale) * easedProgress;
       animatedBaselineY.value =
         startBaseline + (targetBaseline - startBaseline) * easedProgress;
-      animatedMaxThrust.value =
-        startMaxThrust + (targetMaxThrust - startMaxThrust) * easedProgress;
       if (progress >= 1) {
         scaleAnimation!.stop();
         animStartTime = null;
@@ -199,8 +222,6 @@ function animate(
   toScale: number,
   fromBaseline: number,
   toBaseline: number,
-  fromMaxThrust: number,
-  toMaxThrust: number,
   callback: () => void,
 ): void {
   scaleAnimation?.stop();
@@ -209,8 +230,6 @@ function animate(
   targetScale = toScale;
   startBaseline = fromBaseline;
   targetBaseline = toBaseline;
-  startMaxThrust = fromMaxThrust;
-  targetMaxThrust = toMaxThrust;
   onComplete = callback;
   scaleAnimation?.start();
 }
@@ -222,17 +241,18 @@ watch([rocketAData, rocketBData], ([newA, newB]) => {
   if ((props.rocketA && !newA) || (props.rocketB && !newB)) return;
 
   const newMaxLength = Math.max(newA?.length ?? 0, newB?.length ?? 0);
+  const newRockets = [newA ?? null, newB ?? null];
   // When rockets are present use the layer-adjusted baseline; when removing all
   // rockets always return to the default so the human figure isn't displaced.
-  const targetBase = newMaxLength > 0 ? baselineY.value : DEFAULT_BASELINE;
-  const newMaxThrust = Math.max(newA?.toThrust ?? 0, newB?.toThrust ?? 0);
+  const targetBase =
+    newMaxLength > 0
+      ? targetBaselineY(newMaxLength, newRockets)
+      : DEFAULT_BASELINE;
   animate(
     animatedWorldScale.value,
-    targetScaleForLength(newMaxLength),
+    targetScaleForLength(newMaxLength, newRockets),
     animatedBaselineY.value,
     targetBase,
-    animatedMaxThrust.value,
-    newMaxThrust,
     () => {
       displayRocketA.value = newA ?? null;
       displayRocketB.value = newB ?? null;
@@ -259,13 +279,12 @@ watch(activeLayers, () => {
   }
   const layerToShow = pendingLayerShow;
   pendingLayerShow = null;
+  const rockets = [displayRocketA.value, displayRocketB.value];
   animate(
     animatedWorldScale.value,
-    targetScaleForLength(maxLength),
+    targetScaleForLength(maxLength, rockets),
     animatedBaselineY.value,
-    baselineY.value,
-    animatedMaxThrust.value,
-    animatedMaxThrust.value,
+    targetBaselineY(maxLength, rockets),
     () => {
       if (layerToShow !== null) displayLayers[layerToShow] = true;
     },
@@ -334,7 +353,10 @@ const stageConfig = { width: canvasWidth, height: canvasHeight };
           :baselineY="animatedBaselineY"
           :rocketWidth="2 * rocketHalfW(displayRocketA)"
           :thrust="displayRocketA.toThrust"
-          :maxThrust="animatedMaxThrust"
+          :plumeHeight="
+            ((displayRocketA.toThrust ?? 0) / KN_PER_PLUME_METRE) *
+            animatedWorldScale
+          "
         />
         <RocketImage
           v-if="displayRocketB"
@@ -349,7 +371,10 @@ const stageConfig = { width: canvasWidth, height: canvasHeight };
           :baselineY="animatedBaselineY"
           :rocketWidth="2 * rocketHalfW(displayRocketB)"
           :thrust="displayRocketB.toThrust"
-          :maxThrust="animatedMaxThrust"
+          :plumeHeight="
+            ((displayRocketB.toThrust ?? 0) / KN_PER_PLUME_METRE) *
+            animatedWorldScale
+          "
         />
         <HumanFigure
           :x="xHuman"
@@ -383,7 +408,7 @@ const stageConfig = { width: canvasWidth, height: canvasHeight };
       class="absolute top-2 right-2 font-mono text-xs text-status-warning space-y-0.5 pointer-events-none text-right"
     >
       <div>animatedWorldScale: {{ animatedWorldScale.toFixed(4) }}</div>
-      <div>rocketHeightFraction: {{ rocketHeightFraction.toFixed(2) }}</div>
+      <div>worldScale: {{ animatedWorldScale.toFixed(4) }}</div>
       <div>
         baselineY: {{ animatedBaselineY.toFixed(0) }} xA: {{ leftRocketX }} xB:
         {{ rightRocketX }}
