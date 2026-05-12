@@ -20,6 +20,7 @@ import Konva from "konva";
 import RocketImage from "./RocketImage.vue";
 import HumanFigure from "./HumanFigure.vue";
 import ThrustIndicator from "./ThrustIndicator.vue";
+import CanvasPanel from "./CanvasPanel.vue";
 import { diagrams } from "@shared/const/diagrams";
 
 type SlimRocket = RocketConfigsQuery["rocketConfigs"][number];
@@ -334,6 +335,16 @@ const rightRocketX = computed(() => {
 });
 
 const stageConfig = { width: canvasWidth, height: canvasHeight };
+
+const showScaleReference = ref(true);
+
+const layerList = computed(() =>
+  (Object.keys(LAYER_REGISTRY) as LayerId[]).map((id) => ({
+    id,
+    label: LAYER_REGISTRY[id].label,
+    active: activeLayers[id],
+  })),
+);
 </script>
 
 <template>
@@ -377,6 +388,7 @@ const stageConfig = { width: canvasWidth, height: canvasHeight };
           "
         />
         <HumanFigure
+          v-if="showScaleReference"
           :x="xHuman"
           :baselineY="animatedBaselineY"
           :worldScale="animatedWorldScale"
@@ -384,25 +396,11 @@ const stageConfig = { width: canvasWidth, height: canvasHeight };
       </v-layer>
     </v-stage>
 
-    <!-- Crude layer toggles — placeholder for the future toolbox -->
-    <div
-      class="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 pointer-events-auto"
-    >
-      <button
-        v-for="[id, layer] in Object.entries(LAYER_REGISTRY)"
-        :key="id"
-        class="px-3 py-1 text-xs font-mono border transition-colors"
-        :class="
-          activeLayers[id as LayerId]
-            ? 'border-white/60 text-white/60'
-            : 'border-white/20 text-white/20'
-        "
-        @click="toggleLayer(id as LayerId)"
-      >
-        {{ layer.label }}
-      </button>
-    </div>
-
+    <CanvasPanel
+      v-model:showScaleReference="showScaleReference"
+      :layers="layerList"
+      @toggle-layer="toggleLayer($event as LayerId)"
+    />
     <!-- DEBUG: remove before ship -->
     <div
       class="absolute top-2 right-2 font-mono text-xs text-status-warning space-y-0.5 pointer-events-none text-right"
