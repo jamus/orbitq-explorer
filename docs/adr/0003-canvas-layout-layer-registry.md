@@ -87,7 +87,7 @@ const activeLayers  = reactive<Record<LayerId, boolean>>({ thrust: true, massBre
 const displayLayers = reactive<Record<LayerId, boolean>>({ thrust: true, massBreakdown: false });
 ```
 
-The toggle button, canvas resize animation, and show/hide sequencing are driven by the registry automatically. No other changes to `AppCanvas.vue` are needed.
+The layer checkbox (in the side panel), canvas resize animation, and show/hide sequencing are driven by the registry automatically. No other changes to `AppCanvas.vue` or `CanvasPanel.vue` are needed.
 
 **3. Render the layer component conditionally on `displayLayers`:**
 
