@@ -336,14 +336,14 @@ const rightRocketX = computed(() => {
 
 const stageConfig = { width: canvasWidth, height: canvasHeight };
 
-const leftColumnBounds = computed(() => ({
+const leftMarginBounds = computed(() => ({
   x: CANVAS_PAD,
   y: 0,
   width: leftRocketX.value - rocketHalfW(displayRocketA.value) - CANVAS_PAD,
   height: canvasHeight,
 }));
 
-const rightColumnBounds = computed(() => ({
+const rightMarginBounds = computed(() => ({
   x: rightRocketX.value + rocketHalfW(displayRocketB.value),
   y: 0,
   width:
@@ -407,7 +407,7 @@ const bandList = computed(() =>
         <!-- DEBUG: remove before ship -->
         <v-rect
           :config="{
-            ...leftColumnBounds,
+            ...leftMarginBounds,
             fill: 'rgba(100, 200, 255, 0.1)',
             stroke: 'rgba(100, 200, 255, 0.4)',
             strokeWidth: 1,
@@ -416,7 +416,7 @@ const bandList = computed(() =>
         />
         <v-rect
           :config="{
-            ...rightColumnBounds,
+            ...rightMarginBounds,
             fill: 'rgba(255, 150, 100, 0.1)',
             stroke: 'rgba(255, 150, 100, 0.4)',
             strokeWidth: 1,
