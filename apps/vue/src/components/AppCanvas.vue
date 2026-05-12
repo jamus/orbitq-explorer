@@ -77,12 +77,12 @@ const humanOnlyScale = (canvasHeight * 0.4) / 1.75;
 // Layer registry
 //
 // Each entry declares how much world-space height it needs below the baseline.
-// worldHeightFrac receives the active rockets and maxLength so it can derive
+// bandHeightFrac receives the active rockets and maxLength so it can derive
 // its true extent from rocket geometry rather than a hardcoded guess.
 // ---------------------------------------------------------------------------
-type LayerDef = {
+type BandDef = {
   label: string;
-  worldHeightFrac: (
+  bandHeightFrac: (
     rockets: (RocketConfig | null)[],
     maxLength: number,
   ) => number;
@@ -92,10 +92,10 @@ type LayerDef = {
 // Drives both the canvas layout reservation and ThrustIndicator rendering.
 const KN_PER_PLUME_METRE = 250;
 
-const LAYER_REGISTRY = {
+const BAND_REGISTRY = {
   thrust: {
     label: "Thrust",
-    worldHeightFrac: (rockets, maxLength) => {
+    bandHeightFrac: (rockets, maxLength) => {
       if (maxLength <= 0) return 0;
       const maxPlumeM = Math.max(
         ...rockets.map((r) => (r?.toThrust ?? 0) / KN_PER_PLUME_METRE),
@@ -104,28 +104,28 @@ const LAYER_REGISTRY = {
       return maxPlumeM / maxLength;
     },
   },
-} satisfies Record<string, LayerDef>;
+} satisfies Record<string, BandDef>;
 
-type LayerId = keyof typeof LAYER_REGISTRY;
+type BandId = keyof typeof BAND_REGISTRY;
 
-// activeLayers: logical toggle state — drives computed targets (scale, baselineY).
-// displayLayers: what's actually rendered — lags behind activeLayers during transition.
-// Separating the two lets us animate the canvas into its new layout before a layer
+// activeBands: logical toggle state — drives computed targets (scale, baselineY).
+// displayBands: what's actually rendered — lags behind activeBands during transition.
+// Separating the two lets us animate the canvas into its new layout before a band
 // appears (toggle ON) or immediately after it disappears (toggle OFF).
-const activeLayers = reactive<Record<LayerId, boolean>>({ thrust: true });
-const displayLayers = reactive<Record<LayerId, boolean>>({ thrust: true });
+const activeBands = reactive<Record<BandId, boolean>>({ thrust: true });
+const displayBands = reactive<Record<BandId, boolean>>({ thrust: true });
 
-// Set by toggleLayer so the activeLayers watcher knows which layer to reveal
+// Set by toggleBand so the activeBands watcher knows which band to reveal
 // once the canvas-recenter animation completes (only used for toggle-ON).
-let pendingLayerShow: LayerId | null = null;
+let pendingBandShow: BandId | null = null;
 
-function toggleLayer(id: LayerId): void {
-  if (activeLayers[id]) {
-    displayLayers[id] = false; // hide immediately
-    activeLayers[id] = false; // animate canvas back (watcher fires)
+function toggleBand(id: BandId): void {
+  if (activeBands[id]) {
+    displayBands[id] = false; // hide immediately
+    activeBands[id] = false; // animate canvas back (watcher fires)
   } else {
-    activeLayers[id] = true; // animate canvas forward (watcher fires)
-    pendingLayerShow = id; // watcher will reveal layer in callback
+    activeBands[id] = true; // animate canvas forward (watcher fires)
+    pendingBandShow = id; // watcher will reveal layer in callback
   }
 }
 
@@ -136,9 +136,9 @@ function totalWorldFrac(
   maxLength: number,
 ): number {
   let frac = 1 + TOP_PADDING_FRAC + BOTTOM_PADDING_FRAC;
-  for (const id of Object.keys(LAYER_REGISTRY) as LayerId[]) {
-    if (activeLayers[id])
-      frac += LAYER_REGISTRY[id].worldHeightFrac(rockets, maxLength);
+  for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
+    if (activeBands[id])
+      frac += BAND_REGISTRY[id].bandHeightFrac(rockets, maxLength);
   }
   return frac;
 }
@@ -149,9 +149,9 @@ function targetBaselineY(
 ): number {
   if (maxLength <= 0) return DEFAULT_BASELINE;
   let belowFrac = BOTTOM_PADDING_FRAC;
-  for (const id of Object.keys(LAYER_REGISTRY) as LayerId[]) {
-    if (activeLayers[id])
-      belowFrac += LAYER_REGISTRY[id].worldHeightFrac(rockets, maxLength);
+  for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
+    if (activeBands[id])
+      belowFrac += BAND_REGISTRY[id].bandHeightFrac(rockets, maxLength);
   }
   return canvasHeight * (1 - belowFrac / totalWorldFrac(rockets, maxLength));
 }
@@ -259,27 +259,27 @@ watch([rocketAData, rocketBData], ([newA, newB]) => {
       displayRocketB.value = newB ?? null;
       // Sync display layers to active layers now that rocket presence is settled.
       // This handles the case where layers were toggled while no rockets were loaded.
-      for (const id of Object.keys(LAYER_REGISTRY) as LayerId[]) {
-        displayLayers[id as LayerId] =
-          newMaxLength > 0 && activeLayers[id as LayerId];
+      for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
+        displayBands[id as BandId] =
+          newMaxLength > 0 && activeBands[id as BandId];
       }
     },
   );
 });
 
-// When layers toggle: animate canvas into the new layout, then reveal/hide content.
-watch(activeLayers, () => {
+// When bands toggle: animate canvas into the new layout, then reveal/hide content.
+watch(activeBands, () => {
   const maxLength = Math.max(
     displayRocketA.value?.length ?? 0,
     displayRocketB.value?.length ?? 0,
   );
   // No rockets means no layer content to show — don't reflow or displace the human.
   if (maxLength === 0) {
-    pendingLayerShow = null;
+    pendingBandShow = null;
     return;
   }
-  const layerToShow = pendingLayerShow;
-  pendingLayerShow = null;
+  const layerToShow = pendingBandShow;
+  pendingBandShow = null;
   const rockets = [displayRocketA.value, displayRocketB.value];
   animate(
     animatedWorldScale.value,
@@ -287,7 +287,7 @@ watch(activeLayers, () => {
     animatedBaselineY.value,
     targetBaselineY(maxLength, rockets),
     () => {
-      if (layerToShow !== null) displayLayers[layerToShow] = true;
+      if (layerToShow !== null) displayBands[layerToShow] = true;
     },
   );
 });
@@ -355,11 +355,11 @@ const rightColumnBounds = computed(() => ({
 
 const showScaleReference = ref(true);
 
-const layerList = computed(() =>
-  (Object.keys(LAYER_REGISTRY) as LayerId[]).map((id) => ({
+const bandList = computed(() =>
+  (Object.keys(BAND_REGISTRY) as BandId[]).map((id) => ({
     id,
-    label: LAYER_REGISTRY[id].label,
-    active: activeLayers[id],
+    label: BAND_REGISTRY[id].label,
+    active: activeBands[id],
   })),
 );
 </script>
@@ -376,7 +376,7 @@ const layerList = computed(() =>
           :worldScale="animatedWorldScale"
         />
         <ThrustIndicator
-          v-if="displayRocketA && displayLayers.thrust"
+          v-if="displayRocketA && displayBands.thrust"
           :x="leftRocketX"
           :baselineY="animatedBaselineY"
           :rocketWidth="2 * rocketHalfW(displayRocketA)"
@@ -394,7 +394,7 @@ const layerList = computed(() =>
           :worldScale="animatedWorldScale"
         />
         <ThrustIndicator
-          v-if="displayRocketB && displayLayers.thrust"
+          v-if="displayRocketB && displayBands.thrust"
           :x="rightRocketX"
           :baselineY="animatedBaselineY"
           :rocketWidth="2 * rocketHalfW(displayRocketB)"
@@ -434,8 +434,8 @@ const layerList = computed(() =>
 
     <CanvasPanel
       v-model:showScaleReference="showScaleReference"
-      :layers="layerList"
-      @toggle-layer="toggleLayer($event as LayerId)"
+      :bands="bandList"
+      @toggle-band="toggleBand($event as BandId)"
     />
     <!-- DEBUG: remove before ship -->
     <div
