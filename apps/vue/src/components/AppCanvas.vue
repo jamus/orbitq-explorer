@@ -30,6 +30,10 @@ const props = defineProps<{
   rocketB: SlimRocket | null;
 }>();
 
+// ---------------------------------------------------------------------------
+// Data loading
+// ---------------------------------------------------------------------------
+
 const ids = computed(() =>
   [props.rocketA?.id, props.rocketB?.id]
     .filter((id): id is number => id != null)
@@ -59,6 +63,10 @@ const rocketBData = computed(() => {
   return rockets.value.find((r) => r.id === props.rocketB!.id) ?? null;
 });
 
+// ---------------------------------------------------------------------------
+// Canvas dimensions
+// ---------------------------------------------------------------------------
+
 // Canvas fills the full viewport minus the 56px top nav bar.
 const canvasWidth = window.innerWidth;
 const canvasHeight = window.innerHeight - 56;
@@ -74,7 +82,7 @@ const BOTTOM_PADDING_FRAC = 0.25;
 const humanOnlyScale = (canvasHeight * 0.4) / 1.75;
 
 // ---------------------------------------------------------------------------
-// Layer registry
+// Band registry
 //
 // Each entry declares how much world-space height it needs below the baseline.
 // bandHeightFrac receives the active rockets and maxLength so it can derive
@@ -87,6 +95,8 @@ type BandDef = {
     maxLength: number,
   ) => number;
 };
+
+type BandId = keyof typeof BAND_REGISTRY;
 
 // 1 metre of plume height per this many kilonewtons of thrust.
 // Drives both the canvas layout reservation and ThrustIndicator rendering.
@@ -105,8 +115,6 @@ const BAND_REGISTRY = {
     },
   },
 } satisfies Record<string, BandDef>;
-
-type BandId = keyof typeof BAND_REGISTRY;
 
 // enabledBands: logical toggle state — drives computed targets (scale, baselineY).
 // visibleBands: what's actually rendered — lags behind enabledBands during transition.
@@ -128,6 +136,14 @@ function toggleBand(id: BandId): void {
     pendingBandShow = id; // watcher will reveal layer in callback
   }
 }
+
+// ---------------------------------------------------------------------------
+// Canvas layout
+//
+// Pure functions that translate world-space geometry into pixel coordinates.
+// These depend on enabledBands and BAND_REGISTRY but are layout concerns, not
+// band definitions.
+// ---------------------------------------------------------------------------
 
 // Total world height as a multiple of maxLength:
 // TOP_PADDING + 1 (rocket) + BOTTOM_PADDING + active layer heights.
@@ -164,6 +180,10 @@ function targetScaleForLength(
     ? canvasHeight / (maxLength * totalWorldFrac(rockets, maxLength))
     : humanOnlyScale;
 }
+
+// ---------------------------------------------------------------------------
+// Animation
+// ---------------------------------------------------------------------------
 
 // --- Display refs: hold current rendered state, lag behind live data during animation ---
 const displayRocketA = shallowRef<RocketConfig | null>(null);
@@ -235,6 +255,10 @@ function animate(
   scaleAnimation?.start();
 }
 
+// ---------------------------------------------------------------------------
+// Watchers
+// ---------------------------------------------------------------------------
+
 watch([rocketAData, rocketBData], ([newA, newB]) => {
   // Skip while a selected rocket's query is still in-flight (prop set, data not yet back).
   // Without this guard the watcher fires twice: once for the intermediate null state
@@ -291,6 +315,10 @@ watch(enabledBands, () => {
     },
   );
 });
+
+// ---------------------------------------------------------------------------
+// Canvas positioning
+// ---------------------------------------------------------------------------
 
 const HUMAN_NATIVE_W = 30;
 const HUMAN_NATIVE_H = 175;
