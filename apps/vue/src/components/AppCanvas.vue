@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch, onMounted, onUnmounted } from "vue";
+import { computed, ref, watch } from "vue";
 import type { RocketConfig } from "@orbitq/graphql";
-import Konva from "konva";
 import { useBands, KN_PER_PLUME_METRE } from "../composables/useBands";
 import type { BandId } from "../composables/useBands";
+import { useCanvasAnimation } from "../composables/useCanvasAnimation";
 import RocketImage from "./RocketImage.vue";
 import HumanFigure from "./HumanFigure.vue";
 import ThrustIndicator from "./ThrustIndicator.vue";
@@ -46,72 +46,14 @@ const {
 // Animation
 // ---------------------------------------------------------------------------
 
-// --- Display refs: hold current rendered state, lag behind live data during animation ---
-const displayRocketA = shallowRef<RocketConfig | null>(null);
-const displayRocketB = shallowRef<RocketConfig | null>(null);
-
-// --- Animated values driven by Konva.Animation ---
-const animatedWorldScale = ref<number>(humanOnlyScale);
-// Initialise from the no-content default, not baselineY.value — at startup there
-// are no rockets so active layer costs shouldn't apply yet.
-const animatedBaselineY = ref<number>(DEFAULT_BASELINE);
 const layerRef = ref(null);
-
-const DURATION = 400; // ms
-let scaleAnimation: Konva.Animation | null = null;
-let animStartTime: number | null = null;
-let startScale = humanOnlyScale;
-let targetScale = humanOnlyScale;
-let startBaseline = DEFAULT_BASELINE;
-let targetBaseline = DEFAULT_BASELINE;
-let onComplete: (() => void) | null = null;
-
-onMounted(() => {
-  scaleAnimation = new Konva.Animation(
-    (animationFrame) => {
-      if (!animationFrame) return;
-      if (animStartTime === null) animStartTime = animationFrame.time;
-      const progress = Math.min(
-        (animationFrame.time - animStartTime) / DURATION,
-        1,
-      );
-      const easedProgress = 1 - (1 - progress) ** 3;
-      animatedWorldScale.value =
-        startScale + (targetScale - startScale) * easedProgress;
-      animatedBaselineY.value =
-        startBaseline + (targetBaseline - startBaseline) * easedProgress;
-      if (progress >= 1) {
-        scaleAnimation!.stop();
-        animStartTime = null;
-        const cb = onComplete;
-        onComplete = null;
-        cb?.();
-      }
-    },
-    (layerRef.value as any)?.getNode(),
-  );
-});
-
-onUnmounted(() => {
-  scaleAnimation?.stop();
-});
-
-function animate(
-  fromScale: number,
-  toScale: number,
-  fromBaseline: number,
-  toBaseline: number,
-  callback: () => void,
-): void {
-  scaleAnimation?.stop();
-  animStartTime = null;
-  startScale = fromScale;
-  targetScale = toScale;
-  startBaseline = fromBaseline;
-  targetBaseline = toBaseline;
-  onComplete = callback;
-  scaleAnimation?.start();
-}
+const {
+  animatedWorldScale,
+  animatedBaselineY,
+  displayRocketA,
+  displayRocketB,
+  animate,
+} = useCanvasAnimation(humanOnlyScale, DEFAULT_BASELINE, layerRef);
 
 // ---------------------------------------------------------------------------
 // Watchers
