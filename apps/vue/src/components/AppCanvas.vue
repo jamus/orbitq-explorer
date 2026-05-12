@@ -11,6 +11,7 @@ import type {
 import Konva from "konva";
 import RocketImage from "./RocketImage.vue";
 import HumanFigure from "./HumanFigure.vue";
+import CanvasPanel from "./CanvasPanel.vue";
 import { diagrams } from "@shared/const/diagrams";
 
 type SlimRocket = RocketConfigsQuery["rocketConfigs"][number];
@@ -171,6 +172,8 @@ const rightRocketX = computed(() => {
 });
 
 const stageConfig = { width: canvasWidth, height: canvasHeight };
+
+const showScaleReference = ref(true);
 </script>
 
 <template>
@@ -192,12 +195,14 @@ const stageConfig = { width: canvasWidth, height: canvasHeight };
           :worldScale="animatedWorldScale"
         />
         <HumanFigure
+          v-if="showScaleReference"
           :x="xHuman"
           :baselineY="baselineY"
           :worldScale="animatedWorldScale"
         />
       </v-layer>
     </v-stage>
+    <CanvasPanel v-model:showScaleReference="showScaleReference" />
     <!-- DEBUG: remove before ship -->
     <div
       class="absolute top-2 right-2 font-mono text-xs text-status-warning space-y-0.5 pointer-events-none text-right"
