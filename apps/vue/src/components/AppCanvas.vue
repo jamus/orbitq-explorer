@@ -336,6 +336,23 @@ const rightRocketX = computed(() => {
 
 const stageConfig = { width: canvasWidth, height: canvasHeight };
 
+const leftColumnBounds = computed(() => ({
+  x: CANVAS_PAD,
+  y: 0,
+  width: leftRocketX.value - rocketHalfW(displayRocketA.value) - CANVAS_PAD,
+  height: canvasHeight,
+}));
+
+const rightColumnBounds = computed(() => ({
+  x: rightRocketX.value + rocketHalfW(displayRocketB.value),
+  y: 0,
+  width:
+    canvasWidth -
+    CANVAS_PAD -
+    (rightRocketX.value + rocketHalfW(displayRocketB.value)),
+  height: canvasHeight,
+}));
+
 const showScaleReference = ref(true);
 
 const layerList = computed(() =>
@@ -386,6 +403,25 @@ const layerList = computed(() =>
             ((displayRocketB.toThrust ?? 0) / KN_PER_PLUME_METRE) *
             animatedWorldScale
           "
+        />
+        <!-- DEBUG: remove before ship -->
+        <v-rect
+          :config="{
+            ...leftColumnBounds,
+            fill: 'rgba(100, 200, 255, 0.1)',
+            stroke: 'rgba(100, 200, 255, 0.4)',
+            strokeWidth: 1,
+            dash: [4, 4],
+          }"
+        />
+        <v-rect
+          :config="{
+            ...rightColumnBounds,
+            fill: 'rgba(255, 150, 100, 0.1)',
+            stroke: 'rgba(255, 150, 100, 0.4)',
+            strokeWidth: 1,
+            dash: [4, 4],
+          }"
         />
         <HumanFigure
           v-if="showScaleReference"
