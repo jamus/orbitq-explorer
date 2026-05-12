@@ -2,7 +2,7 @@
 
 🚧 WIP 🚧
 
-Built as a companion to the [OrbitQ](https://www.orbitq.app/) mobile app. An playground to experiment building a data exploration tool aimed at questions like...
+An experiment building a data visualisation / exploration tool aimed at answering questions like...
 
 > "How does Saturn V actually compare to Falcon 9 at true scale?"
 
