@@ -1,15 +1,9 @@
 <script setup lang="ts">
-import {
-  computed,
-  reactive,
-  ref,
-  shallowRef,
-  watch,
-  onMounted,
-  onUnmounted,
-} from "vue";
+import { computed, ref, shallowRef, watch, onMounted, onUnmounted } from "vue";
 import type { RocketConfig } from "@orbitq/graphql";
 import Konva from "konva";
+import { useBands, KN_PER_PLUME_METRE } from "../composables/useBands";
+import type { BandId } from "../composables/useBands";
 import RocketImage from "./RocketImage.vue";
 import HumanFigure from "./HumanFigure.vue";
 import ThrustIndicator from "./ThrustIndicator.vue";
@@ -31,115 +25,22 @@ const props = defineProps<{
 const canvasWidth = window.innerWidth;
 const canvasHeight = window.innerHeight - 56;
 
-// World-space layout constants, expressed as fractions of the tallest rocket's length.
-// The canvas fits: TOP_PADDING + rocket + BOTTOM_PADDING + active layer heights.
-// worldScale = canvasHeight / (maxLength × totalWorldFrac()).
-const TOP_PADDING_FRAC = 0.14;
-const BOTTOM_PADDING_FRAC = 0.25;
-
-// When no rockets are loaded, fall back to a scale where the human fills ~40% of
-// the canvas — keeping it visible as a standing reference figure.
-const humanOnlyScale = (canvasHeight * 0.4) / 1.75;
-
 // ---------------------------------------------------------------------------
-// Band registry
-//
-// Each entry declares how much world-space height it needs below the baseline.
-// bandHeightFrac receives the active rockets and maxLength so it can derive
-// its true extent from rocket geometry rather than a hardcoded guess.
-// ---------------------------------------------------------------------------
-type BandDef = {
-  label: string;
-  bandHeightFrac: (
-    rockets: (RocketConfig | null)[],
-    maxLength: number,
-  ) => number;
-};
-
-type BandId = keyof typeof BAND_REGISTRY;
-
-// 1 metre of plume height per this many kilonewtons of thrust.
-// Drives both the canvas layout reservation and ThrustIndicator rendering.
-const KN_PER_PLUME_METRE = 250;
-
-const BAND_REGISTRY = {
-  thrust: {
-    label: "Thrust",
-    bandHeightFrac: (rockets, maxLength) => {
-      if (maxLength <= 0) return 0;
-      const maxPlumeM = Math.max(
-        ...rockets.map((r) => (r?.toThrust ?? 0) / KN_PER_PLUME_METRE),
-        0,
-      );
-      return maxPlumeM / maxLength;
-    },
-  },
-} satisfies Record<string, BandDef>;
-
-// enabledBands: logical toggle state — drives computed targets (scale, baselineY).
-// visibleBands: what's actually rendered — lags behind enabledBands during transition.
-// Separating the two lets us animate the canvas into its new layout before a band
-// appears (toggle ON) or immediately after it disappears (toggle OFF).
-const enabledBands = reactive<Record<BandId, boolean>>({ thrust: false });
-const visibleBands = reactive<Record<BandId, boolean>>({ thrust: false });
-
-// Set by toggleBand so the enabledBands watcher knows which band to reveal
-// once the canvas-recenter animation completes (only used for toggle-ON).
-let pendingBandShow: BandId | null = null;
-
-function toggleBand(id: BandId): void {
-  if (enabledBands[id]) {
-    visibleBands[id] = false; // hide immediately
-    enabledBands[id] = false; // animate canvas back (watcher fires)
-  } else {
-    enabledBands[id] = true; // animate canvas forward (watcher fires)
-    pendingBandShow = id; // watcher will reveal layer in callback
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Canvas layout
-//
-// Pure functions that translate world-space geometry into pixel coordinates.
-// These depend on enabledBands and BAND_REGISTRY but are layout concerns, not
-// band definitions.
+// Band system
 // ---------------------------------------------------------------------------
 
-// Total world height as a multiple of maxLength:
-// TOP_PADDING + 1 (rocket) + BOTTOM_PADDING + active layer heights.
-function totalWorldFrac(
-  rockets: (RocketConfig | null)[],
-  maxLength: number,
-): number {
-  let frac = 1 + TOP_PADDING_FRAC + BOTTOM_PADDING_FRAC;
-  for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
-    if (enabledBands[id])
-      frac += BAND_REGISTRY[id].bandHeightFrac(rockets, maxLength);
-  }
-  return frac;
-}
-
-function targetBaselineY(
-  maxLength: number,
-  rockets: (RocketConfig | null)[],
-): number {
-  if (maxLength <= 0) return DEFAULT_BASELINE;
-  let belowFrac = BOTTOM_PADDING_FRAC;
-  for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
-    if (enabledBands[id])
-      belowFrac += BAND_REGISTRY[id].bandHeightFrac(rockets, maxLength);
-  }
-  return canvasHeight * (1 - belowFrac / totalWorldFrac(rockets, maxLength));
-}
-
-function targetScaleForLength(
-  maxLength: number,
-  rockets: (RocketConfig | null)[],
-): number {
-  return maxLength > 0
-    ? canvasHeight / (maxLength * totalWorldFrac(rockets, maxLength))
-    : humanOnlyScale;
-}
+const {
+  enabledBands,
+  visibleBands,
+  pendingBandShow,
+  toggleBand,
+  targetBaselineY,
+  targetScaleForLength,
+  syncVisibleBands,
+  bandList,
+  humanOnlyScale,
+  DEFAULT_BASELINE,
+} = useBands(canvasHeight);
 
 // ---------------------------------------------------------------------------
 // Animation
@@ -153,9 +54,6 @@ const displayRocketB = shallowRef<RocketConfig | null>(null);
 const animatedWorldScale = ref<number>(humanOnlyScale);
 // Initialise from the no-content default, not baselineY.value — at startup there
 // are no rockets so active layer costs shouldn't apply yet.
-const DEFAULT_BASELINE =
-  canvasHeight *
-  (1 - BOTTOM_PADDING_FRAC / (1 + TOP_PADDING_FRAC + BOTTOM_PADDING_FRAC));
 const animatedBaselineY = ref<number>(DEFAULT_BASELINE);
 const layerRef = ref(null);
 
@@ -243,10 +141,7 @@ watch([() => props.rocketAData, () => props.rocketBData], ([newA, newB]) => {
       displayRocketB.value = newB ?? null;
       // Sync display layers to active layers now that rocket presence is settled.
       // This handles the case where layers were toggled while no rockets were loaded.
-      for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
-        visibleBands[id as BandId] =
-          newMaxLength > 0 && enabledBands[id as BandId];
-      }
+      syncVisibleBands(newMaxLength);
     },
   );
 });
@@ -259,11 +154,11 @@ watch(enabledBands, () => {
   );
   // No rockets means no layer content to show — don't reflow or displace the human.
   if (maxLength === 0) {
-    pendingBandShow = null;
+    pendingBandShow.value = null;
     return;
   }
-  const layerToShow = pendingBandShow;
-  pendingBandShow = null;
+  const layerToShow = pendingBandShow.value;
+  pendingBandShow.value = null;
   const rockets = [displayRocketA.value, displayRocketB.value];
   animate(
     animatedWorldScale.value,
@@ -342,14 +237,6 @@ const rightMarginBounds = computed(() => ({
 }));
 
 const showScaleReference = ref(true);
-
-const bandList = computed(() =>
-  (Object.keys(BAND_REGISTRY) as BandId[]).map((id) => ({
-    id,
-    label: BAND_REGISTRY[id].label,
-    active: enabledBands[id],
-  })),
-);
 </script>
 
 <template>
