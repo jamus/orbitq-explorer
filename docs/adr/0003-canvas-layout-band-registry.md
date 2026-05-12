@@ -55,12 +55,12 @@ type BandDef = {
 
 `bandHeightFrac` returns the band's required height as a fraction of `maxLength`, derived from actual rocket geometry rather than a hardcoded guess. The canvas layout system calls this automatically when computing `totalWorldFrac` and `targetBaselineY`.
 
-### Active vs display bands
+### Enabled vs visible bands
 
 Two separate reactive records track band state:
 
-- `activeBands` — logical toggle state; changing it triggers the canvas animation
-- `displayBands` — what is actually rendered; lags behind `activeBands` during transition
+- `enabledBands` — logical toggle state; changing it triggers the canvas animation
+- `visibleBands` — what is actually rendered; lags behind `enabledBands` during transition
 
 Separating the two enforces the sequencing rule: animate the canvas into its new layout *before* revealing a band (toggle ON), and hide the band *before* animating back (toggle OFF). This prevents content from overflowing its allocated space during the transition.
 
@@ -82,20 +82,20 @@ const BAND_REGISTRY = {
 } satisfies Record<string, BandDef>;
 ```
 
-**2. Add the key to `activeBands` and `displayBands`:**
+**2. Add the key to `enabledBands` and `visibleBands`:**
 
 ```ts
-const activeBands  = reactive<Record<BandId, boolean>>({ thrust: true, massBreakdown: false });
-const displayBands = reactive<Record<BandId, boolean>>({ thrust: true, massBreakdown: false });
+const enabledBands  = reactive<Record<BandId, boolean>>({ thrust: true, massBreakdown: false });
+const visibleBands = reactive<Record<BandId, boolean>>({ thrust: true, massBreakdown: false });
 ```
 
 The band checkbox (in the side panel), canvas resize animation, and show/hide sequencing are driven by the registry automatically. No other changes to `AppCanvas.vue` or `CanvasPanel.vue` are needed.
 
-**3. Render the band component conditionally on `displayBands`:**
+**3. Render the band component conditionally on `visibleBands`:**
 
 ```html
 <MassBreakdown
-  v-if="displayRocketA && displayBands.massBreakdown"
+  v-if="displayRocketA && visibleBands.massBreakdown"
   :baselineY="animatedBaselineY"
   :worldScale="animatedWorldScale"
   :rocket="displayRocketA"

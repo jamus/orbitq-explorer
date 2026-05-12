@@ -108,23 +108,23 @@ const BAND_REGISTRY = {
 
 type BandId = keyof typeof BAND_REGISTRY;
 
-// activeBands: logical toggle state — drives computed targets (scale, baselineY).
-// displayBands: what's actually rendered — lags behind activeBands during transition.
+// enabledBands: logical toggle state — drives computed targets (scale, baselineY).
+// visibleBands: what's actually rendered — lags behind enabledBands during transition.
 // Separating the two lets us animate the canvas into its new layout before a band
 // appears (toggle ON) or immediately after it disappears (toggle OFF).
-const activeBands = reactive<Record<BandId, boolean>>({ thrust: true });
-const displayBands = reactive<Record<BandId, boolean>>({ thrust: true });
+const enabledBands = reactive<Record<BandId, boolean>>({ thrust: false });
+const visibleBands = reactive<Record<BandId, boolean>>({ thrust: false });
 
-// Set by toggleBand so the activeBands watcher knows which band to reveal
+// Set by toggleBand so the enabledBands watcher knows which band to reveal
 // once the canvas-recenter animation completes (only used for toggle-ON).
 let pendingBandShow: BandId | null = null;
 
 function toggleBand(id: BandId): void {
-  if (activeBands[id]) {
-    displayBands[id] = false; // hide immediately
-    activeBands[id] = false; // animate canvas back (watcher fires)
+  if (enabledBands[id]) {
+    visibleBands[id] = false; // hide immediately
+    enabledBands[id] = false; // animate canvas back (watcher fires)
   } else {
-    activeBands[id] = true; // animate canvas forward (watcher fires)
+    enabledBands[id] = true; // animate canvas forward (watcher fires)
     pendingBandShow = id; // watcher will reveal layer in callback
   }
 }
@@ -137,7 +137,7 @@ function totalWorldFrac(
 ): number {
   let frac = 1 + TOP_PADDING_FRAC + BOTTOM_PADDING_FRAC;
   for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
-    if (activeBands[id])
+    if (enabledBands[id])
       frac += BAND_REGISTRY[id].bandHeightFrac(rockets, maxLength);
   }
   return frac;
@@ -150,7 +150,7 @@ function targetBaselineY(
   if (maxLength <= 0) return DEFAULT_BASELINE;
   let belowFrac = BOTTOM_PADDING_FRAC;
   for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
-    if (activeBands[id])
+    if (enabledBands[id])
       belowFrac += BAND_REGISTRY[id].bandHeightFrac(rockets, maxLength);
   }
   return canvasHeight * (1 - belowFrac / totalWorldFrac(rockets, maxLength));
@@ -260,15 +260,15 @@ watch([rocketAData, rocketBData], ([newA, newB]) => {
       // Sync display layers to active layers now that rocket presence is settled.
       // This handles the case where layers were toggled while no rockets were loaded.
       for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
-        displayBands[id as BandId] =
-          newMaxLength > 0 && activeBands[id as BandId];
+        visibleBands[id as BandId] =
+          newMaxLength > 0 && enabledBands[id as BandId];
       }
     },
   );
 });
 
 // When bands toggle: animate canvas into the new layout, then reveal/hide content.
-watch(activeBands, () => {
+watch(enabledBands, () => {
   const maxLength = Math.max(
     displayRocketA.value?.length ?? 0,
     displayRocketB.value?.length ?? 0,
@@ -287,7 +287,7 @@ watch(activeBands, () => {
     animatedBaselineY.value,
     targetBaselineY(maxLength, rockets),
     () => {
-      if (layerToShow !== null) displayBands[layerToShow] = true;
+      if (layerToShow !== null) visibleBands[layerToShow] = true;
     },
   );
 });
@@ -359,7 +359,7 @@ const bandList = computed(() =>
   (Object.keys(BAND_REGISTRY) as BandId[]).map((id) => ({
     id,
     label: BAND_REGISTRY[id].label,
-    active: activeBands[id],
+    active: enabledBands[id],
   })),
 );
 </script>
@@ -376,7 +376,7 @@ const bandList = computed(() =>
           :worldScale="animatedWorldScale"
         />
         <ThrustIndicator
-          v-if="displayRocketA && displayBands.thrust"
+          v-if="displayRocketA && visibleBands.thrust"
           :x="leftRocketX"
           :baselineY="animatedBaselineY"
           :rocketWidth="2 * rocketHalfW(displayRocketA)"
@@ -394,7 +394,7 @@ const bandList = computed(() =>
           :worldScale="animatedWorldScale"
         />
         <ThrustIndicator
-          v-if="displayRocketB && displayBands.thrust"
+          v-if="displayRocketB && visibleBands.thrust"
           :x="rightRocketX"
           :baselineY="animatedBaselineY"
           :rocketWidth="2 * rocketHalfW(displayRocketB)"
