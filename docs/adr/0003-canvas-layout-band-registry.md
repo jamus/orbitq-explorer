@@ -1,6 +1,7 @@
 # 0003 — Canvas Layout and Band Registry
 
 ## Status
+
 Implemented
 
 ## Context
@@ -10,6 +11,18 @@ The canvas previously used a hardcoded `baselineY` (82% down the canvas) and a s
 Adding `ThrustIndicator` made this limitation concrete: the plume extends below the baseline and its height varies per rocket (proportional to thrust), so both `worldScale` and `baselineY` needed to shift when it was toggled.
 
 ## Decision
+
+### Composable boundaries
+
+The canvas logic is split across three composables, each owning one concern:
+
+| Composable           | Owns                                                                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useCanvasBands`     | Band registry, layout math (`totalWorldFrac`, `targetBaselineY`, `targetScaleForLength`), `enabledBands`/`visibleBands` state, `toggleBand` |
+| `useCanvasAnimation` | Konva.Animation loop, `animatedWorldScale`, `animatedBaselineY`, `displayRocketA/B` display refs                                            |
+| `useRocketData`      | GraphQL query, `rocketAData`/`rocketBData`, in-flight fetching guards                                                                       |
+
+`useCanvasBands` exports `pendingBandShow` — a ref set by `toggleBand` on the toggle-ON path. The animation completion callback (owned by `useCanvasAnimation`) reads it to know which band to reveal once the canvas has settled, without the two composables directly calling each other.
 
 ### World scale and canvas sizing
 
@@ -49,7 +62,10 @@ Each band is declared as a `BandDef` entry in `BAND_REGISTRY`:
 ```ts
 type BandDef = {
   label: string;
-  bandHeightFrac: (rockets: (RocketConfig | null)[], maxLength: number) => number;
+  bandHeightFrac: (
+    rockets: (RocketConfig | null)[],
+    maxLength: number,
+  ) => number;
 };
 ```
 
@@ -62,11 +78,11 @@ Two separate reactive records track band state:
 - `enabledBands` — logical toggle state; changing it triggers the canvas animation
 - `visibleBands` — what is actually rendered; lags behind `enabledBands` during transition
 
-Separating the two enforces the sequencing rule: animate the canvas into its new layout *before* revealing a band (toggle ON), and hide the band *before* animating back (toggle OFF). This prevents content from overflowing its allocated space during the transition.
+Separating the two enforces the sequencing rule: animate the canvas into its new layout _before_ revealing a band (toggle ON), and hide the band _before_ animating back (toggle OFF). This prevents content from overflowing its allocated space during the transition.
 
 ## How to add a new band
 
-**1. Declare it in `BAND_REGISTRY`:**
+**1. Declare it in `BAND_REGISTRY` inside `useCanvasBands.ts`:**
 
 ```ts
 const BAND_REGISTRY = {
@@ -82,14 +98,20 @@ const BAND_REGISTRY = {
 } satisfies Record<string, BandDef>;
 ```
 
-**2. Add the key to `enabledBands` and `visibleBands`:**
+**2. Add the key to `enabledBands` and `visibleBands` in `useCanvasBands.ts`:**
 
 ```ts
-const enabledBands  = reactive<Record<BandId, boolean>>({ thrust: true, massBreakdown: false });
-const visibleBands = reactive<Record<BandId, boolean>>({ thrust: true, massBreakdown: false });
+const enabledBands = reactive<Record<BandId, boolean>>({
+  thrust: false,
+  massBreakdown: false,
+});
+const visibleBands = reactive<Record<BandId, boolean>>({
+  thrust: false,
+  massBreakdown: false,
+});
 ```
 
-The band checkbox (in the side panel), canvas resize animation, and show/hide sequencing are driven by the registry automatically. No other changes to `AppCanvas.vue` or `CanvasPanel.vue` are needed.
+The band checkbox, canvas resize animation, and show/hide sequencing are all driven by the registry automatically. No changes to `useCanvasAnimation` or `useRocketData` are needed.
 
 **3. Render the band component conditionally on `visibleBands`:**
 
@@ -102,7 +124,7 @@ The band checkbox (in the side panel), canvas resize animation, and show/hide se
 />
 ```
 
-Band components receive `baselineY` and `worldScale` as props and position themselves in world-space relative to the baseline, exactly like `ThrustIndicator`.
+Band components receive `baselineY` and `worldScale` as props (sourced from `animatedBaselineY` and `animatedWorldScale` out of `useCanvasAnimation`) and position themselves in world-space relative to the baseline, exactly like `ThrustIndicator`.
 
 ## Consequences
 
