@@ -1,8 +1,12 @@
 # OrbitQ Explorer
 
-Built as a companion to the [OrbitQ](https://github.com/jamus/orbitq-site) mobile app. An playground to experimenting with data exploration tool aimed at questions like...
+🚧 WIP 🚧
+
+Built as a companion to the [OrbitQ](https://www.orbitq.app/) mobile app. An playground to experiment building a data exploration tool aimed at questions like...
 
 > "How does Saturn V actually compare to Falcon 9 at true scale?"
+
+Preview at: https://orbitq-explorer-production-vue.up.railway.app/
 
 ---
 
