@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type { RocketConfig } from "@orbitq/graphql";
-import { useBands, KN_PER_PLUME_METRE } from "../composables/useBands";
-import type { BandId } from "../composables/useBands";
+import {
+  useCanvasBands,
+  KN_PER_PLUME_METRE,
+} from "../composables/useCanvasBands";
+import type { BandId } from "../composables/useCanvasBands";
 import { useCanvasAnimation } from "../composables/useCanvasAnimation";
 import RocketImage from "./RocketImage.vue";
 import HumanFigure from "./HumanFigure.vue";
@@ -40,7 +43,7 @@ const {
   bandList,
   humanOnlyScale,
   DEFAULT_BASELINE,
-} = useBands(canvasHeight);
+} = useCanvasBands(canvasHeight);
 
 // ---------------------------------------------------------------------------
 // Animation

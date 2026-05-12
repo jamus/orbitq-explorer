@@ -50,7 +50,7 @@ const BAND_REGISTRY = {
 const TOP_PADDING_FRAC = 0.14;
 const BOTTOM_PADDING_FRAC = 0.25;
 
-export function useBands(canvasHeight: number) {
+export function useCanvasBands(canvasHeight: number) {
   // When no rockets are loaded, fall back to a scale where the human fills ~40% of
   // the canvas — keeping it visible as a standing reference figure.
   const humanOnlyScale = (canvasHeight * 0.4) / 1.75;
