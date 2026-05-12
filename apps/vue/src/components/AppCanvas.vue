@@ -24,9 +24,9 @@ const props = defineProps<{
 // Canvas dimensions
 // ---------------------------------------------------------------------------
 
-// Canvas fills the full viewport minus the 56px top nav bar.
+// Canvas fills the full viewport minus the 86 & 41px top nav bar & footer.
 const canvasWidth = window.innerWidth;
-const canvasHeight = window.innerHeight - 56;
+const canvasHeight = window.innerHeight - 86 - 41;
 
 // ---------------------------------------------------------------------------
 // Band system
