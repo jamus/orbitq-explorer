@@ -4,10 +4,12 @@ import { TransitionRoot, TransitionChild } from "@headlessui/vue";
 
 const props = defineProps<{
   showScaleReference: boolean;
+  bands: { id: string; label: string; active: boolean }[];
 }>();
 
 const emit = defineEmits<{
   "update:showScaleReference": [value: boolean];
+  "toggle-band": [id: string];
 }>();
 
 const isOpen = ref(false);
@@ -79,6 +81,26 @@ const isOpen = ref(false);
                   "
                 />
                 <span class="text-sm text-orbitq-200">Scale Reference</span>
+              </label>
+            </div>
+
+            <div v-if="props.bands.length > 0">
+              <p
+                class="font-mono text-xs text-orbitq-500 uppercase tracking-widest mb-3"
+              >
+                Layers
+              </p>
+              <label
+                v-for="band in props.bands"
+                :key="band.id"
+                class="flex items-center gap-2 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  :checked="band.active"
+                  @change="emit('toggle-band', band.id)"
+                />
+                <span class="text-sm text-orbitq-200">{{ band.label }}</span>
               </label>
             </div>
           </div>

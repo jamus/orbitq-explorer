@@ -1,133 +1,124 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch, onMounted, onUnmounted } from "vue";
-import { useQuery } from "@vue/apollo-composable";
-import { ROCKET_CONFIGS_BY_IDS } from "@orbitq/graphql";
-import type {
-  RocketConfigsQuery,
-  RocketConfigsByIdsQuery,
-  RocketConfigsByIdsVariables,
-  RocketConfig,
-} from "@orbitq/graphql";
-import Konva from "konva";
+import { computed, ref, watch } from "vue";
+import type { RocketConfig } from "@orbitq/graphql";
+import {
+  useCanvasBands,
+  KN_PER_PLUME_METRE,
+} from "../composables/useCanvasBands";
+import type { BandId } from "../composables/useCanvasBands";
+import { useCanvasAnimation } from "../composables/useCanvasAnimation";
 import RocketImage from "./RocketImage.vue";
 import HumanFigure from "./HumanFigure.vue";
+import ThrustIndicator from "./ThrustIndicator.vue";
 import CanvasPanel from "./CanvasPanel.vue";
 import { diagrams } from "@shared/const/diagrams";
 
-type SlimRocket = RocketConfigsQuery["rocketConfigs"][number];
-
 const props = defineProps<{
-  rocketA: SlimRocket | null;
-  rocketB: SlimRocket | null;
+  rocketAData: RocketConfig | null;
+  rocketBData: RocketConfig | null;
+  rocketAFetching: boolean;
+  rocketBFetching: boolean;
 }>();
 
-const ids = computed(() =>
-  [props.rocketA?.id, props.rocketB?.id]
-    .filter((id): id is number => id != null)
-    .sort((a, b) => a - b),
-);
-
-const { result } = useQuery<
-  RocketConfigsByIdsQuery,
-  RocketConfigsByIdsVariables
->(
-  ROCKET_CONFIGS_BY_IDS,
-  () => ({ ids: ids.value }),
-  () => ({ enabled: ids.value.length > 0 }),
-);
-
-const rockets = computed<RocketConfig[]>(
-  () => result.value?.rocketConfigsByIds ?? [],
-);
-
-const rocketAData = computed(() => {
-  if (!props.rocketA) return null;
-  return rockets.value.find((r) => r.id === props.rocketA!.id) ?? null;
-});
-
-const rocketBData = computed(() => {
-  if (!props.rocketB) return null;
-  return rockets.value.find((r) => r.id === props.rocketB!.id) ?? null;
-});
+// ---------------------------------------------------------------------------
+// Canvas dimensions
+// ---------------------------------------------------------------------------
 
 // Canvas fills the full viewport minus the 56px top nav bar.
 const canvasWidth = window.innerWidth;
 const canvasHeight = window.innerHeight - 56;
 
-// Rockets sit with their base at 82% down the canvas, leaving headroom above
-// and a ground strip below for labels / future ground-line artwork.
-const baselineY = canvasHeight * 0.82;
+// ---------------------------------------------------------------------------
+// Band system
+// ---------------------------------------------------------------------------
 
-// When no rockets are loaded, fall back to a scale where the human fills ~40% of
-// the canvas — keeping it visible as a standing reference figure.
-const humanOnlyScale = (canvasHeight * 0.4) / 1.75;
+const {
+  enabledBands,
+  visibleBands,
+  pendingBandShow,
+  toggleBand,
+  targetBaselineY,
+  targetScaleForLength,
+  syncVisibleBands,
+  bandList,
+  humanOnlyScale,
+  DEFAULT_BASELINE,
+} = useCanvasBands(canvasHeight);
 
-// --- Display refs: hold current rendered state, lag behind live data during animation ---
-const displayRocketA = shallowRef<RocketConfig | null>(null);
-const displayRocketB = shallowRef<RocketConfig | null>(null);
+// ---------------------------------------------------------------------------
+// Animation
+// ---------------------------------------------------------------------------
 
-// --- Animated scale driven by Konva.Animation ---
-const animatedWorldScale = ref<number>(humanOnlyScale);
 const layerRef = ref(null);
+const {
+  animatedWorldScale,
+  animatedBaselineY,
+  displayRocketA,
+  displayRocketB,
+  animate,
+} = useCanvasAnimation(humanOnlyScale, DEFAULT_BASELINE, layerRef);
 
-const DURATION = 400; // ms
-let scaleAnimation: Konva.Animation | null = null;
-let animStartTime: number | null = null;
-let startScale = humanOnlyScale;
-let targetScale = humanOnlyScale;
-let onComplete: (() => void) | null = null;
+// ---------------------------------------------------------------------------
+// Watchers
+// ---------------------------------------------------------------------------
 
-onMounted(() => {
-  scaleAnimation = new Konva.Animation(
-    (animationFrame) => {
-      if (!animationFrame) return; // Konva may call with no frame on the first tick
-      if (animStartTime === null) animStartTime = animationFrame.time; // anchor elapsed time to this sequence, not the animation's lifetime
-      const progress = Math.min(
-        (animationFrame.time - animStartTime) / DURATION,
-        1,
-      ); // 0→1 progress, clamped
-      const easedProgress = 1 - (1 - progress) ** 3; // ease-out-cubic: fast start, smooth landing
-      animatedWorldScale.value =
-        startScale + (targetScale - startScale) * easedProgress; // interpolate; writing the ref repaints all three canvas images
-      if (progress >= 1) {
-        scaleAnimation!.stop();
-        animStartTime = null; // reset so the next .start() gets a fresh baseline
-        const cb = onComplete;
-        onComplete = null;
-        cb?.(); // swap in the incoming rocket data now that scale has settled
-      }
-    },
-    (layerRef.value as any)?.getNode(), // tell Konva which layer to redraw each frame
-  );
-});
-
-onUnmounted(() => {
-  scaleAnimation?.stop();
-});
-
-function animate(from: number, to: number, callback: () => void): void {
-  scaleAnimation?.stop();
-  animStartTime = null;
-  startScale = from;
-  targetScale = to;
-  onComplete = callback;
-  scaleAnimation?.start();
-}
-
-watch([rocketAData, rocketBData], ([newA, newB]) => {
+watch([() => props.rocketAData, () => props.rocketBData], ([newA, newB]) => {
   // Skip while a selected rocket's query is still in-flight (prop set, data not yet back).
   // Without this guard the watcher fires twice: once for the intermediate null state
   // and again when data arrives, causing two consecutive scale animations.
-  if ((props.rocketA && !newA) || (props.rocketB && !newB)) return;
+  if (props.rocketAFetching || props.rocketBFetching) return;
 
   const newMaxLength = Math.max(newA?.length ?? 0, newB?.length ?? 0);
-  const newTargetScale =
-    newMaxLength > 0 ? (canvasHeight * 0.7) / newMaxLength : humanOnlyScale;
-  animate(animatedWorldScale.value, newTargetScale, () => {
-    displayRocketA.value = newA ?? null;
-    displayRocketB.value = newB ?? null;
-  });
+  const newRockets = [newA ?? null, newB ?? null];
+  // When rockets are present use the layer-adjusted baseline; when removing all
+  // rockets always return to the default so the human figure isn't displaced.
+  const targetBase =
+    newMaxLength > 0
+      ? targetBaselineY(newMaxLength, newRockets)
+      : DEFAULT_BASELINE;
+  animate(
+    animatedWorldScale.value,
+    targetScaleForLength(newMaxLength, newRockets),
+    animatedBaselineY.value,
+    targetBase,
+    () => {
+      displayRocketA.value = newA ?? null;
+      displayRocketB.value = newB ?? null;
+      // Sync display layers to active layers now that rocket presence is settled.
+      // This handles the case where layers were toggled while no rockets were loaded.
+      syncVisibleBands(newMaxLength);
+    },
+  );
 });
+
+// When bands toggle: animate canvas into the new layout, then reveal/hide content.
+watch(enabledBands, () => {
+  const maxLength = Math.max(
+    displayRocketA.value?.length ?? 0,
+    displayRocketB.value?.length ?? 0,
+  );
+  // No rockets means no layer content to show — don't reflow or displace the human.
+  if (maxLength === 0) {
+    pendingBandShow.value = null;
+    return;
+  }
+  const layerToShow = pendingBandShow.value;
+  pendingBandShow.value = null;
+  const rockets = [displayRocketA.value, displayRocketB.value];
+  animate(
+    animatedWorldScale.value,
+    targetScaleForLength(maxLength, rockets),
+    animatedBaselineY.value,
+    targetBaselineY(maxLength, rockets),
+    () => {
+      if (layerToShow !== null) visibleBands[layerToShow] = true;
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Canvas positioning
+// ---------------------------------------------------------------------------
 
 const HUMAN_NATIVE_W = 30;
 const HUMAN_NATIVE_H = 175;
@@ -173,6 +164,23 @@ const rightRocketX = computed(() => {
 
 const stageConfig = { width: canvasWidth, height: canvasHeight };
 
+const leftMarginBounds = computed(() => ({
+  x: CANVAS_PAD,
+  y: 0,
+  width: leftRocketX.value - rocketHalfW(displayRocketA.value) - CANVAS_PAD,
+  height: canvasHeight,
+}));
+
+const rightMarginBounds = computed(() => ({
+  x: rightRocketX.value + rocketHalfW(displayRocketB.value),
+  y: 0,
+  width:
+    canvasWidth -
+    CANVAS_PAD -
+    (rightRocketX.value + rocketHalfW(displayRocketB.value)),
+  height: canvasHeight,
+}));
+
 const showScaleReference = ref(true);
 </script>
 
@@ -184,32 +192,79 @@ const showScaleReference = ref(true);
           v-if="displayRocketA"
           :rocket="displayRocketA"
           :x="leftRocketX"
-          :baselineY="baselineY"
+          :baselineY="animatedBaselineY"
           :worldScale="animatedWorldScale"
+        />
+        <ThrustIndicator
+          v-if="displayRocketA && visibleBands.thrust"
+          :x="leftRocketX"
+          :baselineY="animatedBaselineY"
+          :rocketWidth="2 * rocketHalfW(displayRocketA)"
+          :thrust="displayRocketA.toThrust"
+          :plumeHeight="
+            ((displayRocketA.toThrust ?? 0) / KN_PER_PLUME_METRE) *
+            animatedWorldScale
+          "
         />
         <RocketImage
           v-if="displayRocketB"
           :rocket="displayRocketB"
           :x="rightRocketX"
-          :baselineY="baselineY"
+          :baselineY="animatedBaselineY"
           :worldScale="animatedWorldScale"
+        />
+        <ThrustIndicator
+          v-if="displayRocketB && visibleBands.thrust"
+          :x="rightRocketX"
+          :baselineY="animatedBaselineY"
+          :rocketWidth="2 * rocketHalfW(displayRocketB)"
+          :thrust="displayRocketB.toThrust"
+          :plumeHeight="
+            ((displayRocketB.toThrust ?? 0) / KN_PER_PLUME_METRE) *
+            animatedWorldScale
+          "
+        />
+        <!-- DEBUG: remove before ship -->
+        <v-rect
+          :config="{
+            ...leftMarginBounds,
+            fill: 'rgba(100, 200, 255, 0.1)',
+            stroke: 'rgba(100, 200, 255, 0.4)',
+            strokeWidth: 1,
+            dash: [4, 4],
+          }"
+        />
+        <v-rect
+          :config="{
+            ...rightMarginBounds,
+            fill: 'rgba(255, 150, 100, 0.1)',
+            stroke: 'rgba(255, 150, 100, 0.4)',
+            strokeWidth: 1,
+            dash: [4, 4],
+          }"
         />
         <HumanFigure
           v-if="showScaleReference"
           :x="xHuman"
-          :baselineY="baselineY"
+          :baselineY="animatedBaselineY"
           :worldScale="animatedWorldScale"
         />
       </v-layer>
     </v-stage>
-    <CanvasPanel v-model:showScaleReference="showScaleReference" />
+
+    <CanvasPanel
+      v-model:showScaleReference="showScaleReference"
+      :bands="bandList"
+      @toggle-band="toggleBand($event as BandId)"
+    />
     <!-- DEBUG: remove before ship -->
     <div
       class="absolute top-2 right-2 font-mono text-xs text-status-warning space-y-0.5 pointer-events-none text-right"
     >
       <div>animatedWorldScale: {{ animatedWorldScale.toFixed(4) }}</div>
+      <div>worldScale: {{ animatedWorldScale.toFixed(4) }}</div>
       <div>
-        baselineY: {{ baselineY.toFixed(0) }} xA: {{ leftRocketX }} xB:
+        baselineY: {{ animatedBaselineY.toFixed(0) }} xA: {{ leftRocketX }} xB:
         {{ rightRocketX }}
       </div>
       <div>
