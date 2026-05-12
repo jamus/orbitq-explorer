@@ -8,14 +8,7 @@ import {
   onMounted,
   onUnmounted,
 } from "vue";
-import { useQuery } from "@vue/apollo-composable";
-import { ROCKET_CONFIGS_BY_IDS } from "@orbitq/graphql";
-import type {
-  RocketConfigsQuery,
-  RocketConfigsByIdsQuery,
-  RocketConfigsByIdsVariables,
-  RocketConfig,
-} from "@orbitq/graphql";
+import type { RocketConfig } from "@orbitq/graphql";
 import Konva from "konva";
 import RocketImage from "./RocketImage.vue";
 import HumanFigure from "./HumanFigure.vue";
@@ -23,45 +16,12 @@ import ThrustIndicator from "./ThrustIndicator.vue";
 import CanvasPanel from "./CanvasPanel.vue";
 import { diagrams } from "@shared/const/diagrams";
 
-type SlimRocket = RocketConfigsQuery["rocketConfigs"][number];
-
 const props = defineProps<{
-  rocketA: SlimRocket | null;
-  rocketB: SlimRocket | null;
+  rocketAData: RocketConfig | null;
+  rocketBData: RocketConfig | null;
+  rocketAFetching: boolean;
+  rocketBFetching: boolean;
 }>();
-
-// ---------------------------------------------------------------------------
-// Data loading
-// ---------------------------------------------------------------------------
-
-const ids = computed(() =>
-  [props.rocketA?.id, props.rocketB?.id]
-    .filter((id): id is number => id != null)
-    .sort((a, b) => a - b),
-);
-
-const { result } = useQuery<
-  RocketConfigsByIdsQuery,
-  RocketConfigsByIdsVariables
->(
-  ROCKET_CONFIGS_BY_IDS,
-  () => ({ ids: ids.value }),
-  () => ({ enabled: ids.value.length > 0 }),
-);
-
-const rockets = computed<RocketConfig[]>(
-  () => result.value?.rocketConfigsByIds ?? [],
-);
-
-const rocketAData = computed(() => {
-  if (!props.rocketA) return null;
-  return rockets.value.find((r) => r.id === props.rocketA!.id) ?? null;
-});
-
-const rocketBData = computed(() => {
-  if (!props.rocketB) return null;
-  return rockets.value.find((r) => r.id === props.rocketB!.id) ?? null;
-});
 
 // ---------------------------------------------------------------------------
 // Canvas dimensions
@@ -259,11 +219,11 @@ function animate(
 // Watchers
 // ---------------------------------------------------------------------------
 
-watch([rocketAData, rocketBData], ([newA, newB]) => {
+watch([() => props.rocketAData, () => props.rocketBData], ([newA, newB]) => {
   // Skip while a selected rocket's query is still in-flight (prop set, data not yet back).
   // Without this guard the watcher fires twice: once for the intermediate null state
   // and again when data arrives, causing two consecutive scale animations.
-  if ((props.rocketA && !newA) || (props.rocketB && !newB)) return;
+  if (props.rocketAFetching || props.rocketBFetching) return;
 
   const newMaxLength = Math.max(newA?.length ?? 0, newB?.length ?? 0);
   const newRockets = [newA ?? null, newB ?? null];

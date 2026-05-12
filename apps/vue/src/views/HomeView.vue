@@ -1,18 +1,25 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import type { RocketConfigsQuery } from "@orbitq/graphql";
 import RocketSelector from "../components/RocketSelector.vue";
 import Canvas from "../components/AppCanvas.vue";
+import { useRocketData } from "../composables/useRocketData";
+import type { SlimRocket } from "../composables/useRocketData";
 
-type Rocket = RocketConfigsQuery["rocketConfigs"][number];
+const rocketA = ref<SlimRocket | null>(null);
+const rocketB = ref<SlimRocket | null>(null);
 
-const rocketA = ref<Rocket | null>(null);
-const rocketB = ref<Rocket | null>(null);
+const { rocketAData, rocketBData, rocketAFetching, rocketBFetching } =
+  useRocketData(rocketA, rocketB);
 </script>
 
 <template>
   <div class="bg-orbitq-900 mx-auto w-full max-w-4xl px-6 py-8">
     <RocketSelector v-model:rocketA="rocketA" v-model:rocketB="rocketB" />
-    <Canvas :rocketA="rocketA" :rocketB="rocketB" />
+    <Canvas
+      :rocketAData="rocketAData"
+      :rocketBData="rocketBData"
+      :rocketAFetching="rocketAFetching"
+      :rocketBFetching="rocketBFetching"
+    />
   </div>
 </template>
