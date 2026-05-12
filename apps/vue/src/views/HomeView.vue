@@ -13,7 +13,7 @@ const { rocketAData, rocketBData, rocketAFetching, rocketBFetching } =
 </script>
 
 <template>
-  <div class="bg-orbitq-900 mx-auto w-full max-w-4xl px-6 py-8">
+  <div class="bg-orbitq-900 mx-auto w-full">
     <RocketSelector v-model:rocketA="rocketA" v-model:rocketB="rocketB" />
     <Canvas
       :rocketAData="rocketAData"

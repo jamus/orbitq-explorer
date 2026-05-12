@@ -41,12 +41,7 @@ function handleSelectB(val: Rocket | null) {
 </script>
 
 <template>
-  <section class="border border-orbitq-700 rounded-sm p-6">
-    <h2
-      class="font-mono text-orbitq-600 text-xs uppercase tracking-widest mb-4"
-    >
-      Rockets
-    </h2>
+  <section class="p-6">
     <p v-if="loading" class="font-mono text-orbitq-600 text-sm">Loading…</p>
     <p v-else-if="error" class="font-mono text-status-negative text-sm">
       Error: {{ error.message }}
