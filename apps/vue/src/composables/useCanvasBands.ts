@@ -72,7 +72,7 @@ export function useCanvasBands(canvasHeight: number) {
   // once the canvas-recenter animation completes (only used for toggle-ON).
   const pendingBandShow = ref<BandId | null>(null);
 
-  function toggleBand(id: BandId): void {
+  function toggleBand(id: BandId) {
     if (enabledBands[id]) {
       visibleBands[id] = false; // hide immediately
       enabledBands[id] = false; // animate canvas back (watcher fires)
@@ -84,10 +84,7 @@ export function useCanvasBands(canvasHeight: number) {
 
   // Total world height as a multiple of maxLength:
   // TOP_PADDING + 1 (rocket) + BOTTOM_PADDING + active layer heights.
-  function totalWorldFrac(
-    rockets: (RocketConfig | null)[],
-    maxLength: number,
-  ): number {
+  function totalWorldFrac(rockets: (RocketConfig | null)[], maxLength: number) {
     let frac = 1 + TOP_PADDING_FRAC + BOTTOM_PADDING_FRAC;
     for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
       if (enabledBands[id])
@@ -99,7 +96,7 @@ export function useCanvasBands(canvasHeight: number) {
   function targetBaselineY(
     maxLength: number,
     rockets: (RocketConfig | null)[],
-  ): number {
+  ) {
     if (maxLength <= 0) return DEFAULT_BASELINE;
     let belowFrac = BOTTOM_PADDING_FRAC;
     for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
@@ -112,7 +109,7 @@ export function useCanvasBands(canvasHeight: number) {
   function targetScaleForLength(
     maxLength: number,
     rockets: (RocketConfig | null)[],
-  ): number {
+  ) {
     return maxLength > 0
       ? canvasHeight / (maxLength * totalWorldFrac(rockets, maxLength))
       : humanOnlyScale;
@@ -121,7 +118,7 @@ export function useCanvasBands(canvasHeight: number) {
   // Syncs visibleBands to enabledBands once a layout animation settles.
   // Called after the rocket-data watcher animates to the new scale so that
   // band content appears only when the canvas is already in its final position.
-  function syncVisibleBands(maxLength: number): void {
+  function syncVisibleBands(maxLength: number) {
     for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
       visibleBands[id] = maxLength > 0 && enabledBands[id];
     }

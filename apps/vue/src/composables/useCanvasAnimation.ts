@@ -17,10 +17,10 @@ export function useCanvasAnimation(
   const displayRocketB = shallowRef<RocketConfig | null>(null);
 
   // --- Animated values driven by Konva.Animation ---
-  const animatedWorldScale = ref<number>(initialScale);
+  const animatedWorldScale = ref(initialScale);
   // Initialise from the no-content default, not baselineY.value — at startup there
   // are no rockets so active layer costs shouldn't apply yet.
-  const animatedBaselineY = ref<number>(initialBaseline);
+  const animatedBaselineY = ref(initialBaseline);
 
   let scaleAnimation: Konva.Animation | null = null;
   let animStartTime: number | null = null;
@@ -66,7 +66,7 @@ export function useCanvasAnimation(
     fromBaseline: number,
     toBaseline: number,
     callback: () => void,
-  ): void {
+  ) {
     scaleAnimation?.stop();
     animStartTime = null;
     startScale = fromScale;

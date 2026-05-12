@@ -6,7 +6,6 @@ import type {
   RocketConfigsQuery,
   RocketConfigsByIdsQuery,
   RocketConfigsByIdsVariables,
-  RocketConfig,
 } from "@orbitq/graphql";
 
 export type SlimRocket = RocketConfigsQuery["rocketConfigs"][number];
@@ -30,9 +29,7 @@ export function useRocketData(
     () => ({ enabled: ids.value.length > 0 }),
   );
 
-  const rockets = computed<RocketConfig[]>(
-    () => result.value?.rocketConfigsByIds ?? [],
-  );
+  const rockets = computed(() => result.value?.rocketConfigsByIds ?? []);
 
   const rocketAData = computed(() => {
     if (!rocketA.value) return null;
