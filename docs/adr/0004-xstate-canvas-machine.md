@@ -17,40 +17,40 @@ Canvas animation sequencing is modelled as an explicit finite state machine usin
 
 ```
 idle
-  ├─ ROCKETS_CHANGED      → animating-rockets
+  ├─ ROCKET_SELECTION_CHANGED      → animating-rockets
   ├─ BAND_TOGGLED(on)     → animating-band-on
   ├─ BAND_TOGGLED(off)    → animating-band-off
   └─ SEPARATION_TOGGLED   → animating-separation-on
 
 animating-rockets         (invokes animation as promise)
-  ├─ ROCKETS_CHANGED      → reenter (restart with latest data)
+  ├─ ROCKET_SELECTION_CHANGED      → reenter (restart with latest data)
   ├─ SEPARATION_TOGGLED   → animating-separation-on
   └─ onDone [sep active]  → separation-active
   └─ onDone               → idle
 
 animating-band-on         (invokes animation as promise)
-  ├─ ROCKETS_CHANGED      → animating-rockets
+  ├─ ROCKET_SELECTION_CHANGED      → animating-rockets
   ├─ BAND_TOGGLED(on)     → reenter (accumulate + restart)
   ├─ SEPARATION_TOGGLED   → animating-separation-on
   └─ onDone               → idle  (then showPendingBands)
 
 animating-band-off        (invokes animation as promise)
-  ├─ ROCKETS_CHANGED      → animating-rockets
+  ├─ ROCKET_SELECTION_CHANGED      → animating-rockets
   ├─ BAND_TOGGLED(on)     → animating-band-on
   ├─ SEPARATION_TOGGLED   → animating-separation-on
   └─ onDone               → idle
 
 animating-separation-on   (entry: disableAllBands; invokes animation)
-  ├─ ROCKETS_CHANGED      → animating-rockets (clears separationActive)
+  ├─ ROCKET_SELECTION_CHANGED      → animating-rockets (clears separationActive)
   └─ onDone               → separation-active (setSeparationVisible + flag)
 
 separation-active
-  ├─ ROCKETS_CHANGED      → animating-rockets (keeps separationActive flag)
+  ├─ ROCKET_SELECTION_CHANGED      → animating-rockets (keeps separationActive flag)
   ├─ BAND_TOGGLED(on)     → accumulate in pendingBands (no animation)
   └─ SEPARATION_TOGGLED(off) → animating-separation-off
 
 animating-separation-off  (invokes animation)
-  ├─ ROCKETS_CHANGED      → animating-rockets
+  ├─ ROCKET_SELECTION_CHANGED      → animating-rockets
   └─ onDone [pendingBands] → animating-band-on
   └─ onDone               → idle
 ```
@@ -71,11 +71,11 @@ interface CanvasContext {
 
 **Band-off ordering**: band content is hidden synchronously in the `BAND_TOGGLED(off)` transition action (`deps.hideBand`), before the animation runs. The canvas never contracts under live content.
 
-**Rocket coalescing**: `animating-rockets` accepts `ROCKETS_CHANGED` with `reenter: true`. Rapid rocket changes restart the animation with the latest data rather than queuing independent animations. Only one animation runs at a time, always targeting the most recent selection.
+**Rocket coalescing**: `animating-rockets` accepts `ROCKET_SELECTION_CHANGED` with `reenter: true`. Rapid rocket changes restart the animation with the latest data rather than queuing independent animations. Only one animation runs at a time, always targeting the most recent selection.
 
 **Separation preempts bands**: entering `animating-separation-on` calls `deps.disableAllBands()` via the `entry` action, clearing both `enabledBands` and `visibleBands`. While in `separation-active`, further `BAND_TOGGLED(on)` events are accepted but only stored in `pendingBands` — no animation runs. When separation is dismissed, `animating-separation-off` routes to `animating-band-on` if `pendingBands` is non-empty, replaying the queued toggles.
 
-**Separation persistence across rocket changes**: `context.separationActive` is a boolean flag rather than a structural state. When `ROCKETS_CHANGED` fires from `separation-active`, the machine transitions to `animating-rockets`. The `onDone` guard checks `context.separationActive` to route back to `separation-active` rather than `idle`, so the separation view is maintained for new rockets.
+**Separation persistence across rocket changes**: `context.separationActive` is a boolean flag rather than a structural state. When `ROCKET_SELECTION_CHANGED` fires from `separation-active`, the machine transitions to `animating-rockets`. The `onDone` guard checks `context.separationActive` to route back to `separation-active` rather than `idle`, so the separation view is maintained for new rockets.
 
 The alternative would be a parallel state region — one region for "which animation is running", a second for "is separation on" — which would let the separation concern persist through animation transitions without a flag. That's not worth it for a single bit of information read in one guard. The cost of parallel states is paid upfront in structural complexity: every event handler in every animation state has to account for the separation region. A context flag achieves the same result with almost no overhead.
 
