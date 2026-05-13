@@ -1,4 +1,9 @@
-export type PathData = { d: string; fill: string };
+export type PathData = {
+  d: string;
+  fill: string;
+  id?: string;
+  className?: string;
+};
 export type ViewBox = {
   minX: number;
   minY: number;
@@ -24,7 +29,15 @@ export function parseSvgPaths(svgRaw: string): {
     const el = m[0];
     const d = el.match(/\bd="([^"]+)"/)?.[1];
     const fill = el.match(/\bfill="([^"]+)"/)?.[1] ?? "none";
-    if (d) paths.push({ d, fill });
+    const id = el.match(/\bid="([^"]+)"/)?.[1];
+    const className = el.match(/\bclass="([^"]+)"/)?.[1];
+    if (d)
+      paths.push({
+        d,
+        fill,
+        ...(id && { id }),
+        ...(className && { className }),
+      });
   }
 
   return { paths, viewBox: { minX, minY, width, height } };
