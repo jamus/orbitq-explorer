@@ -37,6 +37,7 @@ const {
   visibleBands,
   pendingBandShow,
   toggleBand,
+  disableAllBands,
   targetBaselineY,
   targetScaleForLength,
   syncVisibleBands,
@@ -59,6 +60,32 @@ const {
 } = useCanvasAnimation(humanOnlyScale, DEFAULT_BASELINE, layerRef);
 
 // ---------------------------------------------------------------------------
+// Stage separation helpers
+//
+// Mirrors the gap formula in RocketImage: gap = viewBox.height * 0.1.
+// Each separated stage is displaced by (mid - i) * gap, so the total extra
+// vertical span is (n - 1) * gap = (n - 1) * 0.1 * rocket.length in world space.
+// ---------------------------------------------------------------------------
+
+function effectiveLength(
+  rocket: RocketConfig | null,
+  separated: boolean,
+): number {
+  if (!rocket?.length) return 0;
+  if (!separated) return rocket.length;
+  const n = diagrams[rocket.id]?.stages.length ?? 0;
+  return n > 1 ? rocket.length * (1 + (n - 1) * 0.1) : rocket.length;
+}
+
+function effectiveMaxLen(separated: boolean): number {
+  return Math.max(
+    effectiveLength(displayRocketA.value, separated),
+    effectiveLength(displayRocketB.value, separated),
+    0,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Watchers
 // ---------------------------------------------------------------------------
 
@@ -68,12 +95,19 @@ watch([() => props.rocketAData, () => props.rocketBData], ([newA, newB]) => {
   // and again when data arrives, causing two consecutive scale animations.
   if (props.rocketAFetching || props.rocketBFetching) return;
 
-  const newMaxLength = Math.max(newA?.length ?? 0, newB?.length ?? 0);
+  const rawMaxLength = Math.max(newA?.length ?? 0, newB?.length ?? 0);
+  const newMaxLength =
+    rawMaxLength > 0
+      ? Math.max(
+          effectiveLength(newA ?? null, stageSeparationEnabled.value),
+          effectiveLength(newB ?? null, stageSeparationEnabled.value),
+        )
+      : 0;
   const newRockets = [newA ?? null, newB ?? null];
   // When rockets are present use the layer-adjusted baseline; when removing all
   // rockets always return to the default so the human figure isn't displaced.
   const targetBase =
-    newMaxLength > 0
+    rawMaxLength > 0
       ? targetBaselineY(newMaxLength, newRockets)
       : DEFAULT_BASELINE;
   animate(
@@ -86,17 +120,14 @@ watch([() => props.rocketAData, () => props.rocketBData], ([newA, newB]) => {
       displayRocketB.value = newB ?? null;
       // Sync display layers to active layers now that rocket presence is settled.
       // This handles the case where layers were toggled while no rockets were loaded.
-      syncVisibleBands(newMaxLength);
+      syncVisibleBands(rawMaxLength);
     },
   );
 });
 
 // When bands toggle: animate canvas into the new layout, then reveal/hide content.
 watch(enabledBands, () => {
-  const maxLength = Math.max(
-    displayRocketA.value?.length ?? 0,
-    displayRocketB.value?.length ?? 0,
-  );
+  const maxLength = effectiveMaxLen(stageSeparationEnabled.value);
   // No rockets means no layer content to show — don't reflow or displace the human.
   if (maxLength === 0) {
     pendingBandShow.value = null;
@@ -184,6 +215,25 @@ const rightMarginBounds = computed(() => ({
 const showScaleReference = ref(true);
 const stageSeparationEnabled = ref(false);
 
+watch(stageSeparationEnabled, (enabled) => {
+  if (enabled) disableAllBands();
+  const maxLen = effectiveMaxLen(enabled);
+  if (maxLen === 0) return;
+  const rockets = [displayRocketA.value, displayRocketB.value];
+  animate(
+    animatedWorldScale.value,
+    targetScaleForLength(maxLen, rockets),
+    animatedBaselineY.value,
+    targetBaselineY(maxLen, rockets),
+    () => {},
+  );
+});
+
+function handleToggleBand(id: BandId) {
+  if (!enabledBands[id]) stageSeparationEnabled.value = false;
+  toggleBand(id);
+}
+
 const hasRocketWithStages = computed(() =>
   [displayRocketA.value, displayRocketB.value].some(
     (r) => r && (diagrams[r.id]?.stages.length ?? 0) > 0,
@@ -266,7 +316,7 @@ const hasRocketWithStages = computed(() =>
       v-model:stageSeparationEnabled="stageSeparationEnabled"
       :hasRocketWithStages="hasRocketWithStages"
       :bands="bandList"
-      @toggle-band="toggleBand($event as BandId)"
+      @toggle-band="handleToggleBand($event as BandId)"
     />
     <!-- DEBUG: remove before ship -->
     <div
