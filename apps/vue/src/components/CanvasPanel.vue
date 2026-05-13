@@ -3,11 +3,14 @@ import { ref } from "vue";
 
 const props = defineProps<{
   showScaleReference: boolean;
+  stageSeparationEnabled: boolean;
+  hasRocketWithStages: boolean;
   bands: { id: string; label: string; active: boolean }[];
 }>();
 
 const emit = defineEmits<{
   "update:showScaleReference": [value: boolean];
+  "update:stageSeparationEnabled": [value: boolean];
   "toggle-band": [id: string];
 }>();
 
@@ -79,6 +82,22 @@ const isOpen = ref(false);
                 "
               />
               <span class="text-sm text-orbitq-200">Scale Reference</span>
+            </label>
+            <label
+              v-if="props.hasRocketWithStages"
+              class="flex items-center gap-2 cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                :checked="props.stageSeparationEnabled"
+                @change="
+                  emit(
+                    'update:stageSeparationEnabled',
+                    ($event.target as HTMLInputElement).checked,
+                  )
+                "
+              />
+              <span class="text-sm text-orbitq-200">Separate Stages</span>
             </label>
           </div>
 

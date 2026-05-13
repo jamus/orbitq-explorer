@@ -82,6 +82,16 @@ export function useCanvasBands(canvasHeight: number) {
     }
   }
 
+  function disableAllBands() {
+    pendingBandShow.value = null;
+    for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
+      if (enabledBands[id]) {
+        visibleBands[id] = false;
+        enabledBands[id] = false;
+      }
+    }
+  }
+
   // Total world height as a multiple of maxLength:
   // TOP_PADDING + 1 (rocket) + BOTTOM_PADDING + active layer heights.
   function totalWorldFrac(rockets: (RocketConfig | null)[], maxLength: number) {
@@ -137,6 +147,7 @@ export function useCanvasBands(canvasHeight: number) {
     visibleBands,
     pendingBandShow,
     toggleBand,
+    disableAllBands,
     totalWorldFrac,
     targetBaselineY,
     targetScaleForLength,
