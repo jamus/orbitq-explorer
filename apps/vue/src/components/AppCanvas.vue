@@ -127,7 +127,9 @@ watch([() => props.rocketAData, () => props.rocketBData], ([newA, newB]) => {
 
 // When bands toggle: animate canvas into the new layout, then reveal/hide content.
 watch(enabledBands, () => {
-  const maxLength = effectiveMaxLen(stageSeparationEnabled.value);
+  // Stage separation owns the scale animation when it disables bands — don't compete.
+  if (stageSeparationEnabled.value) return;
+  const maxLength = effectiveMaxLen(false);
   // No rockets means no layer content to show — don't reflow or displace the human.
   if (maxLength === 0) {
     pendingBandShow.value = null;
@@ -214,19 +216,38 @@ const rightMarginBounds = computed(() => ({
 
 const showScaleReference = ref(true);
 const stageSeparationEnabled = ref(false);
+const separationVisible = ref(false);
 
 watch(stageSeparationEnabled, (enabled) => {
-  if (enabled) disableAllBands();
-  const maxLen = effectiveMaxLen(enabled);
-  if (maxLen === 0) return;
-  const rockets = [displayRocketA.value, displayRocketB.value];
-  animate(
-    animatedWorldScale.value,
-    targetScaleForLength(maxLen, rockets),
-    animatedBaselineY.value,
-    targetBaselineY(maxLen, rockets),
-    () => {},
-  );
+  if (enabled) {
+    disableAllBands();
+    const maxLen = effectiveMaxLen(true);
+    if (maxLen === 0) return;
+    const rockets = [displayRocketA.value, displayRocketB.value];
+    animate(
+      animatedWorldScale.value,
+      targetScaleForLength(maxLen, rockets),
+      animatedBaselineY.value,
+      targetBaselineY(maxLen, rockets),
+      () => {
+        separationVisible.value = true;
+      },
+    );
+  } else {
+    separationVisible.value = false;
+    // If a band was just enabled it will own the scale animation — don't compete.
+    if (pendingBandShow.value !== null) return;
+    const maxLen = effectiveMaxLen(false);
+    if (maxLen === 0) return;
+    const rockets = [displayRocketA.value, displayRocketB.value];
+    animate(
+      animatedWorldScale.value,
+      targetScaleForLength(maxLen, rockets),
+      animatedBaselineY.value,
+      targetBaselineY(maxLen, rockets),
+      () => {},
+    );
+  }
 });
 
 function handleToggleBand(id: BandId) {
@@ -251,7 +272,7 @@ const hasRocketWithStages = computed(() =>
           :x="leftRocketX"
           :baselineY="animatedBaselineY"
           :worldScale="animatedWorldScale"
-          :separated="stageSeparationEnabled"
+          :separated="separationVisible"
         />
         <ThrustIndicator
           v-if="displayRocketA && visibleBands.thrust"
@@ -270,7 +291,7 @@ const hasRocketWithStages = computed(() =>
           :x="rightRocketX"
           :baselineY="animatedBaselineY"
           :worldScale="animatedWorldScale"
-          :separated="stageSeparationEnabled"
+          :separated="separationVisible"
         />
         <ThrustIndicator
           v-if="displayRocketB && visibleBands.thrust"
