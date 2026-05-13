@@ -182,6 +182,13 @@ const rightMarginBounds = computed(() => ({
 }));
 
 const showScaleReference = ref(true);
+const stageSeparationEnabled = ref(false);
+
+const hasRocketWithStages = computed(() =>
+  [displayRocketA.value, displayRocketB.value].some(
+    (r) => r && (diagrams[r.id]?.stages.length ?? 0) > 0,
+  ),
+);
 </script>
 
 <template>
@@ -194,6 +201,7 @@ const showScaleReference = ref(true);
           :x="leftRocketX"
           :baselineY="animatedBaselineY"
           :worldScale="animatedWorldScale"
+          :separated="stageSeparationEnabled"
         />
         <ThrustIndicator
           v-if="displayRocketA && visibleBands.thrust"
@@ -212,6 +220,7 @@ const showScaleReference = ref(true);
           :x="rightRocketX"
           :baselineY="animatedBaselineY"
           :worldScale="animatedWorldScale"
+          :separated="stageSeparationEnabled"
         />
         <ThrustIndicator
           v-if="displayRocketB && visibleBands.thrust"
@@ -254,6 +263,8 @@ const showScaleReference = ref(true);
 
     <CanvasPanel
       v-model:showScaleReference="showScaleReference"
+      v-model:stageSeparationEnabled="stageSeparationEnabled"
+      :hasRocketWithStages="hasRocketWithStages"
       :bands="bandList"
       @toggle-band="toggleBand($event as BandId)"
     />

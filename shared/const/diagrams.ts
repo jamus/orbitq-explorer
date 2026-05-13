@@ -5,14 +5,17 @@ import raw143 from "@shared/assets/images/diagrams/143.svg?raw";
 import raw522 from "@shared/assets/images/diagrams/starship-v3.svg?raw";
 import {
   parseSvgPaths,
+  parseSvgStages,
   type PathData,
+  type StageData,
   type ViewBox,
 } from "../utils/parseSvgPaths";
 
-export type { PathData, ViewBox };
+export type { PathData, StageData, ViewBox };
 
 export type DiagramEntry = {
   paths: PathData[];
+  stages: StageData[];
   viewBox: ViewBox;
   nativeWidth: number;
   nativeHeight: number;
@@ -20,8 +23,10 @@ export type DiagramEntry = {
 
 function makeDiagramEntry(svgRaw: string): DiagramEntry {
   const { paths, viewBox } = parseSvgPaths(svgRaw);
+  const stages = parseSvgStages(svgRaw);
   return {
     paths,
+    stages,
     viewBox,
     nativeWidth: viewBox.width,
     nativeHeight: viewBox.height,
