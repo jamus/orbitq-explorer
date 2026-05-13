@@ -84,6 +84,9 @@ importers:
       '@orbitq/assets':
         specifier: workspace:*
         version: link:../../shared/assets
+      '@orbitq/canvas-machine':
+        specifier: workspace:*
+        version: link:../../shared/canvas-machine
       '@orbitq/graphql':
         specifier: workspace:*
         version: link:../../shared/graphql
@@ -138,6 +141,15 @@ importers:
         version: 2.2.12(typescript@6.0.3)
 
   shared/assets: {}
+
+  shared/canvas-machine:
+    dependencies:
+      '@orbitq/graphql':
+        specifier: workspace:*
+        version: link:../graphql
+      xstate:
+        specifier: ^5.0.0
+        version: 5.31.0
 
   shared/graphql:
     dependencies:
@@ -1245,6 +1257,9 @@ packages:
     resolution: {integrity: sha512-42AtmgqjV+X1VpdOfyTGOYRi0/zsoLqtXQckTmqTeybT+BDIbM/Guxo7x3pE2vtpr1ok6xRqM9OpBe+Jyoqyww==}
     engines: {node: '>=18'}
 
+  xstate@5.31.0:
+    resolution: {integrity: sha512-5B+0DqC0uNUrcLUEY3pn3iNy+swvK2E0ZpYp5gnV3oxMX5y87vzXkU5YXv9CAtyG5c5FOJ1SzvTWHrwE8fMZNQ==}
+
   xstate@5.31.1:
     resolution: {integrity: sha512-3P7t7GQ61BvLu+8Cj6Zq7rcS34vecL9pvfN2ucUWmIFIUG+rAREviOs4Xy4OO3BuJHSz6RLU8eqDXxSbVotjDQ==}
 
@@ -2145,6 +2160,8 @@ snapshots:
       ansi-styles: 6.2.3
       string-width: 7.2.0
       strip-ansi: 7.2.0
+
+  xstate@5.31.0: {}
 
   xstate@5.31.1: {}
 

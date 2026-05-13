@@ -91,10 +91,10 @@ const stageSeparationEnabled = ref(false);
 
 const { send } = useCanvasMachine({
   animate,
-  animatedWorldScale,
-  animatedBaselineY,
-  displayRocketA,
-  displayRocketB,
+  animatedWorldScale: () => animatedWorldScale.value,
+  animatedBaselineY: () => animatedBaselineY.value,
+  displayRocketA: () => displayRocketA.value,
+  displayRocketB: () => displayRocketB.value,
   getTargetScale(rockets, separated) {
     const maxLen = effectiveMaxLen(rockets, separated);
     return targetScaleForLength(maxLen, rockets);
@@ -114,8 +114,8 @@ const { send } = useCanvasMachine({
     );
     syncVisibleBandsBase(maxLen);
   },
-  showBands,
-  hideBand,
+  showBands: showBands as (ids: string[]) => void,
+  hideBand: hideBand as (id: string) => void,
   disableAllBands,
   setSeparationVisible(v) {
     separationVisible.value = v;
@@ -126,7 +126,7 @@ const { send } = useCanvasMachine({
 watch([() => props.rocketAData, () => props.rocketBData], ([newA, newB]) => {
   if (props.rocketAFetching || props.rocketBFetching) return;
   send({
-    type: "ROCKETS_CHANGED",
+    type: "ROCKET_SELECTION_CHANGED",
     rocketA: newA ?? null,
     rocketB: newB ?? null,
   });
