@@ -1,4 +1,4 @@
-import { computed, reactive, ref } from "vue";
+import { computed, reactive } from "vue";
 import type { RocketConfig } from "@orbitq/graphql";
 
 // ---------------------------------------------------------------------------
@@ -68,27 +68,27 @@ export function useCanvasBands(canvasHeight: number) {
   const enabledBands = reactive<Record<BandId, boolean>>({ thrust: false });
   const visibleBands = reactive<Record<BandId, boolean>>({ thrust: false });
 
-  // Set by toggleBand so the enabledBands watcher knows which band to reveal
-  // once the canvas-recenter animation completes (only used for toggle-ON).
-  const pendingBandShow = ref<BandId | null>(null);
-
   function toggleBand(id: BandId) {
     if (enabledBands[id]) {
-      visibleBands[id] = false; // hide immediately
-      enabledBands[id] = false; // animate canvas back (watcher fires)
+      visibleBands[id] = false;
+      enabledBands[id] = false;
     } else {
-      enabledBands[id] = true; // animate canvas forward (watcher fires)
-      pendingBandShow.value = id; // watcher will reveal layer in callback
+      enabledBands[id] = true;
     }
   }
 
+  function showBands(ids: BandId[]) {
+    for (const id of ids) visibleBands[id] = true;
+  }
+
+  function hideBand(id: BandId) {
+    visibleBands[id] = false;
+  }
+
   function disableAllBands() {
-    pendingBandShow.value = null;
     for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
-      if (enabledBands[id]) {
-        visibleBands[id] = false;
-        enabledBands[id] = false;
-      }
+      visibleBands[id] = false;
+      enabledBands[id] = false;
     }
   }
 
@@ -145,8 +145,9 @@ export function useCanvasBands(canvasHeight: number) {
   return {
     enabledBands,
     visibleBands,
-    pendingBandShow,
     toggleBand,
+    showBands,
+    hideBand,
     disableAllBands,
     totalWorldFrac,
     targetBaselineY,

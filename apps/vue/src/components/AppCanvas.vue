@@ -7,6 +7,7 @@ import {
 } from "../composables/useCanvasBands";
 import type { BandId } from "../composables/useCanvasBands";
 import { useCanvasAnimation } from "../composables/useCanvasAnimation";
+import { useCanvasMachine } from "../composables/useCanvasMachine";
 import RocketImage from "./RocketImage.vue";
 import HumanFigure from "./HumanFigure.vue";
 import ThrustIndicator from "./ThrustIndicator.vue";
@@ -24,7 +25,6 @@ const props = defineProps<{
 // Canvas dimensions
 // ---------------------------------------------------------------------------
 
-// Canvas fills the full viewport minus the 86 & 41px top nav bar & footer.
 const canvasWidth = window.innerWidth;
 const canvasHeight = window.innerHeight - 86 - 41;
 
@@ -35,12 +35,13 @@ const canvasHeight = window.innerHeight - 86 - 41;
 const {
   enabledBands,
   visibleBands,
-  pendingBandShow,
   toggleBand,
+  showBands,
+  hideBand,
   disableAllBands,
   targetBaselineY,
   targetScaleForLength,
-  syncVisibleBands,
+  syncVisibleBands: syncVisibleBandsBase,
   bandList,
   humanOnlyScale,
   DEFAULT_BASELINE,
@@ -61,10 +62,6 @@ const {
 
 // ---------------------------------------------------------------------------
 // Stage separation helpers
-//
-// Mirrors the gap formula in RocketImage: gap = viewBox.height * 0.1.
-// Each separated stage is displaced by (mid - i) * gap, so the total extra
-// vertical span is (n - 1) * gap = (n - 1) * 0.1 * rocket.length in world space.
 // ---------------------------------------------------------------------------
 
 function effectiveLength(
@@ -77,77 +74,81 @@ function effectiveLength(
   return n > 1 ? rocket.length * (1 + (n - 1) * 0.1) : rocket.length;
 }
 
-function effectiveMaxLen(separated: boolean): number {
-  return Math.max(
-    effectiveLength(displayRocketA.value, separated),
-    effectiveLength(displayRocketB.value, separated),
-    0,
-  );
+function effectiveMaxLen(
+  rockets: (RocketConfig | null)[],
+  separated: boolean,
+): number {
+  return Math.max(...rockets.map((r) => effectiveLength(r, separated)), 0);
 }
 
 // ---------------------------------------------------------------------------
-// Watchers
+// State machine
 // ---------------------------------------------------------------------------
 
+const separationVisible = ref(false);
+const showScaleReference = ref(true);
+const stageSeparationEnabled = ref(false);
+
+const { send } = useCanvasMachine({
+  animate,
+  animatedWorldScale,
+  animatedBaselineY,
+  displayRocketA,
+  displayRocketB,
+  getTargetScale(rockets, separated) {
+    const maxLen = effectiveMaxLen(rockets, separated);
+    return targetScaleForLength(maxLen, rockets);
+  },
+  getTargetBaseline(rockets, separated) {
+    const maxLen = effectiveMaxLen(rockets, separated);
+    return maxLen > 0 ? targetBaselineY(maxLen, rockets) : DEFAULT_BASELINE;
+  },
+  setDisplayRockets(a, b) {
+    displayRocketA.value = a;
+    displayRocketB.value = b;
+  },
+  syncVisibleBands() {
+    const maxLen = Math.max(
+      displayRocketA.value?.length ?? 0,
+      displayRocketB.value?.length ?? 0,
+    );
+    syncVisibleBandsBase(maxLen);
+  },
+  showBands,
+  hideBand,
+  disableAllBands,
+  setSeparationVisible(v) {
+    separationVisible.value = v;
+  },
+});
+
+// Dispatch rocket changes to the machine
 watch([() => props.rocketAData, () => props.rocketBData], ([newA, newB]) => {
-  // Skip while a selected rocket's query is still in-flight (prop set, data not yet back).
-  // Without this guard the watcher fires twice: once for the intermediate null state
-  // and again when data arrives, causing two consecutive scale animations.
   if (props.rocketAFetching || props.rocketBFetching) return;
-
-  const rawMaxLength = Math.max(newA?.length ?? 0, newB?.length ?? 0);
-  const newMaxLength =
-    rawMaxLength > 0
-      ? Math.max(
-          effectiveLength(newA ?? null, stageSeparationEnabled.value),
-          effectiveLength(newB ?? null, stageSeparationEnabled.value),
-        )
-      : 0;
-  const newRockets = [newA ?? null, newB ?? null];
-  // When rockets are present use the layer-adjusted baseline; when removing all
-  // rockets always return to the default so the human figure isn't displaced.
-  const targetBase =
-    rawMaxLength > 0
-      ? targetBaselineY(newMaxLength, newRockets)
-      : DEFAULT_BASELINE;
-  animate(
-    animatedWorldScale.value,
-    targetScaleForLength(newMaxLength, newRockets),
-    animatedBaselineY.value,
-    targetBase,
-    () => {
-      displayRocketA.value = newA ?? null;
-      displayRocketB.value = newB ?? null;
-      // Sync display layers to active layers now that rocket presence is settled.
-      // This handles the case where layers were toggled while no rockets were loaded.
-      syncVisibleBands(rawMaxLength);
-    },
-  );
+  send({
+    type: "ROCKETS_CHANGED",
+    rocketA: newA ?? null,
+    rocketB: newB ?? null,
+  });
 });
 
-// When bands toggle: animate canvas into the new layout, then reveal/hide content.
-watch(enabledBands, () => {
-  // Stage separation owns the scale animation when it disables bands — don't compete.
-  if (stageSeparationEnabled.value) return;
-  const maxLength = effectiveMaxLen(false);
-  // No rockets means no layer content to show — don't reflow or displace the human.
-  if (maxLength === 0) {
-    pendingBandShow.value = null;
-    return;
-  }
-  const layerToShow = pendingBandShow.value;
-  pendingBandShow.value = null;
-  const rockets = [displayRocketA.value, displayRocketB.value];
-  animate(
-    animatedWorldScale.value,
-    targetScaleForLength(maxLength, rockets),
-    animatedBaselineY.value,
-    targetBaselineY(maxLength, rockets),
-    () => {
-      if (layerToShow !== null) visibleBands[layerToShow] = true;
-    },
-  );
+// Dispatch separation toggle to the machine
+watch(stageSeparationEnabled, (enable) => {
+  send({ type: "SEPARATION_TOGGLED", enable });
 });
+
+function handleToggleBand(id: BandId) {
+  const enable = !enabledBands[id];
+  if (enable) stageSeparationEnabled.value = false;
+  toggleBand(id);
+  send({ type: "BAND_TOGGLED", id, enable });
+}
+
+const hasRocketWithStages = computed(() =>
+  [displayRocketA.value, displayRocketB.value].some(
+    (r) => r && (diagrams[r.id]?.stages.length ?? 0) > 0,
+  ),
+);
 
 // ---------------------------------------------------------------------------
 // Canvas positioning
@@ -156,7 +157,7 @@ watch(enabledBands, () => {
 const HUMAN_NATIVE_W = 30;
 const HUMAN_NATIVE_H = 175;
 const HUMAN_REAL_H_M = 1.75;
-const EDGE_GAP = 80; // px between human edge and rocket edge, constant in screen space
+const EDGE_GAP = 80;
 const CANVAS_PAD = 20;
 
 const xHuman = canvasWidth * 0.5;
@@ -213,53 +214,6 @@ const rightMarginBounds = computed(() => ({
     (rightRocketX.value + rocketHalfW(displayRocketB.value)),
   height: canvasHeight,
 }));
-
-const showScaleReference = ref(true);
-const stageSeparationEnabled = ref(false);
-const separationVisible = ref(false);
-
-watch(stageSeparationEnabled, (enabled) => {
-  if (enabled) {
-    disableAllBands();
-    const maxLen = effectiveMaxLen(true);
-    if (maxLen === 0) return;
-    const rockets = [displayRocketA.value, displayRocketB.value];
-    animate(
-      animatedWorldScale.value,
-      targetScaleForLength(maxLen, rockets),
-      animatedBaselineY.value,
-      targetBaselineY(maxLen, rockets),
-      () => {
-        separationVisible.value = true;
-      },
-    );
-  } else {
-    separationVisible.value = false;
-    // If a band was just enabled it will own the scale animation — don't compete.
-    if (pendingBandShow.value !== null) return;
-    const maxLen = effectiveMaxLen(false);
-    if (maxLen === 0) return;
-    const rockets = [displayRocketA.value, displayRocketB.value];
-    animate(
-      animatedWorldScale.value,
-      targetScaleForLength(maxLen, rockets),
-      animatedBaselineY.value,
-      targetBaselineY(maxLen, rockets),
-      () => {},
-    );
-  }
-});
-
-function handleToggleBand(id: BandId) {
-  if (!enabledBands[id]) stageSeparationEnabled.value = false;
-  toggleBand(id);
-}
-
-const hasRocketWithStages = computed(() =>
-  [displayRocketA.value, displayRocketB.value].some(
-    (r) => r && (diagrams[r.id]?.stages.length ?? 0) > 0,
-  ),
-);
 </script>
 
 <template>
