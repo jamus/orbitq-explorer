@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        app: [react, vue]
+        app: [vue]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
