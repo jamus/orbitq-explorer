@@ -55,9 +55,13 @@ const layerRef = ref(null);
 const {
   animatedWorldScale,
   animatedBaselineY,
+  rocketAOpacity,
+  rocketBOpacity,
   displayRocketA,
   displayRocketB,
   animate,
+  fadeOut,
+  fadeIn,
 } = useCanvasAnimation(humanOnlyScale, DEFAULT_BASELINE, layerRef);
 
 // ---------------------------------------------------------------------------
@@ -120,6 +124,8 @@ const { send } = useCanvasMachine({
   setSeparationVisible(v) {
     separationVisible.value = v;
   },
+  fadeOut,
+  fadeIn,
 });
 
 // Dispatch rocket changes to the machine
@@ -227,6 +233,7 @@ const rightMarginBounds = computed(() => ({
           :baselineY="animatedBaselineY"
           :worldScale="animatedWorldScale"
           :separated="separationVisible"
+          :opacity="rocketAOpacity"
         />
         <ThrustIndicator
           v-if="displayRocketA && visibleBands.thrust"
@@ -246,6 +253,7 @@ const rightMarginBounds = computed(() => ({
           :baselineY="animatedBaselineY"
           :worldScale="animatedWorldScale"
           :separated="separationVisible"
+          :opacity="rocketBOpacity"
         />
         <ThrustIndicator
           v-if="displayRocketB && visibleBands.thrust"

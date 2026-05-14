@@ -18,18 +18,11 @@ describe("parseSvgPaths", () => {
     expect(viewBox).toEqual({ minX: -10, minY: -20, width: 300, height: 400 });
   });
 
-  it("extracts path d and fill", () => {
+  it("extracts path d attribute", () => {
     const svg = `<svg viewBox="0 0 10 10"><path d="M1,2 L3,4" fill="blue"/></svg>`;
     const { paths } = parseSvgPaths(svg);
     expect(paths).toHaveLength(1);
     expect(paths[0].d).toBe("M1,2 L3,4");
-    expect(paths[0].fill).toBe("blue");
-  });
-
-  it("defaults fill to 'none' when attribute is absent", () => {
-    const svg = `<svg viewBox="0 0 10 10"><path d="M0,0"/></svg>`;
-    const { paths } = parseSvgPaths(svg);
-    expect(paths[0].fill).toBe("none");
   });
 
   it("extracts optional id attribute", () => {
@@ -94,7 +87,6 @@ describe("parseSvgStages", () => {
     expect(stages[0].id).toBe("Stage-1");
     expect(stages[0].paths).toHaveLength(1);
     expect(stages[0].paths[0].d).toBe("M0,0");
-    expect(stages[0].paths[0].fill).toBe("blue");
   });
 
   it("handles multiple stage groups", () => {

@@ -1,27 +1,27 @@
-<svg width="282" height="2169" viewBox="0 0 282 2169" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g id="Starship">
+<svg width="291" height="2160" viewBox="0 0 291 2160" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Starship_V2">
 <g id="Stage-1">
-<path id="Vector" d="M60 886H219V2159H60V886Z" fill="#D9D9D9"></path>
-<path id="cheese-02" d="M17 931H60V946H17V931Z" fill="#D9D9D9"></path>
-<path id="cheese-01" d="M219 931H262V946H219V931Z" fill="#D9D9D9"></path>
+<path id="Vector" d="M223 871.5V2144.5H66V871.5H223Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
+<g id="Group_1">
+<path id="cheese-02" d="M76 925.5V938.377L38.5381 934.021C36.5213 933.786 35.0001 932.078 35 930.048V925.5H76Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
+<path id="cheese-01" d="M254 925.5V930.048C254 932.078 252.479 933.786 250.462 934.021L213 938.377V925.5H254Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
+</g>
 <g id="Engines">
-<path id="Engine-05" d="M71 2159H93V2169H71V2159Z" fill="#D9D9D9"></path>
-<path id="Engine-04" d="M99 2159H121V2169H99V2159Z" fill="#D9D9D9"></path>
-<path id="Engine-03" d="M127 2159H149V2169H127V2159Z" fill="#D9D9D9"></path>
-<path id="Engine-02" d="M155 2159H177V2169H155V2159Z" fill="#D9D9D9"></path>
-<path id="Engine-01" d="M183 2159H205V2169H183V2159Z" fill="#D9D9D9"></path>
+<path id="Rectangle_8" d="M217.061 2144.5L217.936 2158.5H71.0645L71.9395 2144.5H217.061Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
+<path id="Engine-05" d="M98.0605 2144.5L98.9355 2158.5H79.0645L79.9395 2144.5H98.0605Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
+<path id="Engine-04" d="M126.061 2144.5L126.936 2158.5H107.064L107.939 2144.5H126.061Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
+<path id="Engine-03" d="M154.061 2144.5L154.936 2158.5H135.064L135.939 2144.5H154.061Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
+<path id="Engine-02" d="M182.061 2144.5L182.936 2158.5H163.064L163.939 2144.5H182.061Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
+<path id="Engine-01" d="M210.061 2144.5L210.936 2158.5H191.064L191.939 2144.5H210.061Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
 </g>
 </g>
 <g id="Stage-2">
-<g id="Vector_2">
-<path d="M60 113.621H219V886H60V113.621Z" fill="#D9D9D9"></path>
-<path d="M138.5 0C138.5 0 223.125 62.5532 219 113.621C214.875 164.689 60.1248 165.51 60.1248 114.442C60.1248 63.3736 138.5 0 138.5 0Z" fill="#D9D9D9"></path>
-</g>
-<path id="Fin-02" d="M0 761L64 647V886H0V761Z" fill="#D9D9D9"></path>
-<path id="Fin-01" d="M282 761L218 647V886H282V761Z" fill="#D9D9D9"></path>
+<path id="Fin-02" d="M68 871.5H6V747.761L68 637.323V871.5Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
+<path id="Fin-01" d="M223 871.5H285V747.761L223 637.323V871.5Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
+<path id="Vector_2" d="M147 1C147.694 1 148.725 1.3374 150.117 2.1748C151.483 2.99669 153.09 4.2345 154.905 5.87402C158.534 9.15103 162.912 13.9551 167.758 20.0225C177.444 32.1518 188.93 49.2452 199.938 69.0488C221.974 108.688 242 159.006 242 202C242 205.236 240.92 207.163 239.387 208.454C237.791 209.797 235.612 210.535 233.245 211.158C230.975 211.756 228.428 212.263 226.528 213.196C225.549 213.677 224.655 214.307 224.009 215.191C223.352 216.091 223 217.186 223 218.5V871.5H66.0049C66.0055 871.352 66.0061 871.188 66.0068 871.009C66.0111 870.021 66.0172 868.553 66.0254 866.633C66.0418 862.792 66.0658 857.141 66.0967 849.901C66.1583 835.423 66.2467 814.59 66.3535 789.171C66.5671 738.333 66.8546 669.152 67.1494 595.781C67.739 449.041 68.359 285.54 68.4795 218.502C68.4816 217.303 68.0803 216.312 67.374 215.513C66.6913 214.74 65.7617 214.187 64.7607 213.754C62.8092 212.909 60.1505 212.354 57.7686 211.677C55.2902 210.972 52.973 210.109 51.2744 208.652C49.6308 207.243 48.5 205.22 48.5 202C48.5 159.267 69.3923 108.955 92.3037 69.25C103.749 49.415 115.672 32.2743 125.687 20.1045C130.696 14.0169 135.211 9.19295 138.937 5.90137C140.8 4.2546 142.446 3.01055 143.839 2.18359C145.259 1.34058 146.305 1 147 1Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
 <g id="Test-id-1" class="someClass">
-<path id="Inner2" d="M5 170.159L60.5 107.5V163.75V220H5V170.159Z" fill="#D9D9D9"></path>
-<path id="Inner1" d="M274.5 170.159L219 107.5V163.75V220H274.5V170.159Z" fill="#D9D9D9"></path>
+<path id="Inner2" d="M54.5527 155.93L54.5 156.086V211.5H1V163.124L72.4082 103.065L54.5527 155.93Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
+<path id="Inner1" d="M235.959 155.967L236 156.105V211.5H289.5V163.121L220.906 104.928L235.959 155.967Z" fill="#D9D9D9" stroke="black" stroke-width="2"></path>
 </g>
 </g>
 </g>

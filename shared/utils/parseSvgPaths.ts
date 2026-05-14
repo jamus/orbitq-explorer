@@ -1,6 +1,5 @@
 export type PathData = {
   d: string;
-  fill: string;
   id?: string;
   className?: string;
 };
@@ -31,13 +30,11 @@ export function parseSvgPaths(svgRaw: string): {
   while ((m = pathRe.exec(svgRaw)) !== null) {
     const el = m[0];
     const d = el.match(/\bd="([^"]+)"/)?.[1];
-    const fill = el.match(/\bfill="([^"]+)"/)?.[1] ?? "none";
     const id = el.match(/\bid="([^"]+)"/)?.[1];
     const className = el.match(/\bclass="([^"]+)"/)?.[1];
     if (d)
       paths.push({
         d,
-        fill,
         ...(id && { id }),
         ...(className && { className }),
       });
@@ -49,10 +46,9 @@ export function parseSvgPaths(svgRaw: string): {
 function parsePathEl(el: Element): PathData | null {
   const d = el.getAttribute("d");
   if (!d) return null;
-  const fill = el.getAttribute("fill") ?? "none";
   const id = el.getAttribute("id") ?? undefined;
   const className = el.getAttribute("class") ?? undefined;
-  return { d, fill, ...(id && { id }), ...(className && { className }) };
+  return { d, ...(id && { id }), ...(className && { className }) };
 }
 
 function parseStageEl(g: Element): StageData {
