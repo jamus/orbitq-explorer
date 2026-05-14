@@ -52,12 +52,12 @@ const filteredB = computed(() => filterRockets(queryB.value));
 
 function handleSelectA(val: Rocket | null) {
   if (val === null) return;
-  rocketA.value = val.id === rocketA.value?.id ? null : val;
+  rocketA.value = val;
 }
 
 function handleSelectB(val: Rocket | null) {
   if (val === null) return;
-  rocketB.value = val.id === rocketB.value?.id ? null : val;
+  rocketB.value = val;
 }
 
 function removeCompare() {
