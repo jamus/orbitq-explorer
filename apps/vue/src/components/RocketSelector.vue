@@ -23,6 +23,12 @@ const queryB = ref("");
 
 const compareMode = ref(false);
 
+// @headlessui/vue is still on v1 (v2 with the `immediate` prop is React-only).
+// Clicking the button programmatically opens the listbox; the `open` slot prop
+// guards against toggling it closed when it is already open.
+const buttonA = ref<InstanceType<typeof ComboboxButton> | null>(null);
+const buttonB = ref<InstanceType<typeof ComboboxButton> | null>(null);
+
 watch(
   result,
   (val) => {
@@ -71,6 +77,7 @@ function removeCompare() {
       :class="{ 'gap-60': compareMode }"
     >
       <Combobox
+        v-slot="{ open: openA }"
         :modelValue="rocketA"
         @update:modelValue="handleSelectA"
         nullable
@@ -82,10 +89,21 @@ function removeCompare() {
             class="w-full border border-orbitq-700 text-orbitq-50 font-mono text-sm rounded-sm px-3 py-2 pr-8 focus:outline-none focus:border-orbitq-600 transition-colors placeholder:text-orbitq-600"
             :displayValue="(r: unknown) => (r as Rocket | null)?.fullName ?? ''"
             placeholder="Select rocket A"
-            @focus="queryA = ''"
-            @change="queryA = ($event.target as HTMLInputElement).value"
+            @focus="
+              () => {
+                queryA = '';
+                if (!openA) buttonA?.$el.click();
+              }
+            "
+            @change="
+              (e: Event) => {
+                queryA = (e.target as HTMLInputElement).value;
+                if (!openA) buttonA?.$el.click();
+              }
+            "
           />
           <ComboboxButton
+            ref="buttonA"
             class="absolute inset-y-0 right-0 flex items-center pr-2 text-orbitq-600 hover:text-orbitq-50 transition-colors"
           >
             <svg
@@ -147,6 +165,7 @@ function removeCompare() {
       <template v-if="compareMode">
         <div class="flex gap-2 items-center flex-1">
           <Combobox
+            v-slot="{ open: openB }"
             :modelValue="rocketB"
             @update:modelValue="handleSelectB"
             nullable
@@ -160,10 +179,21 @@ function removeCompare() {
                   (r: unknown) => (r as Rocket | null)?.fullName ?? ''
                 "
                 placeholder="Select rocket B"
-                @focus="queryB = ''"
-                @change="queryB = ($event.target as HTMLInputElement).value"
+                @focus="
+                  () => {
+                    queryB = '';
+                    if (!openB) buttonB?.$el.click();
+                  }
+                "
+                @change="
+                  (e: Event) => {
+                    queryB = (e.target as HTMLInputElement).value;
+                    if (!openB) buttonB?.$el.click();
+                  }
+                "
               />
               <ComboboxButton
+                ref="buttonB"
                 class="absolute inset-y-0 right-0 flex items-center pr-2 text-orbitq-600 hover:text-orbitq-50 transition-colors"
               >
                 <svg
