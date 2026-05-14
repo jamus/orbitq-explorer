@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { canvasColors } from "@orbitq/styles/canvas";
 
 const props = defineProps<{
   x: number;
@@ -9,19 +10,30 @@ const props = defineProps<{
   plumeHeight: number;
 }>();
 
-const topWidth = computed(() => props.rocketWidth);
+const rocketWidth = computed(() => props.rocketWidth);
 const plumeHeight = computed(() => props.plumeHeight);
 
 const groupConfig = computed(() => ({ x: props.x, y: props.baselineY }));
 
 const lineConfig = computed(() => {
-  const hw = topWidth.value / 2;
-  const h = plumeHeight.value;
+  const halfWidth = rocketWidth.value / 2;
+  const height = plumeHeight.value;
   return {
-    points: [-hw, 0, hw, 0, 0, h],
+    points: [
+      0,
+      0,
+      halfWidth / 2,
+      0,
+      halfWidth,
+      height,
+      -halfWidth,
+      height,
+      -halfWidth / 2,
+      0,
+    ],
     closed: true,
-    fill: "transparent",
-    stroke: "#eff0f1",
+    fill: canvasColors.thrustPlume,
+    stroke: "none",
     strokeWidth: 1.5,
     strokeScaleEnabled: false,
     listening: false,
@@ -42,7 +54,7 @@ const textConfig = computed(() => ({
   text: formattedThrust.value,
   fontSize: 11,
   fontFamily: "monospace",
-  fill: "#eff0f1",
+  fill: canvasColors.thrustPlume,
   align: "center",
   listening: false,
 }));
