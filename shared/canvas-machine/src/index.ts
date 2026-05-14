@@ -91,10 +91,11 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
     // Guards — named so the machine body reads as a transition table
     // ------------------------------------------------------------------
     guards: {
-      isBandOn: ({ event }) => event.type === "BAND_TOGGLED" && event.enable,
-      isSepOn: ({ event }) =>
+      isBandToggleOn: ({ event }) =>
+        event.type === "BAND_TOGGLED" && event.enable,
+      isSeparationToggleOn: ({ event }) =>
         event.type === "SEPARATION_TOGGLED" && event.enable,
-      isSepOff: ({ event }) =>
+      isSeparationToggleOff: ({ event }) =>
         event.type === "SEPARATION_TOGGLED" && !event.enable,
       isSeparationActive: ({ context }) => context.separationActive,
       hasPendingBands: ({ context }) => context.pendingBands.length > 0,
@@ -166,7 +167,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
           },
           BAND_TOGGLED: [
             {
-              guard: "isBandOn",
+              guard: "isBandToggleOn",
               target: "animating-band-on",
               actions: "addBandToPending",
             },
@@ -176,7 +177,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             },
           ],
           SEPARATION_TOGGLED: {
-            guard: "isSepOn",
+            guard: "isSeparationToggleOn",
             target: "animating-separation-on",
           },
         },
@@ -208,7 +209,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
           },
           BAND_TOGGLED: [
             {
-              guard: "isBandOn",
+              guard: "isBandToggleOn",
               actions: "addBandToPending",
             },
             {
@@ -216,7 +217,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             },
           ],
           SEPARATION_TOGGLED: {
-            guard: "isSepOn",
+            guard: "isSeparationToggleOn",
             target: "animating-separation-on",
             actions: "clearPendingRockets",
           },
@@ -239,7 +240,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
           },
           BAND_TOGGLED: [
             {
-              guard: "isBandOn",
+              guard: "isBandToggleOn",
               // Add to pending and restart animation to new combined target
               reenter: true,
               actions: "addBandToPending",
@@ -249,7 +250,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             },
           ],
           SEPARATION_TOGGLED: {
-            guard: "isSepOn",
+            guard: "isSeparationToggleOn",
             target: "animating-separation-on",
             actions: "clearPendingBands",
           },
@@ -269,7 +270,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
           },
           BAND_TOGGLED: [
             {
-              guard: "isBandOn",
+              guard: "isBandToggleOn",
               target: "animating-band-on",
               actions: "addBandToPending",
             },
@@ -278,7 +279,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             },
           ],
           SEPARATION_TOGGLED: {
-            guard: "isSepOn",
+            guard: "isSeparationToggleOn",
             target: "animating-separation-on",
           },
         },
@@ -312,12 +313,12 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             actions: "setPendingRockets",
           },
           BAND_TOGGLED: {
-            guard: "isBandOn",
+            guard: "isBandToggleOn",
             // Store for after separation ends — no animation while separated
             actions: "addBandToPending",
           },
           SEPARATION_TOGGLED: {
-            guard: "isSepOff",
+            guard: "isSeparationToggleOff",
             target: "animating-separation-off",
             actions: ["hideSeparation", "deactivateSeparation"],
           },
