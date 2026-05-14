@@ -76,7 +76,7 @@ function removeCompare() {
       v-else-if="error"
       class="font-mono text-status-negative text-sm text-center"
     >
-      Error: {{ error.message }}
+      Failed to load rockets. Please try again later.
     </p>
     <div v-else class="flex w-full">
       <!-- Left half: Rocket A -->
