@@ -62,6 +62,11 @@ export interface CanvasMachineDeps {
   hideBand: (id: string) => void;
   disableAllBands: () => void;
   setSeparationVisible: (v: boolean) => void;
+  fadeOut: (
+    pendingA: RocketConfig | null,
+    pendingB: RocketConfig | null,
+  ) => void;
+  fadeIn: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -129,6 +134,12 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
       deactivateSeparation: assign({ separationActive: false }),
       showSeparation: () => deps.setSeparationVisible(true),
       hideSeparation: () => deps.setSeparationVisible(false),
+      fadeOut: ({ context }) =>
+        deps.fadeOut(
+          context.pendingRockets?.a ?? null,
+          context.pendingRockets?.b ?? null,
+        ),
+      fadeIn: () => deps.fadeIn(),
     },
 
     // ------------------------------------------------------------------
@@ -186,6 +197,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
 
       // -----------------------------------------------------------------
       "animating-rockets": {
+        entry: "fadeOut",
         invoke: {
           src: "animateRockets",
           input: ({ context }): PendingRockets =>
@@ -194,11 +206,11 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             {
               guard: "isSeparationActive",
               target: "separation-active",
-              actions: ["commitRockets", "syncVisibleBands"],
+              actions: ["commitRockets", "syncVisibleBands", "fadeIn"],
             },
             {
               target: "idle",
-              actions: ["commitRockets", "syncVisibleBands"],
+              actions: ["commitRockets", "syncVisibleBands", "fadeIn"],
             },
           ],
         },
@@ -293,7 +305,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
           src: "animateSeparationOn",
           onDone: {
             target: "separation-active",
-            actions: ["showSeparation", "activateSeparation"],
+            actions: ["showSeparation", "activateSeparation", "fadeIn"],
           },
         },
         on: {

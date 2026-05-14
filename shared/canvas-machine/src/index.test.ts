@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createActor } from "xstate";
 import { createCanvasMachine } from "./index.ts";
 import type { CanvasMachineDeps } from "./index.ts";
@@ -24,6 +24,8 @@ function makeDeps(
     hideBand: vi.fn(),
     disableAllBands: vi.fn(),
     setSeparationVisible: vi.fn(),
+    fadeOut: vi.fn(),
+    fadeIn: vi.fn(),
     ...overrides,
   };
 }

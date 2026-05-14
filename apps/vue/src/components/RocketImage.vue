@@ -15,6 +15,7 @@ const props = defineProps<{
   baselineY: number;
   worldScale: number;
   separated?: boolean;
+  opacity?: number;
 }>();
 
 const entry = computed(() => diagrams[props.rocket.id]);
@@ -34,6 +35,7 @@ const groupConfig = computed(() => {
     offsetY: viewBox.minY + viewBox.height,
     scaleX: scaleFactor.value,
     scaleY: scaleFactor.value,
+    opacity: props.opacity ?? 1,
   };
 });
 

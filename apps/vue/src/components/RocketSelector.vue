@@ -51,11 +51,13 @@ const filteredA = computed(() => filterRockets(queryA.value));
 const filteredB = computed(() => filterRockets(queryB.value));
 
 function handleSelectA(val: Rocket | null) {
-  rocketA.value = val?.id === rocketA.value?.id ? null : val;
+  if (val === null) return;
+  rocketA.value = val.id === rocketA.value?.id ? null : val;
 }
 
 function handleSelectB(val: Rocket | null) {
-  rocketB.value = val?.id === rocketB.value?.id ? null : val;
+  if (val === null) return;
+  rocketB.value = val.id === rocketB.value?.id ? null : val;
 }
 
 function removeCompare() {
