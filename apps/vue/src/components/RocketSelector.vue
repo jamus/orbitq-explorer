@@ -21,6 +21,8 @@ const queryA = ref("");
 const rocketB = defineModel<Rocket | null>("rocketB", { default: null });
 const queryB = ref("");
 
+const compareMode = ref(false);
+
 watch(
   result,
   (val) => {
@@ -49,15 +51,25 @@ function handleSelectA(val: Rocket | null) {
 function handleSelectB(val: Rocket | null) {
   rocketB.value = val?.id === rocketB.value?.id ? null : val;
 }
+
+function removeCompare() {
+  compareMode.value = false;
+  rocketB.value = null;
+  queryB.value = "";
+}
 </script>
 
 <template>
-  <section class="p-6">
+  <section class="p-6 w-full flex flex-col items-center justify-center gap-6">
     <p v-if="loading" class="font-mono text-orbitq-600 text-sm">Loading…</p>
     <p v-else-if="error" class="font-mono text-status-negative text-sm">
       Error: {{ error.message }}
     </p>
-    <div v-else class="flex gap-4">
+    <div
+      v-else
+      class="flex items-center justify-around w-1/2"
+      :class="{ 'gap-60': compareMode }"
+    >
       <Combobox
         :modelValue="rocketA"
         @update:modelValue="handleSelectA"
@@ -82,7 +94,6 @@ function handleSelectB(val: Rocket | null) {
               fill="currentColor"
               aria-hidden="true"
             >
-              x
               <path
                 fill-rule="evenodd"
                 d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
@@ -133,23 +144,89 @@ function handleSelectB(val: Rocket | null) {
         </ComboboxOptions>
       </Combobox>
 
-      <Combobox
-        :modelValue="rocketB"
-        @update:modelValue="handleSelectB"
-        nullable
-        as="div"
-        class="relative flex-1"
-      >
-        <div class="relative">
-          <ComboboxInput
-            class="w-full border border-orbitq-700 text-orbitq-50 font-mono text-sm rounded-sm px-3 py-2 pr-8 focus:outline-none focus:border-orbitq-600 transition-colors placeholder:text-orbitq-600"
-            :displayValue="(r: unknown) => (r as Rocket | null)?.fullName ?? ''"
-            placeholder="Select rocket B"
-            @focus="queryB = ''"
-            @change="queryB = ($event.target as HTMLInputElement).value"
-          />
-          <ComboboxButton
-            class="absolute inset-y-0 right-0 flex items-center pr-2 text-orbitq-600 hover:text-orbitq-50 transition-colors"
+      <template v-if="compareMode">
+        <div class="flex gap-2 items-center flex-1">
+          <Combobox
+            :modelValue="rocketB"
+            @update:modelValue="handleSelectB"
+            nullable
+            as="div"
+            class="relative flex-1"
+          >
+            <div class="relative">
+              <ComboboxInput
+                class="w-full border border-orbitq-700 text-orbitq-50 font-mono text-sm rounded-sm px-3 py-2 pr-8 focus:outline-none focus:border-orbitq-600 transition-colors placeholder:text-orbitq-600"
+                :displayValue="
+                  (r: unknown) => (r as Rocket | null)?.fullName ?? ''
+                "
+                placeholder="Select rocket B"
+                @focus="queryB = ''"
+                @change="queryB = ($event.target as HTMLInputElement).value"
+              />
+              <ComboboxButton
+                class="absolute inset-y-0 right-0 flex items-center pr-2 text-orbitq-600 hover:text-orbitq-50 transition-colors"
+              >
+                <svg
+                  class="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </ComboboxButton>
+            </div>
+            <ComboboxOptions
+              class="absolute z-10 mt-0.5 w-full bg-orbitq-850 border border-orbitq-700 rounded-sm py-1 shadow-lg max-h-60 overflow-auto focus:outline-none"
+            >
+              <ComboboxOption
+                v-for="rocket in filteredB"
+                :key="rocket.id"
+                :value="rocket"
+                :disabled="rocket.id === rocketA?.id"
+                v-slot="{ active, selected, disabled }"
+              >
+                <div
+                  :class="[
+                    'flex flex-col gap-0.5 px-3 py-2',
+                    disabled
+                      ? 'cursor-not-allowed opacity-40'
+                      : 'cursor-pointer',
+                    active && !disabled && 'bg-orbitq-700',
+                  ]"
+                >
+                  <span
+                    :class="[
+                      'font-mono text-sm text-orbitq-50',
+                      selected && 'font-semibold',
+                    ]"
+                  >
+                    {{ rocket.fullName }}
+                  </span>
+                  <span
+                    v-if="rocket.manufacturer"
+                    class="font-mono text-xs text-orbitq-600"
+                  >
+                    {{ rocket.manufacturer.name }}
+                  </span>
+                </div>
+              </ComboboxOption>
+              <p
+                v-if="filteredB.length === 0"
+                class="px-3 py-2 font-mono text-sm text-orbitq-600"
+              >
+                No results
+              </p>
+            </ComboboxOptions>
+          </Combobox>
+          <button
+            class="shrink-0 text-orbitq-600 hover:text-orbitq-50 transition-colors p-1"
+            aria-label="Remove comparison"
+            @click="removeCompare"
           >
             <svg
               class="h-4 w-4"
@@ -158,54 +235,20 @@ function handleSelectB(val: Rocket | null) {
               aria-hidden="true"
             >
               <path
-                fill-rule="evenodd"
-                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                clip-rule="evenodd"
+                d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"
               />
             </svg>
-          </ComboboxButton>
+          </button>
         </div>
-        <ComboboxOptions
-          class="absolute z-10 mt-0.5 w-full bg-orbitq-850 border border-orbitq-700 rounded-sm py-1 shadow-lg max-h-60 overflow-auto focus:outline-none"
-        >
-          <ComboboxOption
-            v-for="rocket in filteredB"
-            :key="rocket.id"
-            :value="rocket"
-            :disabled="rocket.id === rocketA?.id"
-            v-slot="{ active, selected, disabled }"
-          >
-            <div
-              :class="[
-                'flex flex-col gap-0.5 px-3 py-2',
-                disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer',
-                active && !disabled && 'bg-orbitq-700',
-              ]"
-            >
-              <span
-                :class="[
-                  'font-mono text-sm text-orbitq-50',
-                  selected && 'font-semibold',
-                ]"
-              >
-                {{ rocket.fullName }}
-              </span>
-              <span
-                v-if="rocket.manufacturer"
-                class="font-mono text-xs text-orbitq-600"
-              >
-                {{ rocket.manufacturer.name }}
-              </span>
-            </div>
-          </ComboboxOption>
-          <p
-            v-if="filteredB.length === 0"
-            class="px-3 py-2 font-mono text-sm text-orbitq-600"
-          >
-            No results
-          </p>
-        </ComboboxOptions>
-      </Combobox>
+      </template>
+
+      <button
+        v-else
+        class="shrink-0 font-mono text-sm border border-orbitq-700 text-orbitq-400 hover:text-orbitq-50 hover:border-orbitq-600 rounded-sm px-3 py-2 transition-colors whitespace-nowrap"
+        @click="compareMode = true"
+      >
+        + Add to compare
+      </button>
     </div>
   </section>
 </template>
