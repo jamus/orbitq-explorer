@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { canvasColors } from "@orbitq/styles/canvas";
 
 const props = defineProps<{
   x: number;
@@ -32,7 +33,7 @@ const lineConfig = computed(() => {
     ],
     closed: true,
     fill: "transparent",
-    stroke: "#eff0f1",
+    stroke: canvasColors.thrustPlume,
     strokeWidth: 1.5,
     strokeScaleEnabled: false,
     listening: false,
@@ -53,7 +54,7 @@ const textConfig = computed(() => ({
   text: formattedThrust.value,
   fontSize: 11,
   fontFamily: "monospace",
-  fill: "#eff0f1",
+  fill: canvasColors.thrustPlume,
   align: "center",
   listening: false,
 }));

@@ -3,10 +3,9 @@ import { computed, ref, watch, onUnmounted } from "vue";
 import Konva from "konva";
 import type { RocketConfig } from "@orbitq/graphql";
 import { diagrams } from "@shared/const/diagrams";
+import { canvasColors } from "@orbitq/styles/canvas";
 
 const SEPARATION_DURATION = 500;
-const STROKE = "#bdbebf";
-const FILL = "#1e1f21";
 const STROKE_WIDTH = 1.5;
 
 const props = defineProps<{
@@ -40,8 +39,8 @@ const groupConfig = computed(() => {
 });
 
 const pathConfig = computed(() => ({
-  fill: FILL,
-  stroke: STROKE,
+  fill: canvasColors.rocketFill,
+  stroke: canvasColors.rocketStroke,
   strokeWidth: STROKE_WIDTH,
   strokeScaleEnabled: false,
   listening: false,
