@@ -33,6 +33,9 @@
     "xstate": "^5.31.0"
   },
   "pnpm": {
+    "overrides": {
+      "xstate": "5.31.0"
+    },
     "onlyBuiltDependencies": [
       "simple-git-hooks",
       "vue-demi"
