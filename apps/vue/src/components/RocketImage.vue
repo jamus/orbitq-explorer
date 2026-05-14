@@ -5,19 +5,17 @@ import type { RocketConfig } from "@orbitq/graphql";
 import { diagrams } from "@shared/const/diagrams";
 
 const SEPARATION_DURATION = 500;
+const STROKE = "#bdbebf";
+const FILL = "#1e1f21";
+const STROKE_WIDTH = 1.5;
 
-const props = withDefaults(
-  defineProps<{
-    rocket: RocketConfig;
-    x: number;
-    baselineY: number;
-    worldScale: number;
-    separated?: boolean;
-    stroke?: string;
-    strokeWidth?: number;
-  }>(),
-  { stroke: "#eff0f1", strokeWidth: 1.5, separated: false },
-);
+const props = defineProps<{
+  rocket: RocketConfig;
+  x: number;
+  baselineY: number;
+  worldScale: number;
+  separated?: boolean;
+}>();
 
 const entry = computed(() => diagrams[props.rocket.id]);
 
@@ -40,9 +38,9 @@ const groupConfig = computed(() => {
 });
 
 const pathConfig = computed(() => ({
-  fill: "transparent",
-  stroke: props.stroke,
-  strokeWidth: props.strokeWidth,
+  fill: FILL,
+  stroke: STROKE,
+  strokeWidth: STROKE_WIDTH,
   strokeScaleEnabled: false,
   listening: false,
 }));
