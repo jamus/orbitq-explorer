@@ -1,4 +1,4 @@
-import { createMachine, assign, fromPromise } from "xstate";
+import { setup, assign, fromPromise } from "xstate";
 import type { RocketConfig } from "@orbitq/graphql";
 
 // ---------------------------------------------------------------------------
@@ -84,308 +84,268 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
     });
   }
 
-  return createMachine(
-    {
-      /** @xstate-layout N4IgpgJg5mDOIC5QGMCGA7Abq2A6AlhADZgDEASgPIDCA0gKIAqAygPrUASAggHIDi9ACIBtAAwBdRKAAOAe1j4ALvlnopIAB6IAjAE5tuUUaMBmbQHYAbKJPmArACYANCACeiABwGALLr+7zb287E0tdGwBfCJc0LBwCYjIAIV5BVkZKPj4AGSExSSQQOQVlVXUtBD0DY1MLa1tHF3dKh20HXFtdS2t7YO9tbyiYjGw8QhJSFJ40jKzckW0CmXklFTVCiqrDGrMrG3tnN0R9E1w7Nu8rDyDry6GQWNGEieZ6AAUuci5GAElKHnSmRyeQk6mKqzKGx0+m2xl29QOTR0JlEHlwwXM5i8HhCIQ8Hnuj3iGHwAFtUMp0FAALQAJ1kyAA1mBFLBSBBVGACFhZMzcES8CTyZSafSmSzYAh8Dy0KV0Pl8mCVnLyogTCZfLgPLpRN4HNqBg5dUiELo9bhzBrQqJAg4TI4CdEHiNiegyRTpaKGczWezOdzMLyuQLcEKPVS6d6JVKZR7VArFkqSmtVQh1UaLb4sSYDfaPOYTdpzqd8114vY7HZvLq7ISXYK3cLPZHxb6qHQmGxOLwBCJQYVwSqoWmcaJcK0cXZLCY-OZdPmTZXLLhug5LEbUUWHGu63EG+6RS2fWypjMgfNFQPlSnhznt1rum47FYZ2a7CbvNYzrd5-OHI4AN3J4w0PMVj0mVJATmPJEyvZNIVACoc1Rccy0tf9-3MQ5mlCbwzlEadMXxe0HDnIDXQPZswIlUhXg+L5fn+KDgT7JYimvBDNDVbwPDHURdDzStcP0Rc2lwbQLAsHUBJxctyP3JsIwAIwwCBqVUP10C5aVAz5EMQObFT0DU1QY0DWU1gVftlng9ZEM8WwV2rOx9DsDx-zCd8jkqGtx3XS5gg8XDBidfTG3DGkjJM9AKBoBgWHYbh+BBNjBxvezKgC8cvCk39URCE1QjRZ8cpxII8wceTQ3Cw8ovUmLT2Yi9rPY2zUwkgSzhnURwn4vFRC85oujsDoLksXxtFfG0qoM5TVPqiDpiamDUo4uyuMqCw0S6DxLHzNyZ2fAtvN23RxytbwcwGPx1RmmrDPmjS6M+b4-gBWYWMvGyIXWzYsv1CS5zynETELAi8PCItq1scwBr2u7KLm4z1IAMxRzTtJ5PT62qxHIsetGzIZON5QkL7Wp+9qYRqGo7GMSkQpOcI4lOaJMJw99I2w3IFq3UrNVKyc-0i0JLHLCj8ywvJ6mCbQ9DqvEWLmSdJ0YzGFmFB4kZo6pnJxnNlUBOyJI0N3lqLBq3v2x7ngSNqeo6yJGGe4bRvG8IAGlJMm00gA */
-      id: "canvas",
-      types: {} as { context: CanvasContext; events: CanvasEvent },
-      context: {
-        pendingBands: [],
-        pendingRockets: null,
-        separationActive: false,
+  return setup({
+    types: {} as { context: CanvasContext; events: CanvasEvent },
+
+    // ------------------------------------------------------------------
+    // Guards — named so the machine body reads as a transition table
+    // ------------------------------------------------------------------
+    guards: {
+      isBandOn: ({ event }) => event.type === "BAND_TOGGLED" && event.enable,
+      isSepOn: ({ event }) =>
+        event.type === "SEPARATION_TOGGLED" && event.enable,
+      isSepOff: ({ event }) =>
+        event.type === "SEPARATION_TOGGLED" && !event.enable,
+      isSeparationActive: ({ context }) => context.separationActive,
+      hasPendingBands: ({ context }) => context.pendingBands.length > 0,
+    },
+
+    // ------------------------------------------------------------------
+    // Actions — all side effects and context updates live here
+    // ------------------------------------------------------------------
+    actions: {
+      setPendingRockets: assign(({ event }) => {
+        if (event.type !== "ROCKET_SELECTION_CHANGED") return {};
+        return { pendingRockets: { a: event.rocketA, b: event.rocketB } };
+      }),
+      clearPendingRockets: assign({ pendingRockets: null }),
+      addBandToPending: assign(({ context, event }) => {
+        if (event.type !== "BAND_TOGGLED") return {};
+        return { pendingBands: addPending(context.pendingBands, event.id) };
+      }),
+      clearPendingBands: assign({ pendingBands: (): string[] => [] }),
+      hideBand: ({ event }) => {
+        if (event.type === "BAND_TOGGLED") deps.hideBand(event.id);
       },
-      initial: "idle",
-      states: {
-        // -----------------------------------------------------------------
-        idle: {
-          on: {
-            ROCKET_SELECTION_CHANGED: {
-              target: "animating-rockets",
-              actions: assign(({ event }) => ({
-                pendingRockets: { a: event.rocketA, b: event.rocketB },
-              })),
+      commitRockets: ({ context }) => {
+        const r = context.pendingRockets;
+        deps.setDisplayRockets(r?.a ?? null, r?.b ?? null);
+      },
+      syncVisibleBands: () => deps.syncVisibleBands(),
+      showPendingBands: ({ context }) => deps.showBands(context.pendingBands),
+      disableAllBands: () => deps.disableAllBands(),
+      activateSeparation: assign({ separationActive: true }),
+      deactivateSeparation: assign({ separationActive: false }),
+      showSeparation: () => deps.setSeparationVisible(true),
+      hideSeparation: () => deps.setSeparationVisible(false),
+    },
+
+    // ------------------------------------------------------------------
+    // Actors — animation promises, named by the layout they compute
+    // ------------------------------------------------------------------
+    actors: {
+      // Uses pendingRockets passed as input — pending, not display
+      animateRockets: fromPromise(({ input }: { input: PendingRockets }) =>
+        animateAsync([input.a, input.b], false),
+      ),
+      // Animates to current display rocket layout without separation.
+      // Shared by animating-band-on, animating-band-off, animating-separation-off.
+      animateBands: fromPromise(() =>
+        animateAsync([deps.displayRocketA(), deps.displayRocketB()], false),
+      ),
+      // Animates to current display rocket layout with separation
+      animateSeparationOn: fromPromise(() =>
+        animateAsync([deps.displayRocketA(), deps.displayRocketB()], true),
+      ),
+    },
+  }).createMachine({
+    id: "canvas",
+    context: {
+      pendingBands: [],
+      pendingRockets: null,
+      separationActive: false,
+    },
+    initial: "idle",
+    states: {
+      // -----------------------------------------------------------------
+      idle: {
+        on: {
+          ROCKET_SELECTION_CHANGED: {
+            target: "animating-rockets",
+            actions: "setPendingRockets",
+          },
+          BAND_TOGGLED: [
+            {
+              guard: "isBandOn",
+              target: "animating-band-on",
+              actions: "addBandToPending",
             },
-            BAND_TOGGLED: [
-              {
-                guard: ({ event }) =>
-                  event.type === "BAND_TOGGLED" && event.enable,
-                target: "animating-band-on",
-                actions: assign(({ context, event }) => ({
-                  pendingBands: addPending(
-                    context.pendingBands,
-                    event.type === "BAND_TOGGLED" ? event.id : null,
-                  ),
-                })),
-              },
-              {
-                actions: ({ event }) => {
-                  if (event.type === "BAND_TOGGLED") deps.hideBand(event.id);
-                },
-                target: "animating-band-off",
-              },
-            ],
-            SEPARATION_TOGGLED: {
-              guard: ({ event }) =>
-                event.type === "SEPARATION_TOGGLED" && event.enable,
-              target: "animating-separation-on",
+            {
+              actions: "hideBand",
+              target: "animating-band-off",
             },
+          ],
+          SEPARATION_TOGGLED: {
+            guard: "isSepOn",
+            target: "animating-separation-on",
           },
         },
+      },
 
-        // -----------------------------------------------------------------
-        "animating-rockets": {
-          invoke: {
-            src: fromPromise(({ input }: { input: PendingRockets }) =>
-              animateAsync([input.a, input.b], false),
-            ),
-            input: ({ context }): PendingRockets =>
-              context.pendingRockets ?? { a: null, b: null },
-            onDone: [
-              {
-                guard: ({ context }) => context.separationActive,
-                target: "separation-active",
-                actions: ["commitRockets", "syncVisibleBands"],
-              },
-              {
-                target: "idle",
-                actions: ["commitRockets", "syncVisibleBands"],
-              },
-            ],
-          },
-          on: {
-            ROCKET_SELECTION_CHANGED: {
-              // Restart animation with newest data
-              reenter: true,
-              actions: assign(({ event }) => ({
-                pendingRockets: { a: event.rocketA, b: event.rocketB },
-              })),
-            },
-            BAND_TOGGLED: [
-              {
-                guard: ({ event }) =>
-                  event.type === "BAND_TOGGLED" && event.enable,
-                actions: assign(({ context, event }) => ({
-                  pendingBands: addPending(
-                    context.pendingBands,
-                    event.type === "BAND_TOGGLED" ? event.id : null,
-                  ),
-                })),
-              },
-              {
-                actions: ({ event }) => {
-                  if (event.type === "BAND_TOGGLED") deps.hideBand(event.id);
-                },
-              },
-            ],
-            SEPARATION_TOGGLED: {
-              guard: ({ event }) =>
-                event.type === "SEPARATION_TOGGLED" && event.enable,
-              target: "animating-separation-on",
-              actions: assign({ pendingRockets: null }),
-            },
-          },
-        },
-
-        // -----------------------------------------------------------------
-        "animating-band-on": {
-          invoke: {
-            src: fromPromise(() =>
-              animateAsync(
-                [deps.displayRocketA(), deps.displayRocketB()],
-                false,
-              ),
-            ),
-            onDone: {
-              target: "idle",
-              actions: ["showPendingBands", assign({ pendingBands: [] })],
-            },
-          },
-          on: {
-            ROCKET_SELECTION_CHANGED: {
-              target: "animating-rockets",
-              actions: [
-                assign(({ event }) => ({
-                  pendingRockets: { a: event.rocketA, b: event.rocketB },
-                  pendingBands: [] as string[],
-                })),
-              ],
-            },
-            BAND_TOGGLED: [
-              {
-                guard: ({ event }) =>
-                  event.type === "BAND_TOGGLED" && event.enable,
-                // Add to pending and restart animation to new combined target
-                reenter: true,
-                actions: assign(({ context, event }) => ({
-                  pendingBands: addPending(
-                    context.pendingBands,
-                    event.type === "BAND_TOGGLED" ? event.id : null,
-                  ),
-                })),
-              },
-              {
-                actions: ({ event }) => {
-                  if (event.type === "BAND_TOGGLED") deps.hideBand(event.id);
-                },
-              },
-            ],
-            SEPARATION_TOGGLED: {
-              guard: ({ event }) =>
-                event.type === "SEPARATION_TOGGLED" && event.enable,
-              target: "animating-separation-on",
-              actions: assign({ pendingBands: [] as string[] }),
-            },
-          },
-        },
-
-        // -----------------------------------------------------------------
-        "animating-band-off": {
-          invoke: {
-            src: fromPromise(() =>
-              animateAsync(
-                [deps.displayRocketA(), deps.displayRocketB()],
-                false,
-              ),
-            ),
-            onDone: "idle",
-          },
-          on: {
-            ROCKET_SELECTION_CHANGED: {
-              target: "animating-rockets",
-              actions: assign(({ event }) => ({
-                pendingRockets: { a: event.rocketA, b: event.rocketB },
-              })),
-            },
-            BAND_TOGGLED: [
-              {
-                guard: ({ event }) =>
-                  event.type === "BAND_TOGGLED" && event.enable,
-                target: "animating-band-on",
-                actions: assign(({ context, event }) => ({
-                  pendingBands: addPending(
-                    context.pendingBands,
-                    event.type === "BAND_TOGGLED" ? event.id : null,
-                  ),
-                })),
-              },
-              {
-                actions: ({ event }) => {
-                  if (event.type === "BAND_TOGGLED") deps.hideBand(event.id);
-                },
-              },
-            ],
-            SEPARATION_TOGGLED: {
-              guard: ({ event }) =>
-                event.type === "SEPARATION_TOGGLED" && event.enable,
-              target: "animating-separation-on",
-            },
-          },
-        },
-
-        // -----------------------------------------------------------------
-        "animating-separation-on": {
-          entry: () => deps.disableAllBands(),
-          invoke: {
-            src: fromPromise(() =>
-              animateAsync(
-                [deps.displayRocketA(), deps.displayRocketB()],
-                true,
-              ),
-            ),
-            onDone: {
+      // -----------------------------------------------------------------
+      "animating-rockets": {
+        invoke: {
+          src: "animateRockets",
+          input: ({ context }): PendingRockets =>
+            context.pendingRockets ?? { a: null, b: null },
+          onDone: [
+            {
+              guard: "isSeparationActive",
               target: "separation-active",
-              actions: [
-                () => deps.setSeparationVisible(true),
-                assign({ separationActive: true }),
-              ],
+              actions: ["commitRockets", "syncVisibleBands"],
             },
+            {
+              target: "idle",
+              actions: ["commitRockets", "syncVisibleBands"],
+            },
+          ],
+        },
+        on: {
+          ROCKET_SELECTION_CHANGED: {
+            // Restart animation with newest data
+            reenter: true,
+            actions: "setPendingRockets",
           },
-          on: {
-            ROCKET_SELECTION_CHANGED: {
-              target: "animating-rockets",
-              actions: assign(({ event }) => ({
-                pendingRockets: { a: event.rocketA, b: event.rocketB },
-                separationActive: false,
-              })),
+          BAND_TOGGLED: [
+            {
+              guard: "isBandOn",
+              actions: "addBandToPending",
             },
+            {
+              actions: "hideBand",
+            },
+          ],
+          SEPARATION_TOGGLED: {
+            guard: "isSepOn",
+            target: "animating-separation-on",
+            actions: "clearPendingRockets",
           },
         },
+      },
 
-        // -----------------------------------------------------------------
-        "separation-active": {
-          on: {
-            ROCKET_SELECTION_CHANGED: {
-              // Rockets changed while separation is active — animate to new layout
-              // but stay in separation mode (separationActive stays true)
-              target: "animating-rockets",
-              actions: assign(({ event }) => ({
-                pendingRockets: { a: event.rocketA, b: event.rocketB },
-              })),
-            },
-            BAND_TOGGLED: {
-              guard: ({ event }) =>
-                event.type === "BAND_TOGGLED" && event.enable,
-              // Store for after separation ends — no animation while separated
-              actions: assign(({ context, event }) => ({
-                pendingBands: addPending(
-                  context.pendingBands,
-                  event.type === "BAND_TOGGLED" ? event.id : null,
-                ),
-              })),
-            },
-            SEPARATION_TOGGLED: {
-              guard: ({ event }) =>
-                event.type === "SEPARATION_TOGGLED" && !event.enable,
-              target: "animating-separation-off",
-              actions: [
-                () => deps.setSeparationVisible(false),
-                assign({ separationActive: false }),
-              ],
-            },
+      // -----------------------------------------------------------------
+      "animating-band-on": {
+        invoke: {
+          src: "animateBands",
+          onDone: {
+            target: "idle",
+            actions: ["showPendingBands", "clearPendingBands"],
           },
         },
-
-        // -----------------------------------------------------------------
-        "animating-separation-off": {
-          invoke: {
-            src: fromPromise(() =>
-              animateAsync(
-                [deps.displayRocketA(), deps.displayRocketB()],
-                false,
-              ),
-            ),
-            onDone: [
-              {
-                // If bands were queued while separation was active, play them now
-                guard: ({ context }) => context.pendingBands.length > 0,
-                target: "animating-band-on",
-              },
-              { target: "idle" },
-            ],
+        on: {
+          ROCKET_SELECTION_CHANGED: {
+            target: "animating-rockets",
+            actions: ["setPendingRockets", "clearPendingBands"],
           },
-          on: {
-            ROCKET_SELECTION_CHANGED: {
-              target: "animating-rockets",
-              actions: assign(({ event }) => ({
-                pendingRockets: { a: event.rocketA, b: event.rocketB },
-                pendingBands: [] as string[],
-              })),
+          BAND_TOGGLED: [
+            {
+              guard: "isBandOn",
+              // Add to pending and restart animation to new combined target
+              reenter: true,
+              actions: "addBandToPending",
             },
+            {
+              actions: "hideBand",
+            },
+          ],
+          SEPARATION_TOGGLED: {
+            guard: "isSepOn",
+            target: "animating-separation-on",
+            actions: "clearPendingBands",
+          },
+        },
+      },
+
+      // -----------------------------------------------------------------
+      "animating-band-off": {
+        invoke: {
+          src: "animateBands",
+          onDone: "idle",
+        },
+        on: {
+          ROCKET_SELECTION_CHANGED: {
+            target: "animating-rockets",
+            actions: "setPendingRockets",
+          },
+          BAND_TOGGLED: [
+            {
+              guard: "isBandOn",
+              target: "animating-band-on",
+              actions: "addBandToPending",
+            },
+            {
+              actions: "hideBand",
+            },
+          ],
+          SEPARATION_TOGGLED: {
+            guard: "isSepOn",
+            target: "animating-separation-on",
+          },
+        },
+      },
+
+      // -----------------------------------------------------------------
+      "animating-separation-on": {
+        entry: "disableAllBands",
+        invoke: {
+          src: "animateSeparationOn",
+          onDone: {
+            target: "separation-active",
+            actions: ["showSeparation", "activateSeparation"],
+          },
+        },
+        on: {
+          ROCKET_SELECTION_CHANGED: {
+            target: "animating-rockets",
+            actions: ["setPendingRockets", "deactivateSeparation"],
+          },
+        },
+      },
+
+      // -----------------------------------------------------------------
+      "separation-active": {
+        on: {
+          ROCKET_SELECTION_CHANGED: {
+            // Rockets changed while separation is active — animate to new layout
+            // but stay in separation mode (separationActive stays true)
+            target: "animating-rockets",
+            actions: "setPendingRockets",
+          },
+          BAND_TOGGLED: {
+            guard: "isBandOn",
+            // Store for after separation ends — no animation while separated
+            actions: "addBandToPending",
+          },
+          SEPARATION_TOGGLED: {
+            guard: "isSepOff",
+            target: "animating-separation-off",
+            actions: ["hideSeparation", "deactivateSeparation"],
+          },
+        },
+      },
+
+      // -----------------------------------------------------------------
+      "animating-separation-off": {
+        invoke: {
+          src: "animateBands",
+          onDone: [
+            {
+              // If bands were queued while separation was active, play them now
+              guard: "hasPendingBands",
+              target: "animating-band-on",
+            },
+            { target: "idle" },
+          ],
+        },
+        on: {
+          ROCKET_SELECTION_CHANGED: {
+            target: "animating-rockets",
+            actions: ["setPendingRockets", "clearPendingBands"],
           },
         },
       },
     },
-    {
-      actions: {
-        commitRockets: ({ context }) => {
-          const r = context.pendingRockets;
-          deps.setDisplayRockets(r?.a ?? null, r?.b ?? null);
-        },
-        syncVisibleBands: () => deps.syncVisibleBands(),
-        showPendingBands: ({ context }) => deps.showBands(context.pendingBands),
-      },
-    },
-  );
+  });
 }
 
 // ---------------------------------------------------------------------------
