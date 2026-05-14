@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useQuery } from "@vue/apollo-composable";
 import { ROCKET_CONFIGS } from "@orbitq/graphql";
 import type { RocketConfigsQuery } from "@orbitq/graphql";
@@ -20,6 +20,17 @@ const queryA = ref("");
 
 const rocketB = defineModel<Rocket | null>("rocketB", { default: null });
 const queryB = ref("");
+
+watch(
+  result,
+  (val) => {
+    if (rocketA.value === null) {
+      const starshipV2 = val?.rocketConfigs.find((r) => r.id === 527) ?? null;
+      rocketA.value = starshipV2;
+    }
+  },
+  { once: true },
+);
 
 function filterRockets(query: string) {
   const rockets = result.value?.rocketConfigs ?? [];
