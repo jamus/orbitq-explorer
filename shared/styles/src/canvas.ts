@@ -2,5 +2,5 @@
 export const canvasColors = {
   rocketFill: "#1e1f21", // --color-orbitq-950
   rocketStroke: "#bdbebf", // --color-orbitq-200
-  thrustPlume: "#eff0f1", // --color-orbitq-50
+  thrustPlume: "#ff6f61", // --color-orbitq-red-500
 } as const;
