@@ -22,6 +22,11 @@ export type BandId = keyof typeof BAND_REGISTRY;
 // Drives both the canvas layout reservation and ThrustIndicator rendering.
 export const KN_PER_PLUME_METRE = 250;
 
+// World-space fraction of the tallest rocket's length reserved for the maiden
+// flight timeline band. A fixed fraction keeps the band a predictable size
+// regardless of which rockets are loaded.
+export const TIMELINE_BAND_FRAC = 0.38;
+
 const BAND_REGISTRY = {
   thrust: {
     label: "Thrust",
@@ -33,6 +38,10 @@ const BAND_REGISTRY = {
       );
       return maxPlumeM / maxLength;
     },
+  },
+  maidenFlight: {
+    label: "Maiden Flight",
+    bandHeightFrac: () => TIMELINE_BAND_FRAC,
   },
 } satisfies Record<string, BandDef>;
 
@@ -65,8 +74,14 @@ export function useCanvasBands(canvasHeight: number) {
   // visibleBands: what's actually rendered — lags behind enabledBands during transition.
   // Separating the two lets us animate the canvas into its new layout before a band
   // appears (toggle ON) or immediately after it disappears (toggle OFF).
-  const enabledBands = reactive<Record<BandId, boolean>>({ thrust: false });
-  const visibleBands = reactive<Record<BandId, boolean>>({ thrust: false });
+  const enabledBands = reactive<Record<BandId, boolean>>({
+    thrust: false,
+    maidenFlight: true,
+  });
+  const visibleBands = reactive<Record<BandId, boolean>>({
+    thrust: false,
+    maidenFlight: false,
+  });
 
   function toggleBand(id: BandId) {
     if (enabledBands[id]) {

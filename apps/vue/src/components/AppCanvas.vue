@@ -4,13 +4,16 @@ import type { RocketConfig } from "@orbitq/graphql";
 import {
   useCanvasBands,
   KN_PER_PLUME_METRE,
+  TIMELINE_BAND_FRAC,
 } from "../composables/useCanvasBands";
 import type { BandId } from "../composables/useCanvasBands";
+import { canvasColors } from "@orbitq/styles/canvas";
 import { useCanvasAnimation } from "../composables/useCanvasAnimation";
 import { useCanvasMachine } from "../composables/useCanvasMachine";
 import RocketImage from "./RocketImage.vue";
 import HumanFigure from "./HumanFigure.vue";
 import ThrustIndicator from "./ThrustIndicator.vue";
+import MaidenFlightTimeline from "./MaidenFlightTimeline.vue";
 import CanvasPanel from "./CanvasPanel.vue";
 import { diagrams } from "@shared/const/diagrams";
 
@@ -157,6 +160,21 @@ const hasRocketWithStages = computed(() =>
 );
 
 // ---------------------------------------------------------------------------
+// Band-specific pixel dimensions
+// ---------------------------------------------------------------------------
+
+const maxRocketLength = computed(() =>
+  Math.max(
+    displayRocketA.value?.length ?? 0,
+    displayRocketB.value?.length ?? 0,
+  ),
+);
+
+const timelineBandHeight = computed(
+  () => TIMELINE_BAND_FRAC * maxRocketLength.value * animatedWorldScale.value,
+);
+
+// ---------------------------------------------------------------------------
 // Canvas positioning
 // ---------------------------------------------------------------------------
 
@@ -266,12 +284,20 @@ const rightMarginBounds = computed(() => ({
             animatedWorldScale
           "
         />
+        <MaidenFlightTimeline
+          v-if="visibleBands.maidenFlight"
+          :baselineY="animatedBaselineY"
+          :bandHeight="timelineBandHeight"
+          :canvasWidth="canvasWidth"
+          :rocketA="displayRocketA"
+          :rocketB="displayRocketB"
+        />
         <!-- DEBUG: remove before ship -->
         <v-rect
           :config="{
             ...leftMarginBounds,
-            fill: 'rgba(100, 200, 255, 0.1)',
-            stroke: 'rgba(100, 200, 255, 0.4)',
+            fill: canvasColors.rocketAAccentSubtle,
+            stroke: canvasColors.rocketAAccentMid,
             strokeWidth: 1,
             dash: [4, 4],
           }"
@@ -279,8 +305,8 @@ const rightMarginBounds = computed(() => ({
         <v-rect
           :config="{
             ...rightMarginBounds,
-            fill: 'rgba(255, 150, 100, 0.1)',
-            stroke: 'rgba(255, 150, 100, 0.4)',
+            fill: canvasColors.rocketBAccentSubtle,
+            stroke: canvasColors.rocketBAccentMid,
             strokeWidth: 1,
             dash: [4, 4],
           }"

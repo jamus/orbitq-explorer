@@ -159,6 +159,7 @@ describe("useCanvasBands", () => {
       const { bandList } = useCanvasBands(CANVAS_HEIGHT);
       expect(bandList.value).toEqual([
         { id: "thrust", label: "Thrust", active: false },
+        { id: "maidenFlight", label: "Maiden Flight", active: false },
       ]);
     });
 
