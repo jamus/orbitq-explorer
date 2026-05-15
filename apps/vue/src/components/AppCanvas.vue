@@ -315,6 +315,7 @@ const rightMarginBounds = computed(() => ({
         />
         <ThrustIndicator
           v-if="displayRocketA && visibleBands.thrust"
+          side="left"
           :x="leftRocketX"
           :baselineY="bandStartYs.thrust"
           :rocketWidth="2 * rocketHalfW(displayRocketA)"
@@ -335,6 +336,7 @@ const rightMarginBounds = computed(() => ({
         />
         <ThrustIndicator
           v-if="displayRocketB && visibleBands.thrust"
+          side="right"
           :x="rightRocketX"
           :baselineY="bandStartYs.thrust"
           :rocketWidth="2 * rocketHalfW(displayRocketB)"

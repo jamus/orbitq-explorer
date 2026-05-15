@@ -8,6 +8,7 @@ const props = defineProps<{
   rocketWidth: number;
   thrust: number | null;
   plumeHeight: number;
+  side: "left" | "right";
 }>();
 
 const rocketWidth = computed(() => props.rocketWidth);
@@ -45,19 +46,23 @@ const formattedThrust = computed(() =>
 );
 
 const LABEL_WIDTH = 160;
+const LABEL_GAP = 8;
 
-const textConfig = computed(() => ({
-  x: 0,
-  y: plumeHeight.value + 6,
-  offsetX: LABEL_WIDTH / 2,
-  width: LABEL_WIDTH,
-  text: formattedThrust.value,
-  fontSize: 11,
-  fontFamily: "monospace",
-  fill: canvasColors.thrustPlume,
-  align: "center",
-  listening: false,
-}));
+const textConfig = computed(() => {
+  const halfWidth = rocketWidth.value / 2;
+  const isLeft = props.side === "left";
+  return {
+    x: isLeft ? -halfWidth - LABEL_WIDTH - LABEL_GAP : halfWidth + LABEL_GAP,
+    y: plumeHeight.value - 7,
+    width: LABEL_WIDTH,
+    text: formattedThrust.value,
+    fontSize: 11,
+    fontFamily: "monospace",
+    fill: canvasColors.thrustPlume,
+    align: isLeft ? "right" : "left",
+    listening: false,
+  };
+});
 </script>
 
 <template>
