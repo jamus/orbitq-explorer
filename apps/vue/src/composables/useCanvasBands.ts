@@ -91,8 +91,8 @@ export function useCanvasBands(canvasHeight: number) {
   // Separating the two lets us animate the canvas into its new layout before a band
   // appears (toggle ON) or immediately after it disappears (toggle OFF).
   const enabledBands = reactive<Record<BandId, boolean>>({
-    thrust: true,
-    maidenFlight: true,
+    thrust: false,
+    maidenFlight: false,
   });
   const visibleBands = reactive<Record<BandId, boolean>>({
     thrust: false,
