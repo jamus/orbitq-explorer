@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import type { RocketConfig } from "@orbitq/graphql";
 import { canvasColors } from "@orbitq/styles/canvas";
-import { formatMaidenFlight } from "@shared/utils/formatMaidenFlight";
+import { formatShortDate } from "@shared/utils/formatShortDate";
 
 const props = defineProps<{
   baselineY: number;
@@ -177,7 +177,7 @@ function milestoneDateConfig(x: number, dateStr: string) {
     y: axisY.value + DATE_Y,
     offsetX: MILESTONE_LABEL_W / 2,
     width: MILESTONE_LABEL_W,
-    text: formatMaidenFlight(dateStr),
+    text: formatShortDate(dateStr),
     fontSize: MILESTONE_FONT,
     fontFamily: "monospace",
     fill: canvasColors.timelineGoddard,
@@ -257,7 +257,7 @@ function makeMarker(
   return {
     x: dateStrToXPos(rocket.maidenFlight),
     label: rocket.name,
-    formattedDate: formatMaidenFlight(rocket.maidenFlight),
+    formattedDate: formatShortDate(rocket.maidenFlight),
     color,
     colorMid: colorMid,
   };
