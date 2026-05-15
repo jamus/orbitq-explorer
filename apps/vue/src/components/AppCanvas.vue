@@ -6,11 +6,13 @@ import {
   KN_PER_PLUME_METRE,
 } from "../composables/useCanvasBands";
 import type { BandId } from "../composables/useCanvasBands";
+import { canvasColors } from "@orbitq/styles/canvas";
 import { useCanvasAnimation } from "../composables/useCanvasAnimation";
 import { useCanvasMachine } from "../composables/useCanvasMachine";
 import RocketImage from "./RocketImage.vue";
 import HumanFigure from "./HumanFigure.vue";
 import ThrustIndicator from "./ThrustIndicator.vue";
+import MaidenFlightTimeline from "./MaidenFlightTimeline.vue";
 import CanvasPanel from "./CanvasPanel.vue";
 import { diagrams } from "@shared/const/diagrams";
 
@@ -36,12 +38,14 @@ const {
   enabledBands,
   visibleBands,
   toggleBand,
-  showBands,
   hideBand,
   disableAllBands,
   targetBaselineY,
   targetScaleForLength,
+  bandOffsetFracs,
+  bandHeightPx,
   syncVisibleBands: syncVisibleBandsBase,
+  bandsBelow,
   bandList,
   humanOnlyScale,
   DEFAULT_BASELINE,
@@ -55,11 +59,13 @@ const layerRef = ref(null);
 const {
   animatedWorldScale,
   animatedBaselineY,
+  animatedBandOffsets,
   rocketAOpacity,
   rocketBOpacity,
   displayRocketA,
   displayRocketB,
   animate,
+  setOffsetAnimation,
   fadeOut,
   fadeIn,
 } = useCanvasAnimation(humanOnlyScale, DEFAULT_BASELINE, layerRef);
@@ -117,8 +123,15 @@ const { send } = useCanvasMachine({
       displayRocketB.value?.length ?? 0,
     );
     syncVisibleBandsBase(maxLen);
+    // Keep animated offsets in sync after each animation so the next toggle
+    // always starts from the correct settled position.
+    const rockets: (RocketConfig | null)[] = [
+      displayRocketA.value,
+      displayRocketB.value,
+    ];
+    const settled = bandOffsetFracs(rockets, maxLen, animatedWorldScale.value);
+    setOffsetAnimation(settled, settled);
   },
-  showBands: showBands as (ids: string[]) => void,
   hideBand: hideBand as (id: string) => void,
   disableAllBands,
   setSeparationVisible(v) {
@@ -146,7 +159,40 @@ watch(stageSeparationEnabled, (enable) => {
 function handleToggleBand(id: BandId) {
   const enable = !enabledBands[id];
   if (enable) stageSeparationEnabled.value = false;
-  toggleBand(id);
+
+  const rockets: (RocketConfig | null)[] = [
+    displayRocketA.value,
+    displayRocketB.value,
+  ];
+  const maxLen = maxRocketLength.value;
+
+  // Hide bands below the toggled band for the duration of the animation —
+  // they shift position as the world scale changes, so hiding them avoids a
+  // visible jump. syncVisibleBands restores them once the animation settles.
+  for (const bid of bandsBelow(id)) hideBand(bid);
+
+  if (!enable) {
+    // Band turned OFF: animate offsets so the canvas layout transitions smoothly.
+    const fromOffsets = bandOffsetFracs(
+      rockets,
+      maxLen,
+      animatedWorldScale.value,
+    );
+    toggleBand(id);
+    const toOffsets = bandOffsetFracs(
+      rockets,
+      maxLen,
+      targetScaleForLength(maxLen, rockets),
+    );
+    setOffsetAnimation(fromOffsets, toOffsets);
+  } else {
+    // Band turned ON: new band content is hidden during animation, existing
+    // bands absorb an instant offset update.
+    toggleBand(id);
+    const snapped = bandOffsetFracs(rockets, maxLen, animatedWorldScale.value);
+    setOffsetAnimation(snapped, snapped);
+  }
+
   send({ type: "BAND_TOGGLED", id, enable });
 }
 
@@ -155,6 +201,38 @@ const hasRocketWithStages = computed(() =>
     (r) => r && (diagrams[r.id]?.stages.length ?? 0) > 0,
   ),
 );
+
+// ---------------------------------------------------------------------------
+// Band-specific pixel dimensions
+// ---------------------------------------------------------------------------
+
+const maxRocketLength = computed(() =>
+  Math.max(
+    displayRocketA.value?.length ?? 0,
+    displayRocketB.value?.length ?? 0,
+  ),
+);
+
+const timelineBandHeight = computed(() =>
+  bandHeightPx(
+    "maidenFlight",
+    [displayRocketA.value, displayRocketB.value],
+    maxRocketLength.value,
+    animatedWorldScale.value,
+  ),
+);
+
+const bandStartYs = computed(() => {
+  const maxLength = maxRocketLength.value;
+  const ws = animatedWorldScale.value;
+  const pxPerFrac = maxLength * ws;
+  const offsets = animatedBandOffsets.value;
+  return {
+    thrust: animatedBaselineY.value + (offsets.thrust ?? 0) * pxPerFrac,
+    maidenFlight:
+      animatedBaselineY.value + (offsets.maidenFlight ?? 0) * pxPerFrac,
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Canvas positioning
@@ -237,8 +315,9 @@ const rightMarginBounds = computed(() => ({
         />
         <ThrustIndicator
           v-if="displayRocketA && visibleBands.thrust"
+          side="left"
           :x="leftRocketX"
-          :baselineY="animatedBaselineY"
+          :baselineY="bandStartYs.thrust"
           :rocketWidth="2 * rocketHalfW(displayRocketA)"
           :thrust="displayRocketA.toThrust"
           :plumeHeight="
@@ -257,8 +336,9 @@ const rightMarginBounds = computed(() => ({
         />
         <ThrustIndicator
           v-if="displayRocketB && visibleBands.thrust"
+          side="right"
           :x="rightRocketX"
-          :baselineY="animatedBaselineY"
+          :baselineY="bandStartYs.thrust"
           :rocketWidth="2 * rocketHalfW(displayRocketB)"
           :thrust="displayRocketB.toThrust"
           :plumeHeight="
@@ -266,12 +346,20 @@ const rightMarginBounds = computed(() => ({
             animatedWorldScale
           "
         />
+        <MaidenFlightTimeline
+          v-if="visibleBands.maidenFlight"
+          :baselineY="bandStartYs.maidenFlight"
+          :bandHeight="timelineBandHeight"
+          :canvasWidth="canvasWidth"
+          :rocketA="displayRocketA"
+          :rocketB="displayRocketB"
+        />
         <!-- DEBUG: remove before ship -->
         <v-rect
           :config="{
             ...leftMarginBounds,
-            fill: 'rgba(100, 200, 255, 0.1)',
-            stroke: 'rgba(100, 200, 255, 0.4)',
+            fill: canvasColors.rocketAAccentSubtle,
+            stroke: canvasColors.rocketAAccentMid,
             strokeWidth: 1,
             dash: [4, 4],
           }"
@@ -279,8 +367,8 @@ const rightMarginBounds = computed(() => ({
         <v-rect
           :config="{
             ...rightMarginBounds,
-            fill: 'rgba(255, 150, 100, 0.1)',
-            stroke: 'rgba(255, 150, 100, 0.4)',
+            fill: canvasColors.rocketBAccentSubtle,
+            stroke: canvasColors.rocketBAccentMid,
             strokeWidth: 1,
             dash: [4, 4],
           }"

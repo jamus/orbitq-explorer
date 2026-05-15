@@ -20,7 +20,6 @@ function makeDeps(
     displayRocketB: vi.fn(() => null),
     setDisplayRockets: vi.fn(),
     syncVisibleBands: vi.fn(),
-    showBands: vi.fn(),
     hideBand: vi.fn(),
     disableAllBands: vi.fn(),
     setSeparationVisible: vi.fn(),
@@ -231,7 +230,7 @@ describe("createCanvasMachine", () => {
   });
 
   describe("animating-band-on", () => {
-    it("animation completes → idle, calls showBands then clears pendingBands", async () => {
+    it("animation completes → idle, calls syncVisibleBands then clears pendingBands", async () => {
       const { deps, resolveAnimation } = makeDepsWithAnimationControl();
       const actor = createActor(createCanvasMachine(deps));
       actor.start();
@@ -240,7 +239,7 @@ describe("createCanvasMachine", () => {
       resolveAnimation();
       await flushPromises();
 
-      expect(deps.showBands).toHaveBeenCalledWith(["thrust"]);
+      expect(deps.syncVisibleBands).toHaveBeenCalled();
       expect(actor.getSnapshot().value).toBe("idle");
       expect(actor.getSnapshot().context.pendingBands).toEqual([]);
       actor.stop();

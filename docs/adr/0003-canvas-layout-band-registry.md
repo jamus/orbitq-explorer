@@ -126,6 +126,54 @@ The band checkbox, canvas resize animation, and show/hide sequencing are all dri
 
 Band components receive `baselineY` and `worldScale` as props (sourced from `animatedBaselineY` and `animatedWorldScale` out of `useCanvasAnimation`) and position themselves in world-space relative to the baseline, exactly like `ThrustIndicator`.
 
+## Update — 2026-05-15
+
+### `bandHeightFrac` now receives `worldScale`
+
+The `BandDef` signature gained a third parameter:
+
+```ts
+bandHeightFrac: (
+  rockets: (RocketConfig | null)[],
+  maxLength: number,
+  worldScale: number, // pixels per metre at the current layout
+) => number;
+```
+
+This lets a band enforce a **pixel-floor** on its height — useful when it must fit labels or axes that have a minimum readable size regardless of rocket length. `worldScale` is 0 on the first layout pass (see two-pass computation below), so bands that don't need a pixel floor can ignore the parameter.
+
+### Two-pass worldScale computation
+
+`targetScaleForLength` now runs two passes to resolve the circular dependency between `worldScale` and pixel-floor fractions:
+
+1. **Pass 1** — call `totalWorldFrac` with `worldScale = 0` (base fractions only) to get an initial `ws₀`.
+2. **Pass 2** — call `totalWorldFrac` again with `worldScale = ws₀` so bands can apply their pixel-minimum floors and return their true fractions.
+
+The final `worldScale` and `baselineY` are derived from the pass-2 result.
+
+### `maidenFlight` band added
+
+A second band, `maidenFlight`, was added to the registry. Its `bandHeightFrac` uses a fixed fraction (`TIMELINE_BAND_FRAC = 0.38`) but enforces a pixel floor so the axis label clearance (`TIMELINE_ROCKET_NAME_ABOVE_PX = 80 px`) is always satisfied:
+
+```ts
+const minFrac =
+  TIMELINE_ROCKET_NAME_ABOVE_PX /
+  (maxLength * worldScale * TIMELINE_AXIS_Y_FRAC);
+return Math.max(TIMELINE_BAND_FRAC, minFrac);
+```
+
+### Band gap
+
+When more than one band is enabled, a gap of `BAND_GAP_FRAC = 0.08` (as a fraction of `maxLength`) is inserted between consecutive bands. `totalWorldFrac` and `targetBaselineY` both account for this.
+
+### New helpers
+
+| Function                                           | Purpose                                                                                                                                      |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bandOffsetFracs(rockets, maxLength, worldScale)`  | Cumulative Y offsets for each band as a fraction of `maxLength`, for precise per-band positioning                                            |
+| `bandHeightPx(id, rockets, maxLength, worldScale)` | Pixel height of a single band at the given scale                                                                                             |
+| `bandsBelow(id)`                                   | IDs of currently-enabled bands ordered after `id` in the registry — used to temporarily hide bands that would jump during a layout animation |
+
 ## Consequences
 
 - Adding a new below-baseline element requires only a `BAND_REGISTRY` entry and a component — no manual layout arithmetic

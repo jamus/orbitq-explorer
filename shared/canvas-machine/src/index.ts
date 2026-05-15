@@ -58,7 +58,6 @@ export interface CanvasMachineDeps {
   // Effects driven by the machine
   setDisplayRockets: (a: RocketConfig | null, b: RocketConfig | null) => void;
   syncVisibleBands: () => void;
-  showBands: (ids: string[]) => void;
   hideBand: (id: string) => void;
   disableAllBands: () => void;
   setSeparationVisible: (v: boolean) => void;
@@ -128,7 +127,6 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
         deps.setDisplayRockets(r?.a ?? null, r?.b ?? null);
       },
       syncVisibleBands: () => deps.syncVisibleBands(),
-      showPendingBands: ({ context }) => deps.showBands(context.pendingBands),
       disableAllBands: () => deps.disableAllBands(),
       activateSeparation: assign({ separationActive: true }),
       deactivateSeparation: assign({ separationActive: false }),
@@ -243,7 +241,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
           src: "animateBands",
           onDone: {
             target: "idle",
-            actions: ["showPendingBands", "clearPendingBands"],
+            actions: ["syncVisibleBands", "clearPendingBands"],
           },
         },
         on: {
@@ -274,7 +272,10 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
       "animating-band-off": {
         invoke: {
           src: "animateBands",
-          onDone: "idle",
+          onDone: {
+            target: "idle",
+            actions: "syncVisibleBands",
+          },
         },
         on: {
           ROCKET_SELECTION_CHANGED: {
