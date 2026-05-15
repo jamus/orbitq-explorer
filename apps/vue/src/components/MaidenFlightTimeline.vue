@@ -55,7 +55,7 @@ const axisStartYear = computed(
 );
 const axisRange = computed(() => axisEndYear.value - axisStartYear.value);
 
-function fracYearToX(fracYear: number): number {
+function fracYearToXPos(fracYear: number): number {
   const usableWidth = props.canvasWidth - AXIS_PADDING * 2;
   return (
     AXIS_PADDING +
@@ -63,12 +63,12 @@ function fracYearToX(fracYear: number): number {
   );
 }
 
-function dateStrToX(dateStr: string): number {
+function dateStrToXPos(dateStr: string): number {
   const parts = dateStr.split("-");
   const year = parseInt(parts[0], 10);
   const month = parts[1] ? parseInt(parts[1], 10) - 1 : 0;
   const day = parts[2] ? parseInt(parts[2], 10) : 1;
-  return fracYearToX(year + (month * 30.44 + day) / 365.25);
+  return fracYearToXPos(year + (month * 30.44 + day) / 365.25);
 }
 
 // ---------------------------------------------------------------------------
@@ -120,7 +120,7 @@ const ticks = computed(() => {
   const firstTick =
     Math.ceil(axisStartYear.value / TICK_INTERVAL) * TICK_INTERVAL;
   for (let y = firstTick; y <= axisEndYear.value; y += TICK_INTERVAL) {
-    items.push({ x: fracYearToX(y), year: y });
+    items.push({ x: fracYearToXPos(y), year: y });
   }
   return items;
 });
@@ -203,7 +203,7 @@ function milestoneLabelConfig(x: number, text: string) {
 }
 
 const milestones = computed(() =>
-  MILESTONES.map((m) => ({ ...m, x: dateStrToX(m.date) })),
+  MILESTONES.map((m) => ({ ...m, x: dateStrToXPos(m.date) })),
 );
 
 // ---------------------------------------------------------------------------
@@ -212,7 +212,7 @@ const milestones = computed(() =>
 
 const todayX = computed(() => {
   const now = new Date();
-  return fracYearToX(
+  return fracYearToXPos(
     now.getFullYear() + (now.getMonth() + now.getDate() / 31) / 12,
   );
 });
@@ -255,7 +255,7 @@ function makeMarker(
   if (!rocket?.maidenFlight) return null;
   if (parseYear(rocket.maidenFlight) === null) return null;
   return {
-    x: dateStrToX(rocket.maidenFlight),
+    x: dateStrToXPos(rocket.maidenFlight),
     label: rocket.name,
     formattedDate: formatMaidenFlight(rocket.maidenFlight),
     color,
@@ -327,30 +327,25 @@ function rocketDateConfig(m: RocketMarker) {
     <!-- Axis line -->
     <v-line :config="axisConfig" />
 
-    <!-- Tick marks and year labels -->
     <template v-for="tick in ticks" :key="tick.year">
       <v-line :config="tickLineConfig(tick.x)" />
       <v-text :config="tickYearConfig(tick.x, tick.year)" />
     </template>
 
-    <!-- Historical milestones: circle + date + descriptive label -->
     <template v-for="m in milestones" :key="m.date">
       <v-circle :config="milestoneCircleConfig(m.x)" />
       <v-text :config="milestoneDateConfig(m.x, m.date)" />
       <v-text :config="milestoneLabelConfig(m.x, m.label)" />
     </template>
 
-    <!-- Today: dashed line + label at date level -->
     <v-line :config="todayLineConfig" />
 
-    <!-- Rocket A: stem + circle + name above + date below -->
     <template v-if="markerA">
       <v-circle :config="rocketCircleConfig(markerA)" />
       <v-text :config="rocketNameConfig(markerA)" />
       <v-text :config="rocketDateConfig(markerA)" />
     </template>
 
-    <!-- Rocket B: stem + circle + name above + date below -->
     <template v-if="markerB">
       <v-circle :config="rocketCircleConfig(markerB)" />
       <v-text :config="rocketNameConfig(markerB)" />
