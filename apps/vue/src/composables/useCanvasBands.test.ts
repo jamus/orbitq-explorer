@@ -17,21 +17,21 @@ function makeRocket(overrides: Partial<RocketConfig> = {}): RocketConfig {
 
 describe("useCanvasBands", () => {
   describe("toggleBand", () => {
-    it("first call disables the band and clears visibleBands", () => {
-      const { enabledBands, visibleBands, showBands, toggleBand } =
+    it("enables a disabled band (enabledBands only, not visibleBands)", () => {
+      const { enabledBands, visibleBands, toggleBand } =
         useCanvasBands(CANVAS_HEIGHT);
-      showBands(["thrust"]); // simulate band already visible
       toggleBand("thrust");
-      expect(enabledBands.thrust).toBe(false);
+      expect(enabledBands.thrust).toBe(true);
       expect(visibleBands.thrust).toBe(false);
     });
 
-    it("second call re-enables the band (enabledBands only, not visibleBands)", () => {
-      const { enabledBands, visibleBands, toggleBand } =
+    it("disables an enabled band and clears visibleBands", () => {
+      const { enabledBands, visibleBands, showBands, toggleBand } =
         useCanvasBands(CANVAS_HEIGHT);
+      toggleBand("thrust"); // enable
+      showBands(["thrust"]); // simulate band already visible
       toggleBand("thrust"); // disable
-      toggleBand("thrust"); // re-enable
-      expect(enabledBands.thrust).toBe(true);
+      expect(enabledBands.thrust).toBe(false);
       expect(visibleBands.thrust).toBe(false);
     });
   });
@@ -69,7 +69,9 @@ describe("useCanvasBands", () => {
 
   describe("totalWorldFrac", () => {
     it("both bands active, no thrust: base + maidenFlight + gap (≈ 1.85)", () => {
-      const { totalWorldFrac } = useCanvasBands(CANVAS_HEIGHT);
+      const { totalWorldFrac, toggleBand } = useCanvasBands(CANVAS_HEIGHT);
+      toggleBand("thrust");
+      toggleBand("maidenFlight");
       const result = totalWorldFrac([], 70);
       // 1 + 0.14 + 0.25 + 0 (thrust, no rockets) + 0.38 (maidenFlight) + 0.08 (gap) = 1.85
       expect(result).toBeCloseTo(1.85);
@@ -77,7 +79,7 @@ describe("useCanvasBands", () => {
 
     it("only thrust active adds plume height fraction for rocket with thrust", () => {
       const { totalWorldFrac, toggleBand } = useCanvasBands(CANVAS_HEIGHT);
-      toggleBand("maidenFlight"); // disable maidenFlight, leaving only thrust
+      toggleBand("thrust"); // enable thrust, leaving maidenFlight disabled
 
       const maxLength = 70;
       const toThrust = 7000; // kN → 7000/250 = 28m plume
@@ -154,18 +156,18 @@ describe("useCanvasBands", () => {
   });
 
   describe("bandList", () => {
-    it("returns initial list with both bands active", () => {
+    it("returns initial list with both bands inactive", () => {
       const { bandList } = useCanvasBands(CANVAS_HEIGHT);
       expect(bandList.value).toEqual([
-        { id: "thrust", label: "Thrust", active: true },
-        { id: "maidenFlight", label: "Maiden Flight", active: true },
+        { id: "thrust", label: "Thrust", active: false },
+        { id: "maidenFlight", label: "Maiden Flight", active: false },
       ]);
     });
 
-    it("reflects disabled state reactively", () => {
+    it("reflects enabled state reactively", () => {
       const { bandList, toggleBand } = useCanvasBands(CANVAS_HEIGHT);
       toggleBand("thrust");
-      expect(bandList.value[0].active).toBe(false);
+      expect(bandList.value[0].active).toBe(true);
     });
   });
 });
