@@ -1,67 +1,24 @@
 # OrbitQ Explorer
 
-🚧 WIP 🚧
+## 🚀📐
 
-An experiment building a data visualisation / exploration tool aimed at answering questions like...
+An experimental project to visualise real rocket launch vehicle data ([ll2 API](https://ll.thespacedevs.com/docs)). With emphasis on the visualise part.
 
-> "How does Saturn V actually compare to Falcon 9 at true scale?"
+> Work in progress — may break often
 
-Preview at: https://orbitq-explorer-production-vue.up.railway.app/
+**[→ Live preview](https://orbitq-explorer-production-vue.up.railway.app/)**
 
----
+Pick two rockets, get a side-by-side canvas with silhouettes drawn to real proportions. (Currently Janky) settings panel lets you apply thrust or show rocket stages (Starship only, currently).
 
-## Setup
+### Current data points
 
-### Prerequisites
+- Vehicle scale
+- Vehicle thrust
 
-- Node.js 20+
-- pnpm 9+
-- The OrbitQ backend running locally (or pointed at the live API at `https://orbitq.app/graphql`)
+### Built with
 
-### Install
-
-```sh
-pnpm install
-```
-
-### Run
-
-```sh
-pnpm dev:react   # starts apps/react on http://localhost:5173
-pnpm dev:vue     # starts apps/vue on http://localhost:5174
-```
-
-### Build
-
-```sh
-pnpm build:react
-pnpm build:vue
-```
-
-### Lint
-
-```sh
-pnpm lint   # runs oxlint across both apps and shared/graphql
-```
-
-### Environment variables
-
-Each app reads `VITE_GRAPHQL_URL` from its own `.env.local` file.
-
-| Variable           | Description                        |
-| ------------------ | ---------------------------------- |
-| `VITE_GRAPHQL_URL` | URL of the OrbitQ GraphQL endpoint |
-
-In development, create `.env.local` inside `apps/react` and/or `apps/vue`:
-
-```
-VITE_GRAPHQL_URL=http://localhost:3000/graphql
-```
-
-In production, each app's build is configured to point at `https://orbitq.app/graphql`.
+- Rocket [SVGs](https://developer.mozilla.org/en-US/docs/Web/SVG) parsed into [Konva.js](https://konvajs.org) for canvas rendering
+- [XState](https://stately.ai/docs/xstate) for animation control
+- [Vue](https://vuejs.org) (React version later)
 
 ---
-
-## Project Goals
-
-... fun trying stuff
