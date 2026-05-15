@@ -22,3 +22,5 @@ Pick two rockets, get a side-by-side canvas with silhouettes drawn to real propo
 - [Vue](https://vuejs.org) (React version later)
 
 ---
+
+![](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnd6OGM3MHFhczhlNW94MjhiMWhxcm9qYmJjbmtldzdwcHN5OTNzciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/sUl6rKwdqjd1C/giphy.gif)
