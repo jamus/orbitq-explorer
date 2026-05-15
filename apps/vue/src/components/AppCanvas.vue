@@ -4,7 +4,6 @@ import type { RocketConfig } from "@orbitq/graphql";
 import {
   useCanvasBands,
   KN_PER_PLUME_METRE,
-  TIMELINE_BAND_FRAC,
 } from "../composables/useCanvasBands";
 import type { BandId } from "../composables/useCanvasBands";
 import { canvasColors } from "@orbitq/styles/canvas";
@@ -39,12 +38,14 @@ const {
   enabledBands,
   visibleBands,
   toggleBand,
-  showBands,
   hideBand,
   disableAllBands,
   targetBaselineY,
   targetScaleForLength,
+  bandOffsetFracs,
+  bandHeightPx,
   syncVisibleBands: syncVisibleBandsBase,
+  bandsBelow,
   bandList,
   humanOnlyScale,
   DEFAULT_BASELINE,
@@ -58,11 +59,13 @@ const layerRef = ref(null);
 const {
   animatedWorldScale,
   animatedBaselineY,
+  animatedBandOffsets,
   rocketAOpacity,
   rocketBOpacity,
   displayRocketA,
   displayRocketB,
   animate,
+  setOffsetAnimation,
   fadeOut,
   fadeIn,
 } = useCanvasAnimation(humanOnlyScale, DEFAULT_BASELINE, layerRef);
@@ -120,8 +123,15 @@ const { send } = useCanvasMachine({
       displayRocketB.value?.length ?? 0,
     );
     syncVisibleBandsBase(maxLen);
+    // Keep animated offsets in sync after each animation so the next toggle
+    // always starts from the correct settled position.
+    const rockets: (RocketConfig | null)[] = [
+      displayRocketA.value,
+      displayRocketB.value,
+    ];
+    const settled = bandOffsetFracs(rockets, maxLen, animatedWorldScale.value);
+    setOffsetAnimation(settled, settled);
   },
-  showBands: showBands as (ids: string[]) => void,
   hideBand: hideBand as (id: string) => void,
   disableAllBands,
   setSeparationVisible(v) {
@@ -149,7 +159,40 @@ watch(stageSeparationEnabled, (enable) => {
 function handleToggleBand(id: BandId) {
   const enable = !enabledBands[id];
   if (enable) stageSeparationEnabled.value = false;
-  toggleBand(id);
+
+  const rockets: (RocketConfig | null)[] = [
+    displayRocketA.value,
+    displayRocketB.value,
+  ];
+  const maxLen = maxRocketLength.value;
+
+  // Hide bands below the toggled band for the duration of the animation —
+  // they shift position as the world scale changes, so hiding them avoids a
+  // visible jump. syncVisibleBands restores them once the animation settles.
+  for (const bid of bandsBelow(id)) hideBand(bid);
+
+  if (!enable) {
+    // Band turned OFF: animate offsets so the canvas layout transitions smoothly.
+    const fromOffsets = bandOffsetFracs(
+      rockets,
+      maxLen,
+      animatedWorldScale.value,
+    );
+    toggleBand(id);
+    const toOffsets = bandOffsetFracs(
+      rockets,
+      maxLen,
+      targetScaleForLength(maxLen, rockets),
+    );
+    setOffsetAnimation(fromOffsets, toOffsets);
+  } else {
+    // Band turned ON: new band content is hidden during animation, existing
+    // bands absorb an instant offset update.
+    toggleBand(id);
+    const snapped = bandOffsetFracs(rockets, maxLen, animatedWorldScale.value);
+    setOffsetAnimation(snapped, snapped);
+  }
+
   send({ type: "BAND_TOGGLED", id, enable });
 }
 
@@ -170,9 +213,26 @@ const maxRocketLength = computed(() =>
   ),
 );
 
-const timelineBandHeight = computed(
-  () => TIMELINE_BAND_FRAC * maxRocketLength.value * animatedWorldScale.value,
+const timelineBandHeight = computed(() =>
+  bandHeightPx(
+    "maidenFlight",
+    [displayRocketA.value, displayRocketB.value],
+    maxRocketLength.value,
+    animatedWorldScale.value,
+  ),
 );
+
+const bandStartYs = computed(() => {
+  const maxLength = maxRocketLength.value;
+  const ws = animatedWorldScale.value;
+  const pxPerFrac = maxLength * ws;
+  const offsets = animatedBandOffsets.value;
+  return {
+    thrust: animatedBaselineY.value + (offsets.thrust ?? 0) * pxPerFrac,
+    maidenFlight:
+      animatedBaselineY.value + (offsets.maidenFlight ?? 0) * pxPerFrac,
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Canvas positioning
@@ -256,7 +316,7 @@ const rightMarginBounds = computed(() => ({
         <ThrustIndicator
           v-if="displayRocketA && visibleBands.thrust"
           :x="leftRocketX"
-          :baselineY="animatedBaselineY"
+          :baselineY="bandStartYs.thrust"
           :rocketWidth="2 * rocketHalfW(displayRocketA)"
           :thrust="displayRocketA.toThrust"
           :plumeHeight="
@@ -276,7 +336,7 @@ const rightMarginBounds = computed(() => ({
         <ThrustIndicator
           v-if="displayRocketB && visibleBands.thrust"
           :x="rightRocketX"
-          :baselineY="animatedBaselineY"
+          :baselineY="bandStartYs.thrust"
           :rocketWidth="2 * rocketHalfW(displayRocketB)"
           :thrust="displayRocketB.toThrust"
           :plumeHeight="
@@ -286,7 +346,7 @@ const rightMarginBounds = computed(() => ({
         />
         <MaidenFlightTimeline
           v-if="visibleBands.maidenFlight"
-          :baselineY="animatedBaselineY"
+          :baselineY="bandStartYs.maidenFlight"
           :bandHeight="timelineBandHeight"
           :canvasWidth="canvasWidth"
           :rocketA="displayRocketA"

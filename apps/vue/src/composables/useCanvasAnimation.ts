@@ -22,6 +22,10 @@ export function useCanvasAnimation(
   // Initialise from the no-content default, not baselineY.value — at startup there
   // are no rockets so active layer costs shouldn't apply yet.
   const animatedBaselineY = ref(initialBaseline);
+  // Per-band cumulative offset fractions (fraction of maxLength). Animated
+  // alongside scale/baseline so that toggling a band doesn't cause bands
+  // below it to snap to their new position mid-animation.
+  const animatedBandOffsets = shallowRef<Record<string, number>>({});
 
   const rocketAOpacity = ref(1);
   const rocketBOpacity = ref(1);
@@ -32,6 +36,8 @@ export function useCanvasAnimation(
   let targetScale = initialScale;
   let startBaseline = initialBaseline;
   let targetBaseline = initialBaseline;
+  let startOffsets: Record<string, number> = {};
+  let targetOffsets: Record<string, number> = {};
   let onComplete: (() => void) | null = null;
 
   let fadeRocketAnimationA: Konva.Animation | null = null;
@@ -51,6 +57,16 @@ export function useCanvasAnimation(
           startScale + (targetScale - startScale) * easedProgress;
         animatedBaselineY.value =
           startBaseline + (targetBaseline - startBaseline) * easedProgress;
+        const keys = Object.keys(targetOffsets);
+        if (keys.length > 0) {
+          const newOffsets: Record<string, number> = {};
+          for (const key of keys) {
+            const s = startOffsets[key] ?? 0;
+            const t = targetOffsets[key] ?? 0;
+            newOffsets[key] = s + (t - s) * easedProgress;
+          }
+          animatedBandOffsets.value = newOffsets;
+        }
         if (progress >= 1) {
           scaleAnimation!.stop();
           animStartTime = null;
@@ -84,6 +100,15 @@ export function useCanvasAnimation(
     targetBaseline = toBaseline;
     onComplete = callback;
     scaleAnimation?.start();
+  }
+
+  function setOffsetAnimation(
+    from: { [key: string]: number },
+    to: { [key: string]: number },
+  ) {
+    startOffsets = { ...from };
+    targetOffsets = { ...to };
+    animatedBandOffsets.value = { ...from };
   }
 
   function fadeRocket(slot: "a" | "b", target: number) {
@@ -130,11 +155,13 @@ export function useCanvasAnimation(
   return {
     animatedWorldScale,
     animatedBaselineY,
+    animatedBandOffsets,
     rocketAOpacity,
     rocketBOpacity,
     displayRocketA,
     displayRocketB,
     animate,
+    setOffsetAnimation,
     fadeOut,
     fadeIn,
   };

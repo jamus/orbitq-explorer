@@ -13,6 +13,7 @@ type BandDef = {
   bandHeightFrac: (
     rockets: (RocketConfig | null)[],
     maxLength: number,
+    worldScale: number,
   ) => number;
 };
 
@@ -27,10 +28,18 @@ export const KN_PER_PLUME_METRE = 250;
 // regardless of which rockets are loaded.
 export const TIMELINE_BAND_FRAC = 0.38;
 
+// Axis sits at this fraction of band height from the top, leaving room above
+// for rocket name and date labels. Drives both layout and rendering.
+export const TIMELINE_AXIS_Y_FRAC = 0.38;
+
+// Minimum pixel clearance above the axis needed for the tallest above-axis
+// label (rocket name). Used by bandHeightFrac to enforce a pixel floor.
+export const TIMELINE_ROCKET_NAME_ABOVE_PX = 80;
+
 const BAND_REGISTRY = {
   thrust: {
     label: "Thrust",
-    bandHeightFrac: (rockets, maxLength) => {
+    bandHeightFrac: (rockets, maxLength, _worldScale: number) => {
       if (maxLength <= 0) return 0;
       const maxPlumeM = Math.max(
         ...rockets.map((r) => (r?.toThrust ?? 0) / KN_PER_PLUME_METRE),
@@ -41,7 +50,13 @@ const BAND_REGISTRY = {
   },
   maidenFlight: {
     label: "Maiden Flight",
-    bandHeightFrac: () => TIMELINE_BAND_FRAC,
+    bandHeightFrac: (_rockets, maxLength, worldScale) => {
+      if (maxLength <= 0 || worldScale <= 0) return TIMELINE_BAND_FRAC;
+      const minFrac =
+        TIMELINE_ROCKET_NAME_ABOVE_PX /
+        (maxLength * worldScale * TIMELINE_AXIS_Y_FRAC);
+      return Math.max(TIMELINE_BAND_FRAC, minFrac);
+    },
   },
 } satisfies Record<string, BandDef>;
 
@@ -109,13 +124,36 @@ export function useCanvasBands(canvasHeight: number) {
 
   // Total world height as a multiple of maxLength:
   // TOP_PADDING + 1 (rocket) + BOTTOM_PADDING + active layer heights.
-  function totalWorldFrac(rockets: (RocketConfig | null)[], maxLength: number) {
+  // worldScale defaults to 0, which skips the pixel-minimum floor in each band
+  // (returns the base fractional size). Pass the real worldScale to get the
+  // pixel-minimum-aware fractions.
+  function totalWorldFrac(
+    rockets: (RocketConfig | null)[],
+    maxLength: number,
+    worldScale = 0,
+  ) {
     let frac = 1 + TOP_PADDING_FRAC + BOTTOM_PADDING_FRAC;
     for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
       if (enabledBands[id])
-        frac += BAND_REGISTRY[id].bandHeightFrac(rockets, maxLength);
+        frac += BAND_REGISTRY[id].bandHeightFrac(
+          rockets,
+          maxLength,
+          worldScale,
+        );
     }
     return frac;
+  }
+
+  // Two passes resolve the circular dependency: pass 1 gives an initial
+  // worldScale using base fractions; pass 2 applies the pixel-minimum floor
+  // with that scale to get the final result.
+  function targetScaleForLength(
+    maxLength: number,
+    rockets: (RocketConfig | null)[],
+  ) {
+    if (maxLength <= 0) return humanOnlyScale;
+    const ws0 = canvasHeight / (maxLength * totalWorldFrac(rockets, maxLength));
+    return canvasHeight / (maxLength * totalWorldFrac(rockets, maxLength, ws0));
   }
 
   function targetBaselineY(
@@ -123,21 +161,52 @@ export function useCanvasBands(canvasHeight: number) {
     rockets: (RocketConfig | null)[],
   ) {
     if (maxLength <= 0) return DEFAULT_BASELINE;
+    const ws = targetScaleForLength(maxLength, rockets);
     let belowFrac = BOTTOM_PADDING_FRAC;
     for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
       if (enabledBands[id])
-        belowFrac += BAND_REGISTRY[id].bandHeightFrac(rockets, maxLength);
+        belowFrac += BAND_REGISTRY[id].bandHeightFrac(rockets, maxLength, ws);
     }
-    return canvasHeight * (1 - belowFrac / totalWorldFrac(rockets, maxLength));
+    return (
+      canvasHeight * (1 - belowFrac / totalWorldFrac(rockets, maxLength, ws))
+    );
   }
 
-  function targetScaleForLength(
-    maxLength: number,
+  // Cumulative Y offsets for each band as fractions of maxLength.
+  // Band N starts at baselineY + offsets[N] * maxLength * worldScale.
+  function bandOffsetFracs(
     rockets: (RocketConfig | null)[],
-  ) {
-    return maxLength > 0
-      ? canvasHeight / (maxLength * totalWorldFrac(rockets, maxLength))
-      : humanOnlyScale;
+    maxLength: number,
+    worldScale: number,
+  ): Record<BandId, number> {
+    const offsets = {} as Record<BandId, number>;
+    let cumulative = 0;
+    for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
+      offsets[id] = cumulative;
+      if (enabledBands[id]) {
+        cumulative += BAND_REGISTRY[id].bandHeightFrac(
+          rockets,
+          maxLength,
+          worldScale,
+        );
+      }
+    }
+    return offsets;
+  }
+
+  // Pixel height of a single band at the given worldScale.
+  function bandHeightPx(
+    id: BandId,
+    rockets: (RocketConfig | null)[],
+    maxLength: number,
+    worldScale: number,
+  ): number {
+    if (!enabledBands[id] || maxLength <= 0 || worldScale <= 0) return 0;
+    return (
+      BAND_REGISTRY[id].bandHeightFrac(rockets, maxLength, worldScale) *
+      maxLength *
+      worldScale
+    );
   }
 
   // Syncs visibleBands to enabledBands once a layout animation settles.
@@ -147,6 +216,14 @@ export function useCanvasBands(canvasHeight: number) {
     for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
       visibleBands[id] = maxLength > 0 && enabledBands[id];
     }
+  }
+
+  // Returns the IDs of currently-enabled bands that are ordered after `id` in
+  // the registry. Used to hide bands that would visibly jump during a layout
+  // animation triggered by toggling `id`.
+  function bandsBelow(id: BandId): BandId[] {
+    const ids = Object.keys(BAND_REGISTRY) as BandId[];
+    return ids.slice(ids.indexOf(id) + 1).filter((bid) => enabledBands[bid]);
   }
 
   const bandList = computed(() =>
@@ -167,7 +244,10 @@ export function useCanvasBands(canvasHeight: number) {
     totalWorldFrac,
     targetBaselineY,
     targetScaleForLength,
+    bandOffsetFracs,
+    bandHeightPx,
     syncVisibleBands,
+    bandsBelow,
     bandList,
     humanOnlyScale,
     DEFAULT_BASELINE,
