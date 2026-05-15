@@ -8,13 +8,13 @@
     <footer
       class="px-6 py-3 border-t border-orbitq-800 text-orbitq-600 font-mono text-xs"
     >
-      Human icon by
+      Astronaut icon by
       <a
-        href="https://thenounproject.com/creator/yangdonggyoo/"
+        href="https://thenounproject.com/creator/arashdesign/"
         target="_blank"
         rel="noopener"
         class="underline hover:text-orbitq-400 transition-colors"
-        >Dong Gyu Yang</a
+        >ArashDesign</a
       >
       via Noun Project
     </footer>
