@@ -78,7 +78,7 @@ function dateStrToX(dateStr: string): number {
 const axisY = computed(() => props.baselineY + props.bandHeight * 0.38);
 
 // Vertical offsets below the axis (shared for milestones, today)
-const DATE_Y = -44; // formatted date
+const DATE_Y = 44; // formatted date
 const LABEL_Y = 26; // descriptive label (milestones only)
 
 // ---------------------------------------------------------------------------
@@ -174,7 +174,7 @@ function milestoneCircleConfig(x: number) {
 function milestoneDateConfig(x: number, dateStr: string) {
   return {
     x,
-    y: axisY.value - DATE_Y,
+    y: axisY.value + DATE_Y,
     offsetX: MILESTONE_LABEL_W / 2,
     width: MILESTONE_LABEL_W,
     text: formatMaidenFlight(dateStr),
@@ -207,7 +207,7 @@ const milestones = computed(() =>
 );
 
 // ---------------------------------------------------------------------------
-// Today marker — dashed line, label at date level, no descriptive label
+// Today marker
 // ---------------------------------------------------------------------------
 
 const todayX = computed(() => {
@@ -220,9 +220,9 @@ const todayX = computed(() => {
 const todayLineConfig = computed(() => ({
   points: [
     todayX.value,
-    axisY.value - TICK_H,
+    axisY.value - DATE_Y / 3,
     todayX.value,
-    axisY.value + DATE_Y - 2,
+    axisY.value + DATE_Y / 3,
   ],
   stroke: canvasColors.timelineToday,
   strokeWidth: 1,
@@ -230,19 +230,6 @@ const todayLineConfig = computed(() => ({
   strokeScaleEnabled: false,
   listening: false,
 }));
-
-// const todayLabelConfig = computed(() => ({
-//   x: todayX.value,
-//   y: axisY.value + DATE_Y,
-//   offsetX: MILESTONE_LABEL_W / 2,
-//   width: MILESTONE_LABEL_W,
-//   text: "Today",
-//   fontSize: MILESTONE_FONT,
-//   fontFamily: "monospace",
-//   fill: canvasColors.timelineToday,
-//   align: "center",
-//   listening: false,
-// }));
 
 // ---------------------------------------------------------------------------
 // Rocket markers — circle on axis, name above, date at same level as milestones
@@ -257,8 +244,8 @@ interface RocketMarker {
 }
 
 const ROCKET_NAME_ABOVE = 80;
+const ROCKET_DATE_ABOVE = 60;
 const ROCKET_LABEL_W = 120;
-const ROCKET_DATE_Y = DATE_Y - 20; // slightly closer to axis than milestone dates
 
 function makeMarker(
   rocket: RocketConfig | null,
@@ -301,22 +288,6 @@ function rocketCircleConfig(m: RocketMarker) {
   };
 }
 
-// function rocketStemConfig(m: RocketMarker) {
-//   return {
-//     points: [
-//       m.x,
-//       axisY.value - MARKER_RADIUS,
-//       m.x,
-//       axisY.value - ROCKET_NAME_ABOVE + 4,
-//     ],
-//     stroke: m.color,
-//     strokeWidth: 1,
-//     opacity: 0.5,
-//     strokeScaleEnabled: false,
-//     listening: false,
-//   };
-// }
-
 function rocketNameConfig(m: RocketMarker) {
   return {
     x: m.x,
@@ -335,7 +306,7 @@ function rocketNameConfig(m: RocketMarker) {
 function rocketDateConfig(m: RocketMarker) {
   return {
     x: m.x,
-    y: axisY.value + ROCKET_DATE_Y,
+    y: axisY.value - ROCKET_DATE_ABOVE,
     offsetX: ROCKET_LABEL_W / 2,
     width: ROCKET_LABEL_W,
     text: m.formattedDate,
@@ -371,11 +342,9 @@ function rocketDateConfig(m: RocketMarker) {
 
     <!-- Today: dashed line + label at date level -->
     <v-line :config="todayLineConfig" />
-    <!-- <v-text :config="todayLabelConfig" /> -->
 
     <!-- Rocket A: stem + circle + name above + date below -->
     <template v-if="markerA">
-      <!-- <v-line :config="rocketStemConfig(markerA)" /> -->
       <v-circle :config="rocketCircleConfig(markerA)" />
       <v-text :config="rocketNameConfig(markerA)" />
       <v-text :config="rocketDateConfig(markerA)" />
@@ -383,7 +352,6 @@ function rocketDateConfig(m: RocketMarker) {
 
     <!-- Rocket B: stem + circle + name above + date below -->
     <template v-if="markerB">
-      <!-- <v-line :config="rocketStemConfig(markerB)" /> -->
       <v-circle :config="rocketCircleConfig(markerB)" />
       <v-text :config="rocketNameConfig(markerB)" />
       <v-text :config="rocketDateConfig(markerB)" />
