@@ -73,6 +73,7 @@ const BAND_REGISTRY = {
 // worldScale = canvasHeight / (maxLength × totalWorldFrac()).
 const TOP_PADDING_FRAC = 0.14;
 const BOTTOM_PADDING_FRAC = 0.25;
+const BAND_GAP_FRAC = 0.08;
 
 export function useCanvasBands(canvasHeight: number) {
   // When no rockets are loaded, fall back to a scale where the human fills ~40% of
@@ -133,14 +134,18 @@ export function useCanvasBands(canvasHeight: number) {
     worldScale = 0,
   ) {
     let frac = 1 + TOP_PADDING_FRAC + BOTTOM_PADDING_FRAC;
+    let numEnabled = 0;
     for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
-      if (enabledBands[id])
+      if (enabledBands[id]) {
         frac += BAND_REGISTRY[id].bandHeightFrac(
           rockets,
           maxLength,
           worldScale,
         );
+        numEnabled++;
+      }
     }
+    if (numEnabled > 1) frac += (numEnabled - 1) * BAND_GAP_FRAC;
     return frac;
   }
 
@@ -163,10 +168,14 @@ export function useCanvasBands(canvasHeight: number) {
     if (maxLength <= 0) return DEFAULT_BASELINE;
     const ws = targetScaleForLength(maxLength, rockets);
     let belowFrac = BOTTOM_PADDING_FRAC;
+    let numEnabled = 0;
     for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
-      if (enabledBands[id])
+      if (enabledBands[id]) {
         belowFrac += BAND_REGISTRY[id].bandHeightFrac(rockets, maxLength, ws);
+        numEnabled++;
+      }
     }
+    if (numEnabled > 1) belowFrac += (numEnabled - 1) * BAND_GAP_FRAC;
     return (
       canvasHeight * (1 - belowFrac / totalWorldFrac(rockets, maxLength, ws))
     );
@@ -181,14 +190,19 @@ export function useCanvasBands(canvasHeight: number) {
   ): Record<BandId, number> {
     const offsets = {} as Record<BandId, number>;
     let cumulative = 0;
+    let numEnabled = 0;
     for (const id of Object.keys(BAND_REGISTRY) as BandId[]) {
-      offsets[id] = cumulative;
       if (enabledBands[id]) {
+        if (numEnabled > 0) cumulative += BAND_GAP_FRAC;
+        offsets[id] = cumulative;
         cumulative += BAND_REGISTRY[id].bandHeightFrac(
           rockets,
           maxLength,
           worldScale,
         );
+        numEnabled++;
+      } else {
+        offsets[id] = cumulative;
       }
     }
     return offsets;
