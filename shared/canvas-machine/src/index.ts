@@ -56,7 +56,7 @@ export interface CanvasMachineDeps {
   // Node rendering control — called by machine to sync visible state with animation.
   showNode: (id: string) => void;
   hideNode: (id: string) => void;
-  disableAllDiagramNodes: () => void;
+  disableEffectNodes: () => void;
   fadeOut: (
     pendingA: RocketConfig | null,
     pendingB: RocketConfig | null,
@@ -145,9 +145,9 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
         if (context.activeNodeId) deps.hideNode(context.activeNodeId);
       },
 
-      // Used when entering separation: disable all diagram nodes via the composable
-      // (updates both enabled and visible states in useNodeGrid).
-      disableAllDiagramNodes: () => deps.disableAllDiagramNodes(),
+      // Used when entering separation: disables effect nodes (e.g. thrust) via the
+      // composable. Separation itself is intentionally skipped — see disableEffectNodes().
+      disableEffectNodes: () => deps.disableEffectNodes(),
 
       activateSeparation: assign({ separationActive: true }),
       deactivateSeparation: assign({ separationActive: false }),
@@ -322,10 +322,10 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
 
       // -----------------------------------------------------------------
       "animating-separation-on": {
-        // AppCanvas disables all diagram nodes (CSS + visible) before sending this
-        // event, so no entry action needed — disableAllDiagramNodes is a safety net
-        // for machine-internal transitions (e.g. node-active → here).
-        entry: "disableAllDiagramNodes",
+        // AppCanvas calls disableEffectNodes() before sending this event in the
+        // common case. This entry action is a safety net for machine-internal
+        // transitions (e.g. node-active → here) where AppCanvas is not involved.
+        entry: "disableEffectNodes",
         invoke: {
           src: "animateSeparationOn",
           onDone: {

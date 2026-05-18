@@ -48,7 +48,7 @@ const {
   disableNode,
   showNode,
   hideNode,
-  disableAllDiagramNodes,
+  disableEffectNodes,
   isDiagramNode,
   nodeList,
   columnANodes,
@@ -169,7 +169,7 @@ const { send } = useCanvasMachine({
   },
   showNode: (id) => showNode(id as NodeTypeId),
   hideNode: (id) => hideNode(id as NodeTypeId),
-  disableAllDiagramNodes,
+  disableEffectNodes,
   fadeOut,
   fadeIn,
 });
@@ -220,7 +220,7 @@ function handleNodeToggle(id: NodeTypeId) {
       enableNode(id);
       if (hasEffectNodesEnabled.value) {
         // Close effect-node columns first, then fire separation animation.
-        disableAllDiagramNodes();
+        disableEffectNodes();
         scheduleAfterColumn({ type: "SEPARATION_TOGGLED", enable: true });
       } else {
         cancelPending();

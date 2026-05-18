@@ -7,47 +7,32 @@ type NodeTypeDef = {
   label: string;
   owner: "a" | "b" | "both";
   affectsDiagram: boolean;
-  // isMode: true means this node drives a diagram mode (e.g. separation).
-  // disableAllDiagramNodes() skips mode nodes so separation is not
-  // inadvertently disabled when the machine enters separation-on.
-  isMode: boolean;
 };
 
 const NODE_REGISTRY: Record<NodeTypeId, NodeTypeDef> = {
-  thrust: {
-    label: "Thrust",
-    owner: "both",
-    affectsDiagram: true,
-    isMode: false,
-  },
+  thrust: { label: "Thrust", owner: "both", affectsDiagram: true },
   separation: {
     label: "Stage Separation",
     owner: "both",
     affectsDiagram: true,
-    isMode: true,
   },
-  overview: {
-    label: "Overview",
-    owner: "both",
-    affectsDiagram: false,
-    isMode: false,
-  },
+  overview: { label: "Overview", owner: "both", affectsDiagram: false },
 };
 
 export const NODE_COLUMN_WIDTH = 260;
 
 export function useNodeGrid() {
-  // enabled: drives CSS column open/close; worldscale for effect nodes.
-  const enabled = reactive<Record<NodeTypeId, boolean>>({
+  // isEnabled: drives CSS column open/close; worldscale for diagram nodes.
+  const isEnabled = reactive<Record<NodeTypeId, boolean>>({
     thrust: false,
     separation: false,
     overview: false,
   });
 
-  // visible: drives actual diagram rendering (plume, etc.).
+  // isVisible: drives actual diagram rendering (plume, spread rockets, etc.).
   // For diagram nodes this is controlled by the state machine.
-  // For non-diagram nodes visible === enabled.
-  const visible = reactive<Record<NodeTypeId, boolean>>({
+  // For data nodes isVisible === isEnabled.
+  const isVisible = reactive<Record<NodeTypeId, boolean>>({
     thrust: false,
     separation: false,
     overview: false,
@@ -58,28 +43,29 @@ export function useNodeGrid() {
   }
 
   function enableNode(id: NodeTypeId) {
-    enabled[id] = true;
-    if (!NODE_REGISTRY[id].affectsDiagram) visible[id] = true;
+    isEnabled[id] = true;
+    if (!NODE_REGISTRY[id].affectsDiagram) isVisible[id] = true;
   }
 
   function disableNode(id: NodeTypeId) {
-    enabled[id] = false;
-    visible[id] = false;
+    isEnabled[id] = false;
+    isVisible[id] = false;
   }
 
   function showNode(id: NodeTypeId) {
-    visible[id] = true;
+    isVisible[id] = true;
   }
 
   function hideNode(id: NodeTypeId) {
-    visible[id] = false;
+    isVisible[id] = false;
   }
 
-  // Disables effect (non-mode) diagram nodes — called when entering separation mode.
-  // Mode nodes (separation) are intentionally left untouched.
-  function disableAllDiagramNodes() {
+  // Disables all diagram nodes except separation — called when entering separation
+  // mode so that conflicting effect nodes (e.g. thrust) are cleared first.
+  // Separation is skipped because it is the node being activated, not a conflict.
+  function disableEffectNodes() {
     for (const id of Object.keys(NODE_REGISTRY) as NodeTypeId[]) {
-      if (NODE_REGISTRY[id].affectsDiagram && !NODE_REGISTRY[id].isMode)
+      if (NODE_REGISTRY[id].affectsDiagram && id !== "separation")
         disableNode(id);
     }
   }
@@ -88,7 +74,7 @@ export function useNodeGrid() {
     (Object.keys(NODE_REGISTRY) as NodeTypeId[]).map((id) => ({
       id,
       label: NODE_REGISTRY[id].label,
-      active: enabled[id],
+      active: isEnabled[id],
       affectsDiagram: NODE_REGISTRY[id].affectsDiagram,
     })),
   );
@@ -98,7 +84,7 @@ export function useNodeGrid() {
       (Object.keys(NODE_REGISTRY) as NodeTypeId[])
         .filter(
           (id) =>
-            enabled[id] &&
+            isEnabled[id] &&
             (NODE_REGISTRY[id].owner === side ||
               NODE_REGISTRY[id].owner === "both"),
         )
@@ -121,17 +107,17 @@ export function useNodeGrid() {
     columnBNodes.value.length > 0 ? NODE_COLUMN_WIDTH : 0,
   );
 
-  const thrustEnabled = computed(() => enabled.thrust);
-  const thrustRenderVisible = computed(() => visible.thrust);
+  const thrustEnabled = computed(() => isEnabled.thrust);
+  const thrustRenderVisible = computed(() => isVisible.thrust);
 
-  // True when any non-mode diagram node is enabled (i.e. effect nodes like thrust).
+  // True when any diagram node other than separation is enabled.
   // Used to detect conflicts before activating separation.
   const hasEffectNodesEnabled = computed(() =>
     (Object.keys(NODE_REGISTRY) as NodeTypeId[]).some(
       (id) =>
         NODE_REGISTRY[id].affectsDiagram &&
-        !NODE_REGISTRY[id].isMode &&
-        enabled[id],
+        id !== "separation" &&
+        isEnabled[id],
     ),
   );
 
@@ -141,7 +127,7 @@ export function useNodeGrid() {
     disableNode,
     showNode,
     hideNode,
-    disableAllDiagramNodes,
+    disableEffectNodes,
     nodeList,
     columnANodes,
     columnBNodes,
