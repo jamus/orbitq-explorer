@@ -148,7 +148,7 @@ const {
 const separationVisible = ref(false);
 const showScaleReference = ref(true);
 
-const { send } = useCanvasMachine({
+const { send, isAnimating } = useCanvasMachine({
   animate,
   animatedWorldScale: () => animatedWorldScale.value,
   animatedBaselineY: () => animatedBaselineY.value,
@@ -227,7 +227,7 @@ function handleNodeToggle(id: NodeTypeId) {
   }
 
   scheduleAfterColumn({
-    type: "DIAGRAM_TOGGLED",
+    type: "DIAGRAM_OPTION_CHANGED",
     id,
     enable: !isCurrentlyEnabled,
   });
@@ -438,6 +438,7 @@ function plumeHeight(thrust: number | null): number {
     <CanvasPanel
       v-model:showScaleReference="showScaleReference"
       :nodes="panelNodes"
+      :isAnimating="isAnimating"
       @toggle-node="handleNodeToggle($event as NodeTypeId)"
     />
   </div>

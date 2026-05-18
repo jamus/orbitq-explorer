@@ -3,6 +3,7 @@ import { ref } from "vue";
 
 const props = defineProps<{
   showScaleReference: boolean;
+  isAnimating: boolean;
   nodes: {
     id: string;
     label: string;
@@ -87,7 +88,15 @@ const isOpen = ref(false);
             </label>
           </div>
 
-          <div v-if="props.nodes.some((n) => n.affectsDiagram)">
+          <div
+            v-if="props.nodes.some((n) => n.affectsDiagram)"
+            class="transition-opacity duration-150"
+            :class="
+              props.isAnimating
+                ? 'opacity-40 pointer-events-none'
+                : 'opacity-100'
+            "
+          >
             <p
               class="font-mono text-xs text-orbitq-500 uppercase tracking-widest mb-3"
             >
@@ -96,18 +105,30 @@ const isOpen = ref(false);
             <label
               v-for="node in props.nodes.filter((n) => n.affectsDiagram)"
               :key="node.id"
-              class="flex items-center gap-2 cursor-pointer"
+              class="flex items-center gap-2"
+              :class="
+                props.isAnimating ? 'cursor-not-allowed' : 'cursor-pointer'
+              "
             >
               <input
                 type="checkbox"
                 :checked="node.active"
+                :disabled="props.isAnimating"
                 @change="emit('toggle-node', node.id)"
               />
               <span class="text-sm text-orbitq-200">{{ node.label }}</span>
             </label>
           </div>
 
-          <div v-if="props.nodes.some((n) => !n.affectsDiagram)">
+          <div
+            v-if="props.nodes.some((n) => !n.affectsDiagram)"
+            class="transition-opacity duration-150"
+            :class="
+              props.isAnimating
+                ? 'opacity-40 pointer-events-none'
+                : 'opacity-100'
+            "
+          >
             <p
               class="font-mono text-xs text-orbitq-500 uppercase tracking-widest mb-3"
             >
@@ -116,11 +137,15 @@ const isOpen = ref(false);
             <label
               v-for="node in props.nodes.filter((n) => !n.affectsDiagram)"
               :key="node.id"
-              class="flex items-center gap-2 cursor-pointer"
+              class="flex items-center gap-2"
+              :class="
+                props.isAnimating ? 'cursor-not-allowed' : 'cursor-pointer'
+              "
             >
               <input
                 type="checkbox"
                 :checked="node.active"
+                :disabled="props.isAnimating"
                 @change="emit('toggle-node', node.id)"
               />
               <span class="text-sm text-orbitq-200">{{ node.label }}</span>

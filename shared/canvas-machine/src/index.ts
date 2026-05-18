@@ -13,9 +13,7 @@ interface PendingRockets {
 interface CanvasContext {
   pendingRockets: PendingRockets | null;
   // activeDiagramId: the diagram effect currently shown (or being animated to).
-  // pendingDiagramId: a diagram effect queued while a rocket animation is running.
   activeDiagramId: string | null;
-  pendingDiagramId: string | null;
 }
 
 export type CanvasEvent =
@@ -24,7 +22,7 @@ export type CanvasEvent =
       rocketA: RocketConfig | null;
       rocketB: RocketConfig | null;
     }
-  | { type: "DIAGRAM_TOGGLED"; id: string; enable: boolean };
+  | { type: "DIAGRAM_OPTION_CHANGED"; id: string; enable: boolean };
 
 // ---------------------------------------------------------------------------
 // Deps injected by the canvas component.
@@ -91,18 +89,15 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
     // Guards
     // ------------------------------------------------------------------
     guards: {
-      isDiagramToggleOn: ({ event }) =>
-        event.type === "DIAGRAM_TOGGLED" && event.enable,
-      isDiagramToggleOff: ({ event }) =>
-        event.type === "DIAGRAM_TOGGLED" && !event.enable,
-      hasPendingDiagram: ({ context }) => context.pendingDiagramId !== null,
+      isDiagramOptionOn: ({ event }) =>
+        event.type === "DIAGRAM_OPTION_CHANGED" && event.enable,
       hasActiveDiagram: ({ context }) => context.activeDiagramId !== null,
       isTurningOffActiveDiagram: ({ event, context }) =>
-        event.type === "DIAGRAM_TOGGLED" &&
+        event.type === "DIAGRAM_OPTION_CHANGED" &&
         !event.enable &&
         event.id === context.activeDiagramId,
       isSwitchingDiagram: ({ event, context }) =>
-        event.type === "DIAGRAM_TOGGLED" &&
+        event.type === "DIAGRAM_OPTION_CHANGED" &&
         event.enable &&
         event.id !== context.activeDiagramId,
     },
@@ -122,22 +117,10 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
       },
 
       setActiveDiagramId: assign(({ event }) => {
-        if (event.type !== "DIAGRAM_TOGGLED") return {};
+        if (event.type !== "DIAGRAM_OPTION_CHANGED") return {};
         return { activeDiagramId: event.id };
       }),
       clearActiveDiagramId: assign({ activeDiagramId: null }),
-
-      setPendingDiagramId: assign(({ event }) => {
-        if (event.type !== "DIAGRAM_TOGGLED") return {};
-        return { pendingDiagramId: event.id };
-      }),
-      clearPendingDiagramId: assign({ pendingDiagramId: null }),
-
-      // Promote pendingDiagramId → activeDiagramId once a rocket animation settles.
-      adoptPendingDiagram: assign(({ context }) => ({
-        activeDiagramId: context.pendingDiagramId,
-        pendingDiagramId: null,
-      })),
 
       showActiveDiagram: ({ context }) => {
         if (context.activeDiagramId) deps.showDiagram(context.activeDiagramId);
@@ -183,15 +166,18 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
       ),
     },
   }).createMachine({
-    /** @xstate-layout N4IgpgJg5mDOIC5QGMCGA7Abq2A6AlhADZgDEASgPIDCA0gKIAqA+gMr0Ay91jAkpQDlm1ABIBBAQHF6AEQDaABgC6iUAAcA9rHwAXfBvSqQAD0QAmACwBGXAGYAnAoBsZgKwAaEAE9Er267sADjNAqzcAX3DPNCwcAmIyGV4xSXIxAFlmRkpJSS55ZSNNbT0DI1MESxsHZzdPHwRQ3FdI6IxsPAx8AFtUPXQoAFoAJw1kAGswHVhSCAMwAiwNSdwYjtwu3v6h0Ymp2AR8JbRS9EUlc6KtXX1DJBNEKwB2VwtcCydAl-rEF-t3pyvBTPQKuJ5WCxmVogNZxTZ9I47MaTaazeaLTDLBawzroHoIgYjZH7Q7HBEGc5yKwqe7FG5le4VexPWy4My2Cy2b7eR5WQHvexmKxfFpRGHtOF4raIol7VFzdALI6YlY4jZSglIuUHZVjclnZRyMw09TXU7lR4KVxmNkKWxhDw8hC2T7vPwO6Fq+HbWUomZUOhMNicbh8QTCcRSWSXWlm24WhAQswKXBWZ7C7kNJ4suwWYJJ0HgyGeiW4-E+3Z+0hJFJpTLZXL5GOmkrxxmPLmBZofEU-BBObN2eyuBSBQWFpMl2Jl6WEyv7avJVIZLI5PLR6lXVsM0AVCFW3BPMyAlyOhquJoWaz2JyQifFsVejU+iD4VBQYaobqDAxoxUYrFVlLdVyxlV930-b8DFJTETluSlCljbc7l3R5HCcVM6idKwL1ZMFQgiR9gO9MC3w-L8f3QCgaAYFh2C4Hh+CEUQJGkAoTRAOlzXbRNAn8ZocNPPtHACWxLGzAd7yhIjpxA2chnA8ioKomtl3rNcm0Qlt6RQh5E2zFMhKdMxLFwZkT0ItpZMUyDBlQZA9EwMgA1o4MGLDZjIzY5tOLjHc9KqIdajPS0TNwYFXFPKd1hsij7McxIlzrVdG2jLTfOQhNApqIyGi+PCcss8VrLI2z4vwJzF1rFcG3XeRNyQnSsusILcseawbQhQJOReaLJVAwlYqggAzYa-yVJZVWI59SIgiiNFGmC9VOBCOK4ttUIQZlWXZHqQsTEI3jHbquVFKz1hIwbSvm0bxoAqbZMuhTrpG4alrgilDQa7TuM2tx-ndLCs0CFML1cexTr6mdNUGIaf1ulyg3o0MmIjVi0rWvzdKZHNdtOvsvi7Px0KKp8BueubXqqtSUrqnz1v8ipwaeOwHT7bMjo9GSLpmq7KfhsbVOS2qm2+jKmp4lw3gsQUM32yTcFBCHeuhdANAgOAjBxLcJc2wYnD7fWofiEgdd+vSwhtQr9qeewbGPUnpvJ319jNjaLYsVwbCeSE5YJn27GBWwHBCMFJ25-r5Nhl7KLdxnzBwnab17J0xxtK0rGD8cw4fc64jh8qnLj7HEEhPscIhwOexVvPoZfGOFuG4uE0Bf4njHYL-YCJ4LNFSIgA */
+    /** @xstate-layout N4IgpgJg5mDOIC5QGMCGA7Abq2A6AlhADZgDEASgPIDCA0gKIAqA+gMr0Ay91jAkpQDlm1ABIBBAQHF6AEQDaABgC6iUAAcA9rHwAXfBvSqQAD0QBGAKxncC27YsBmAOwBOAEwA2RwBoQAT0Q3ABYADlwgtxcPELcQpyc3CyCzAF8U3zQsHAJiMhleMUlyMQBZZkoABT5BYXEpWUUVJBBNbT0DI1MES2s7e2d3LwdfAIQQkIdcMxi3VwcHcbMPNIyMbDwMfABbVD10KABaACcNZABrMB1YUggDMAIsDQvcTPXcTZ29w5Pzy9gEfCPNDtdCNRpGVq6fSGZpdNxmMxBGxBaJJaYLEIeEaIFwKSbONwLCwKCwJFxxFYgV7ZD67QHfU4XK43O4PTBPe7UjbobZ0-bHRl-AFAukGMFmJrqLRQjqwwJLBS4EIWFwOIIOBSzNwKMzYsbWIIuI1GiyEoIWFUOSlc948z70gW-ZlUOhMNicbjVISiCTSeTKCHSkGdQKGpy4bUao2xc0uJx64luKaDKJmBRxEKha1rGl2vmHCD4VBQI6oLYHAws9D3QHs5422lfA6F4ul8sGYXs4HQsEB5qQ4NyhAuMzhoIKDzBQ1BZIuCx6keTEIKBJOcfBTGubNZbm8pstktlivoCg0BgsdhcHj8b11P3g-tB6Eh4ej8ITqcuGdmOd6hwj3BcUnGdVQUXEFm3N4DzbA5UGQPRMDIF1z3dK8vVqX0Gj7KU2mfIdESiGxLA8EkQjjBxgmGfxECcFUlTnGINTxDxDUg7JoKPOCELyAoilKcoqhvDD6n9SUWifWVQC6AiPCIiwSIsMinAo9U9UnFwlQcS1R0SdNlTYvAOPLLj8EQ0h8kKYoykqdCfREuQJUDXDJJMHE33HYDp1nedqIQVwDR1TVyQmMiJwM209wdIyKwAMxiqsa0eesc13e1+WijQ4s7U5RVBZQHxwmUYSk8wPDVKYPLAtUImiEIEwcWTxliCctLMBxpjccLGyiotD3bOLT1dC8PWvGo7PvbDxOc4rXIQeFEWRVFkhCzE1KWcIf08MDDWNTrKXQDQIDgIwuScoqXwOLFfIOCxAONe6HtJcLCBIM7BxKhAIj1Mik2VcYFh-TynC6vMmx+Jl4EfaaX0SWIlWao0wNNEc3DUvEKsU7V4RIzMrXSKkUoitKC16mCXIHPCPsUxUnGmWjHA8KJEio0ZMQ03FxmJWiFhR8LopMxC3sp2a2vW4C4y-SdGfjXz3HZ4kUQmUcVSsEHIvS0mj0ymKhZc6TMUmFcQjTUczFiZSgjW2TEUUtMPCcEKzbSNIgA */
     id: "canvas",
     context: {
       pendingRockets: null,
       activeDiagramId: null,
-      pendingDiagramId: null,
     },
     initial: "idle",
     states: {
+      // -----------------------------------------------------------------
+      // Diagram options are accepted here and in diagram-active only.
+      // Animating states do not handle DIAGRAM_OPTION_CHANGED — the panel
+      // is locked during animation so events cannot arrive from the UI.
       // -----------------------------------------------------------------
       idle: {
         on: {
@@ -199,8 +185,8 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             target: "animating-rockets",
             actions: "setPendingRockets",
           },
-          DIAGRAM_TOGGLED: {
-            guard: "isDiagramToggleOn",
+          DIAGRAM_OPTION_CHANGED: {
+            guard: "isDiagramOptionOn",
             target: "animating-diagram-on",
             actions: "setActiveDiagramId",
           },
@@ -216,13 +202,6 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             context.pendingRockets ?? { a: null, b: null },
           onDone: [
             {
-              // A diagram was toggled during the rocket animation — adopt it now.
-              guard: "hasPendingDiagram",
-              target: "animating-diagram-on",
-              actions: ["commitRockets", "fadeIn", "adoptPendingDiagram"],
-            },
-            {
-              // A diagram was already active before rockets changed — resume it.
               guard: "hasActiveDiagram",
               target: "diagram-active",
               actions: ["commitRockets", "fadeIn"],
@@ -238,17 +217,11 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             reenter: true,
             actions: "setPendingRockets",
           },
-          DIAGRAM_TOGGLED: [
-            { guard: "isDiagramToggleOn", actions: "setPendingDiagramId" },
-            { actions: "clearPendingDiagramId" },
-          ],
         },
       },
 
       // -----------------------------------------------------------------
       "animating-diagram-on": {
-        // Safety net: if the incoming diagram is separation and this is a
-        // machine-internal switch, ensure effect nodes are cleared.
         entry: "disableEffectNodesIfSeparation",
         invoke: {
           src: "animateDiagramOn",
@@ -263,11 +236,6 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             target: "animating-rockets",
             actions: "setPendingRockets",
           },
-          DIAGRAM_TOGGLED: {
-            guard: "isDiagramToggleOff",
-            target: "animating-diagram-off",
-            actions: "hideActiveDiagram",
-          },
         },
       },
 
@@ -278,7 +246,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             target: "animating-rockets",
             actions: "setPendingRockets",
           },
-          DIAGRAM_TOGGLED: [
+          DIAGRAM_OPTION_CHANGED: [
             {
               // Turn off the currently active diagram.
               guard: "isTurningOffActiveDiagram",
@@ -301,27 +269,16 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
         invoke: {
           src: "animateDiagramOff",
           input: ({ context }) => context.activeDiagramId ?? "",
-          onDone: [
-            {
-              guard: "hasPendingDiagram",
-              target: "animating-diagram-on",
-              actions: "adoptPendingDiagram",
-            },
-            {
-              target: "idle",
-              actions: "clearActiveDiagramId",
-            },
-          ],
+          onDone: {
+            target: "idle",
+            actions: "clearActiveDiagramId",
+          },
         },
         on: {
           ROCKET_SELECTION_CHANGED: {
             target: "animating-rockets",
             actions: "setPendingRockets",
           },
-          DIAGRAM_TOGGLED: [
-            { guard: "isDiagramToggleOn", actions: "setPendingDiagramId" },
-            { actions: "clearPendingDiagramId" },
-          ],
         },
       },
     },
