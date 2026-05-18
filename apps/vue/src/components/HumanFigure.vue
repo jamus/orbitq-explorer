@@ -11,6 +11,10 @@ const props = defineProps<{
   worldScale: number;
 }>();
 
+const emits = defineEmits<{
+  (e: "hover-human", pos: { x: number; y: number } | null): void;
+}>();
+
 const { paths, viewBox } = parseSvgPaths(rawHuman);
 
 const scaleFactor = computed(
@@ -28,12 +32,17 @@ const groupConfig = computed(() => ({
 
 const pathConfig = {
   fill: "white",
-  listening: false,
+  hitStrokeWidth: 400,
+};
+
+const handlePointerMove = (e: any) => {
+  const pos = e.target.getStage().getPointerPosition();
+  emits("hover-human", pos);
 };
 </script>
 
 <template>
-  <v-group :config="groupConfig">
+  <v-group :config="groupConfig" @pointermove="handlePointerMove">
     <v-path
       v-for="(path, i) in paths"
       :key="i"

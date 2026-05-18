@@ -328,6 +328,10 @@ const rightMarginBounds = computed(() => ({
   height: boardHeight.value,
 }));
 
+const handleStarEvent = (pos: { x: number; y: number } | null) => {
+  console.log("Star event pos:", pos);
+};
+
 function plumeHeight(thrust: number | null): number {
   return ((thrust ?? 0) / KN_PER_PLUME_METRE) * animatedWorldScale.value;
 }
@@ -398,6 +402,7 @@ function plumeHeight(thrust: number | null): number {
             :x="xHuman"
             :baselineY="animatedBaselineY"
             :worldScale="animatedWorldScale"
+            @hover-human="handleStarEvent"
           />
         </v-layer>
       </v-stage>
