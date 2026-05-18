@@ -3,15 +3,18 @@ import { ref } from "vue";
 
 const props = defineProps<{
   showScaleReference: boolean;
-  stageSeparationEnabled: boolean;
-  hasRocketWithStages: boolean;
-  bands: { id: string; label: string; active: boolean }[];
+  isAnimating: boolean;
+  nodes: {
+    id: string;
+    label: string;
+    active: boolean;
+    affectsDiagram: boolean;
+  }[];
 }>();
 
 const emit = defineEmits<{
   "update:showScaleReference": [value: boolean];
-  "update:stageSeparationEnabled": [value: boolean];
-  "toggle-band": [id: string];
+  "toggle-node": [id: string];
 }>();
 
 const isOpen = ref(false);
@@ -83,42 +86,81 @@ const isOpen = ref(false);
               />
               <span class="text-sm text-orbitq-200">Scale Reference</span>
             </label>
-            <label
-              v-if="props.hasRocketWithStages"
-              class="flex items-center gap-2 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                :checked="props.stageSeparationEnabled"
-                @change="
-                  emit(
-                    'update:stageSeparationEnabled',
-                    ($event.target as HTMLInputElement).checked,
-                  )
-                "
-              />
-              <span class="text-sm text-orbitq-200">Separate Stages</span>
-            </label>
           </div>
 
-          <div v-if="props.bands.length > 0">
+          <div
+            v-if="props.nodes.some((n) => n.affectsDiagram)"
+            class="transition-opacity duration-150"
+            :class="
+              props.isAnimating
+                ? 'opacity-40 pointer-events-none'
+                : 'opacity-100'
+            "
+          >
             <p
               class="font-mono text-xs text-orbitq-500 uppercase tracking-widest mb-3"
             >
-              Layers
+              Diagram
             </p>
             <label
-              v-for="band in props.bands"
-              :key="band.id"
-              class="flex items-center gap-2 cursor-pointer"
+              v-for="node in props.nodes.filter((n) => n.affectsDiagram)"
+              :key="node.id"
+              class="flex items-center gap-2"
+              :class="
+                props.isAnimating ? 'cursor-not-allowed' : 'cursor-pointer'
+              "
             >
               <input
                 type="checkbox"
-                :checked="band.active"
-                @change="emit('toggle-band', band.id)"
+                :checked="node.active"
+                :disabled="props.isAnimating"
+                @change="emit('toggle-node', node.id)"
               />
-              <span class="text-sm text-orbitq-200">{{ band.label }}</span>
+              <span class="text-sm text-orbitq-200">{{ node.label }}</span>
             </label>
+          </div>
+
+          <div
+            v-if="props.nodes.some((n) => !n.affectsDiagram)"
+            class="transition-opacity duration-150"
+            :class="
+              props.isAnimating
+                ? 'opacity-40 pointer-events-none'
+                : 'opacity-100'
+            "
+          >
+            <p
+              class="font-mono text-xs text-orbitq-500 uppercase tracking-widest mb-3"
+            >
+              Nodes
+            </p>
+            <label
+              v-for="node in props.nodes.filter((n) => !n.affectsDiagram)"
+              :key="node.id"
+              class="flex items-center gap-2"
+              :class="
+                props.isAnimating ? 'cursor-not-allowed' : 'cursor-pointer'
+              "
+            >
+              <input
+                type="checkbox"
+                :checked="node.active"
+                :disabled="props.isAnimating"
+                @change="emit('toggle-node', node.id)"
+              />
+              <span class="text-sm text-orbitq-200">{{ node.label }}</span>
+            </label>
+          </div>
+
+          <div>
+            <p
+              class="font-mono text-xs text-orbitq-500 uppercase tracking-widest mb-3"
+            >
+              Components
+            </p>
+            <p class="text-xs text-orbitq-600 italic">
+              Click diagram parts to activate — coming soon
+            </p>
           </div>
         </div>
       </div>

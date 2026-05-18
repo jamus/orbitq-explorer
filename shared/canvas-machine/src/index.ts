@@ -11,13 +11,9 @@ interface PendingRockets {
 }
 
 interface CanvasContext {
-  pendingBands: string[];
   pendingRockets: PendingRockets | null;
-  // Flag rather than a parallel state — carries separation mode through animating-rockets
-  // so onDone can route back to separation-active. If a second such flag is needed,
-  // or any transition must branch on a combination of flags, switch to parallel states.
-  // See docs/adr/0004-xstate-canvas-machine.md § "Separation persistence across rocket changes".
-  separationActive: boolean;
+  // activeDiagramId: the diagram effect currently shown (or being animated to).
+  activeDiagramId: string | null;
 }
 
 export type CanvasEvent =
@@ -26,12 +22,10 @@ export type CanvasEvent =
       rocketA: RocketConfig | null;
       rocketB: RocketConfig | null;
     }
-  | { type: "BAND_TOGGLED"; id: string; enable: boolean }
-  | { type: "SEPARATION_TOGGLED"; enable: boolean };
+  | { type: "DIAGRAM_OPTION_CHANGED"; id: string; enable: boolean };
 
 // ---------------------------------------------------------------------------
-// Deps injected by the canvas component — all reads happen at dispatch/transition
-// time, never captured at machine-creation time, so they always reflect live state.
+// Deps injected by the canvas component.
 // ---------------------------------------------------------------------------
 export interface CanvasMachineDeps {
   animate: (
@@ -43,7 +37,6 @@ export interface CanvasMachineDeps {
   ) => void;
   animatedWorldScale: () => number;
   animatedBaselineY: () => number;
-  // Layout targets — read enabledBands reactively and respect separation flag
   getTargetScale: (
     rockets: (RocketConfig | null)[],
     separated: boolean,
@@ -52,16 +45,14 @@ export interface CanvasMachineDeps {
     rockets: (RocketConfig | null)[],
     separated: boolean,
   ) => number;
-  // Current display rockets (lag behind live props during animation)
   displayRocketA: () => RocketConfig | null;
   displayRocketB: () => RocketConfig | null;
-  // Effects driven by the machine
   setDisplayRockets: (a: RocketConfig | null, b: RocketConfig | null) => void;
-  syncVisibleBands: () => void;
-  showBands: (ids: string[]) => void;
-  hideBand: (id: string) => void;
-  disableAllBands: () => void;
-  setSeparationVisible: (v: boolean) => void;
+  // Generic diagram show/hide — AppCanvas routes to the right call per node id.
+  showDiagram: (id: string) => void;
+  hideDiagram: (id: string) => void;
+  // Disables all non-separation diagram nodes — called when entering separation.
+  disableEffectNodes: () => void;
   fadeOut: (
     pendingA: RocketConfig | null,
     pendingB: RocketConfig | null,
@@ -89,51 +80,62 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
     });
   }
 
+  const displayRockets = () => [deps.displayRocketA(), deps.displayRocketB()];
+
   return setup({
     types: {} as { context: CanvasContext; events: CanvasEvent },
 
     // ------------------------------------------------------------------
-    // Guards — named so the machine body reads as a transition table
+    // Guards
     // ------------------------------------------------------------------
     guards: {
-      isBandToggleOn: ({ event }) =>
-        event.type === "BAND_TOGGLED" && event.enable,
-      isSeparationToggleOn: ({ event }) =>
-        event.type === "SEPARATION_TOGGLED" && event.enable,
-      isSeparationToggleOff: ({ event }) =>
-        event.type === "SEPARATION_TOGGLED" && !event.enable,
-      isSeparationActive: ({ context }) => context.separationActive,
-      hasPendingBands: ({ context }) => context.pendingBands.length > 0,
+      isDiagramOptionOn: ({ event }) =>
+        event.type === "DIAGRAM_OPTION_CHANGED" && event.enable,
+      hasActiveDiagram: ({ context }) => context.activeDiagramId !== null,
+      isTurningOffActiveDiagram: ({ event, context }) =>
+        event.type === "DIAGRAM_OPTION_CHANGED" &&
+        !event.enable &&
+        event.id === context.activeDiagramId,
+      isSwitchingDiagram: ({ event, context }) =>
+        event.type === "DIAGRAM_OPTION_CHANGED" &&
+        event.enable &&
+        event.id !== context.activeDiagramId,
     },
 
     // ------------------------------------------------------------------
-    // Actions — all side effects and context updates live here
+    // Actions
     // ------------------------------------------------------------------
     actions: {
       setPendingRockets: assign(({ event }) => {
         if (event.type !== "ROCKET_SELECTION_CHANGED") return {};
         return { pendingRockets: { a: event.rocketA, b: event.rocketB } };
       }),
-      clearPendingRockets: assign({ pendingRockets: null }),
-      addBandToPending: assign(({ context, event }) => {
-        if (event.type !== "BAND_TOGGLED") return {};
-        return { pendingBands: addPending(context.pendingBands, event.id) };
-      }),
-      clearPendingBands: assign({ pendingBands: (): string[] => [] }),
-      hideBand: ({ event }) => {
-        if (event.type === "BAND_TOGGLED") deps.hideBand(event.id);
-      },
+
       commitRockets: ({ context }) => {
         const r = context.pendingRockets;
         deps.setDisplayRockets(r?.a ?? null, r?.b ?? null);
       },
-      syncVisibleBands: () => deps.syncVisibleBands(),
-      showPendingBands: ({ context }) => deps.showBands(context.pendingBands),
-      disableAllBands: () => deps.disableAllBands(),
-      activateSeparation: assign({ separationActive: true }),
-      deactivateSeparation: assign({ separationActive: false }),
-      showSeparation: () => deps.setSeparationVisible(true),
-      hideSeparation: () => deps.setSeparationVisible(false),
+
+      setActiveDiagramId: assign(({ event }) => {
+        if (event.type !== "DIAGRAM_OPTION_CHANGED") return {};
+        return { activeDiagramId: event.id };
+      }),
+      clearActiveDiagramId: assign({ activeDiagramId: null }),
+
+      showActiveDiagram: ({ context }) => {
+        if (context.activeDiagramId) deps.showDiagram(context.activeDiagramId);
+      },
+      hideActiveDiagram: ({ context }) => {
+        if (context.activeDiagramId) deps.hideDiagram(context.activeDiagramId);
+      },
+
+      // Safety net for machine-internal transitions into animating-diagram-on
+      // when the incoming diagram is separation (e.g. diagram-active switching).
+      // AppCanvas handles the common case before sending the event.
+      disableEffectNodesIfSeparation: ({ context }) => {
+        if (context.activeDiagramId === "separation") deps.disableEffectNodes();
+      },
+
       fadeOut: ({ context }) =>
         deps.fadeOut(
           context.pendingRockets?.a ?? null,
@@ -143,33 +145,39 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
     },
 
     // ------------------------------------------------------------------
-    // Actors — animation promises, named by the layout they compute
+    // Actors
     // ------------------------------------------------------------------
     actors: {
-      // Uses pendingRockets passed as input — pending, not display
       animateRockets: fromPromise(({ input }: { input: PendingRockets }) =>
         animateAsync([input.a, input.b], false),
       ),
-      // Animates to current display rocket layout without separation.
-      // Shared by animating-band-on, animating-band-off, animating-separation-off.
-      animateBands: fromPromise(() =>
-        animateAsync([deps.displayRocketA(), deps.displayRocketB()], false),
+
+      // Diagram on — branches on id so each node can define its own animation
+      // without new machine states (e.g. thrust plume grow, separation spread).
+      animateDiagramOn: fromPromise(({ input }: { input: string }) =>
+        animateAsync(displayRockets(), input === "separation"),
       ),
-      // Animates to current display rocket layout with separation
-      animateSeparationOn: fromPromise(() =>
-        animateAsync([deps.displayRocketA(), deps.displayRocketB()], true),
+
+      // Diagram off — id passed for future node-specific off-animations
+      // (e.g. thrust plume fade before worldscale snaps back).
+      animateDiagramOff: fromPromise(({ input: _id }: { input: string }) =>
+        // future: if (_id === "thrust") return animateThrustOff();
+        animateAsync(displayRockets(), false),
       ),
     },
   }).createMachine({
-    /** @xstate-layout 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-D-rLPjjlbFd0+HFkdOHHwbFb6Dy0eeXA24c5kkvOPGpIiMpxKZuTBlK5XDWELOBCsgxX4fA2lpA8+NbS2EFkKtF9NZ6rNXkFC+OLNx7h5XfHcTYUaaJCgE4sYE7iDBZR8YxHSzFkIsRCuRXzBnl1NPEMwZZ7CujMHWAYDwbyWmiIhD0sRaXtNMQ08VHqoVlges2ZiJY-UREdMUyw3d8TuHbGxFw0dUhAA */
+    /** @xstate-layout N4IgpgJg5mDOIC5QGMCGA7Abq2A6AlhADZgDEASgPIDCA0gKIAqA+gMr0Ay91jAkpQDlm1ABIBBAQHF6AEQDaABgC6iUAAcA9rHwAXfBvSqQAD0QBGAKxncC27YsBmAOwBOAEwA2RwBoQAT0Q3ABYADlwgtxcPELcQpyc3CyCzAF8U3zQsHAJiMhleMUlyMQBZZkoABT5BYXEpWUUVJBBNbT0DI1MES2s7e2d3LwdfAIQQkIdcMxi3VwcHcbMPNIyMbDwMfABbVD10KABaACcNZABrMB1YUggDMAIsDQvcTPXcTZ29w5Pzy9gEfCPNDtdCNRpGVq6fSGZpdNxmMxBGxBaJJaYLEIeEaIFwKSbONwLCwKCwJFxxFYgV7ZD67QHfU4XK43O4PTBPe7UjbobZ0-bHRl-AFAukGMFmJrqLRQjqwwJLBS4EIWFwOIIOBSzNwKMzYsbWIIuI1GiyEoIWFUOSlc948z70gW-ZlUOhMNicbjVISiCTSeTKCHSkGdQKGpy4bUao2xc0uJx64luKaDKJmBRxEKha1rGl2vmHCD4VBQI6oLYHAws9D3QHs5422lfA6F4ul8sGYXs4HQsEB5qQ4NyhAuMzhoIKDzBQ1BZIuCx6keTEIKBJOcfBTGubNZbm8pstktlivoCg0BgsdhcHj8b11P3g-tB6Eh4ej8ITqcuGdmOd6hwj3BcUnGdVQUXEFm3N4DzbA5UGQPRMDIF1z3dK8vVqX0Gj7KU2mfIdESiGxLA8EkQjjBxgmGfxECcFUlTnGINTxDxDUg7JoKPOCELyAoilKcoqhvDD6n9SUWifWVQC6AiPCIiwSIsMinAo9U9UnFwlQcS1R0SdNlTYvAOPLLj8EQ0h8kKYoykqdCfREuQJUDXDJJMHE33HYDp1nedqIQVwDR1TVyQmMiJwM209wdIyKwAMxiqsa0eesc13e1+WijQ4s7U5RVBZQHxwmUYSk8wPDVKYPLAtUImiEIEwcWTxliCctLMBxpjccLGyiotD3bOLT1dC8PWvGo7PvbDxOc4rXIQeFEWRVFkhCzE1KWcIf08MDDWNTrKXQDQIDgIwuScoqXwOLFfIOCxAONe6HtJcLCBIM7BxKhAIj1Mik2VcYFh-TynC6vMmx+Jl4EfaaX0SWIlWao0wNNEc3DUvEKsU7V4RIzMrXSKkUoitKC16mCXIHPCPsUxUnGmWjHA8KJEio0ZMQ03FxmJWiFhR8LopMxC3sp2a2vW4C4y-SdGfjXz3HZ4kUQmUcVSsEHIvS0mj0ymKhZc6TMUmFcQjTUczFiZSgjW2TEUUtMPCcEKzbSNIgA */
     id: "canvas",
     context: {
-      pendingBands: [],
       pendingRockets: null,
-      separationActive: false,
+      activeDiagramId: null,
     },
     initial: "idle",
     states: {
+      // -----------------------------------------------------------------
+      // Diagram options are accepted here and in diagram-active only.
+      // Animating states do not handle DIAGRAM_OPTION_CHANGED — the panel
+      // is locked during animation so events cannot arrive from the UI.
       // -----------------------------------------------------------------
       idle: {
         on: {
@@ -177,20 +185,10 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             target: "animating-rockets",
             actions: "setPendingRockets",
           },
-          BAND_TOGGLED: [
-            {
-              guard: "isBandToggleOn",
-              target: "animating-band-on",
-              actions: "addBandToPending",
-            },
-            {
-              actions: "hideBand",
-              target: "animating-band-off",
-            },
-          ],
-          SEPARATION_TOGGLED: {
-            guard: "isSeparationToggleOn",
-            target: "animating-separation-on",
+          DIAGRAM_OPTION_CHANGED: {
+            guard: "isDiagramOptionOn",
+            target: "animating-diagram-on",
+            actions: "setActiveDiagramId",
           },
         },
       },
@@ -204,169 +202,85 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             context.pendingRockets ?? { a: null, b: null },
           onDone: [
             {
-              guard: "isSeparationActive",
-              target: "separation-active",
-              actions: ["commitRockets", "syncVisibleBands", "fadeIn"],
+              guard: "hasActiveDiagram",
+              target: "diagram-active",
+              actions: ["commitRockets", "fadeIn"],
             },
             {
               target: "idle",
-              actions: ["commitRockets", "syncVisibleBands", "fadeIn"],
+              actions: ["commitRockets", "fadeIn"],
             },
           ],
         },
         on: {
           ROCKET_SELECTION_CHANGED: {
-            // Restart animation with newest data
             reenter: true,
             actions: "setPendingRockets",
           },
-          BAND_TOGGLED: [
-            {
-              guard: "isBandToggleOn",
-              actions: "addBandToPending",
-            },
-            {
-              actions: "hideBand",
-            },
-          ],
-          SEPARATION_TOGGLED: {
-            guard: "isSeparationToggleOn",
-            target: "animating-separation-on",
-            actions: "clearPendingRockets",
+        },
+      },
+
+      // -----------------------------------------------------------------
+      "animating-diagram-on": {
+        entry: "disableEffectNodesIfSeparation",
+        invoke: {
+          src: "animateDiagramOn",
+          input: ({ context }) => context.activeDiagramId ?? "",
+          onDone: {
+            target: "diagram-active",
+            actions: "showActiveDiagram",
+          },
+        },
+        on: {
+          ROCKET_SELECTION_CHANGED: {
+            target: "animating-rockets",
+            actions: "setPendingRockets",
           },
         },
       },
 
       // -----------------------------------------------------------------
-      "animating-band-on": {
+      "diagram-active": {
+        on: {
+          ROCKET_SELECTION_CHANGED: {
+            target: "animating-rockets",
+            actions: "setPendingRockets",
+          },
+          DIAGRAM_OPTION_CHANGED: [
+            {
+              // Turn off the currently active diagram.
+              guard: "isTurningOffActiveDiagram",
+              target: "animating-diagram-off",
+              actions: "hideActiveDiagram",
+            },
+            {
+              // Switch to a different diagram — AppCanvas resolves any column
+              // conflicts before sending; machine handles the animation switch.
+              guard: "isSwitchingDiagram",
+              target: "animating-diagram-on",
+              actions: ["hideActiveDiagram", "setActiveDiagramId"],
+            },
+          ],
+        },
+      },
+
+      // -----------------------------------------------------------------
+      "animating-diagram-off": {
         invoke: {
-          src: "animateBands",
+          src: "animateDiagramOff",
+          input: ({ context }) => context.activeDiagramId ?? "",
           onDone: {
             target: "idle",
-            actions: ["showPendingBands", "clearPendingBands"],
+            actions: "clearActiveDiagramId",
           },
-        },
-        on: {
-          ROCKET_SELECTION_CHANGED: {
-            target: "animating-rockets",
-            actions: ["setPendingRockets", "clearPendingBands"],
-          },
-          BAND_TOGGLED: [
-            {
-              guard: "isBandToggleOn",
-              // Add to pending and restart animation to new combined target
-              reenter: true,
-              actions: "addBandToPending",
-            },
-            {
-              actions: "hideBand",
-            },
-          ],
-          SEPARATION_TOGGLED: {
-            guard: "isSeparationToggleOn",
-            target: "animating-separation-on",
-            actions: "clearPendingBands",
-          },
-        },
-      },
-
-      // -----------------------------------------------------------------
-      "animating-band-off": {
-        invoke: {
-          src: "animateBands",
-          onDone: "idle",
         },
         on: {
           ROCKET_SELECTION_CHANGED: {
             target: "animating-rockets",
             actions: "setPendingRockets",
-          },
-          BAND_TOGGLED: [
-            {
-              guard: "isBandToggleOn",
-              target: "animating-band-on",
-              actions: "addBandToPending",
-            },
-            {
-              actions: "hideBand",
-            },
-          ],
-          SEPARATION_TOGGLED: {
-            guard: "isSeparationToggleOn",
-            target: "animating-separation-on",
-          },
-        },
-      },
-
-      // -----------------------------------------------------------------
-      "animating-separation-on": {
-        entry: "disableAllBands",
-        invoke: {
-          src: "animateSeparationOn",
-          onDone: {
-            target: "separation-active",
-            actions: ["showSeparation", "activateSeparation", "fadeIn"],
-          },
-        },
-        on: {
-          ROCKET_SELECTION_CHANGED: {
-            target: "animating-rockets",
-            actions: ["setPendingRockets", "deactivateSeparation"],
-          },
-        },
-      },
-
-      // -----------------------------------------------------------------
-      "separation-active": {
-        on: {
-          ROCKET_SELECTION_CHANGED: {
-            // Rockets changed while separation is active — animate to new layout
-            // but stay in separation mode (separationActive stays true)
-            target: "animating-rockets",
-            actions: "setPendingRockets",
-          },
-          BAND_TOGGLED: {
-            guard: "isBandToggleOn",
-            // Store for after separation ends — no animation while separated
-            actions: "addBandToPending",
-          },
-          SEPARATION_TOGGLED: {
-            guard: "isSeparationToggleOff",
-            target: "animating-separation-off",
-            actions: ["hideSeparation", "deactivateSeparation"],
-          },
-        },
-      },
-
-      // -----------------------------------------------------------------
-      "animating-separation-off": {
-        invoke: {
-          src: "animateBands",
-          onDone: [
-            {
-              // If bands were queued while separation was active, play them now
-              guard: "hasPendingBands",
-              target: "animating-band-on",
-            },
-            { target: "idle" },
-          ],
-        },
-        on: {
-          ROCKET_SELECTION_CHANGED: {
-            target: "animating-rockets",
-            actions: ["setPendingRockets", "clearPendingBands"],
           },
         },
       },
     },
   });
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function addPending(existing: string[], id: string | null): string[] {
-  if (id === null || existing.includes(id)) return existing;
-  return [...existing, id];
 }

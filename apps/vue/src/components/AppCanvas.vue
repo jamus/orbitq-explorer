@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import type { RocketConfig } from "@orbitq/graphql";
-import {
-  useCanvasBands,
-  KN_PER_PLUME_METRE,
-} from "../composables/useCanvasBands";
-import type { BandId } from "../composables/useCanvasBands";
+import { useNodeGrid } from "../composables/useNodeGrid";
+import type { NodeTypeId } from "../composables/useNodeGrid";
+import { useBoardSize } from "../composables/useBoardSize";
 import { useCanvasAnimation } from "../composables/useCanvasAnimation";
 import { useCanvasMachine } from "../composables/useCanvasMachine";
 import RocketImage from "./RocketImage.vue";
 import HumanFigure from "./HumanFigure.vue";
 import ThrustIndicator from "./ThrustIndicator.vue";
 import CanvasPanel from "./CanvasPanel.vue";
+import NodeColumn from "./NodeColumn.vue";
 import { diagrams } from "@shared/const/diagrams";
 
 const props = defineProps<{
@@ -22,47 +21,87 @@ const props = defineProps<{
 }>();
 
 // ---------------------------------------------------------------------------
-// Canvas dimensions
+// Layout constants
 // ---------------------------------------------------------------------------
 
-const canvasWidth = window.innerWidth;
-const canvasHeight = window.innerHeight - 86 - 41;
+const TOP_PADDING_FRAC = 0.14;
+const BOTTOM_PADDING_FRAC = 0.25;
+const BASE_PADDING_FRAC = 1 + TOP_PADDING_FRAC + BOTTOM_PADDING_FRAC;
+const KN_PER_PLUME_METRE = 250;
+
+// Duration of the NodeColumn CSS width transition (must match NodeColumn.vue).
+const CSS_COLUMN_DURATION_MS = 300;
 
 // ---------------------------------------------------------------------------
-// Band system
+// Board size (reactive, driven by ResizeObserver on the board container)
+// ---------------------------------------------------------------------------
+
+const boardRef = ref<HTMLElement | null>(null);
+const { boardWidth, boardHeight } = useBoardSize(boardRef);
+
+// ---------------------------------------------------------------------------
+// Node grid
 // ---------------------------------------------------------------------------
 
 const {
-  enabledBands,
-  visibleBands,
-  toggleBand,
-  showBands,
-  hideBand,
-  disableAllBands,
-  targetBaselineY,
-  targetScaleForLength,
-  syncVisibleBands: syncVisibleBandsBase,
-  bandList,
-  humanOnlyScale,
-  DEFAULT_BASELINE,
-} = useCanvasBands(canvasHeight);
+  enableNode,
+  disableNode,
+  showNode,
+  hideNode,
+  disableEffectNodes,
+  isDiagramNode,
+  nodeList,
+  columnANodes,
+  columnBNodes,
+  columnAWidth,
+  columnBWidth,
+  thrustEnabled,
+  thrustRenderVisible,
+  hasEffectNodesEnabled,
+} = useNodeGrid();
 
 // ---------------------------------------------------------------------------
-// Animation
+// Layout helpers — derived from reactive board dimensions
 // ---------------------------------------------------------------------------
 
-const layerRef = ref(null);
-const {
-  animatedWorldScale,
-  animatedBaselineY,
-  rocketAOpacity,
-  rocketBOpacity,
-  displayRocketA,
-  displayRocketB,
-  animate,
-  fadeOut,
-  fadeIn,
-} = useCanvasAnimation(humanOnlyScale, DEFAULT_BASELINE, layerRef);
+const humanOnlyScale = computed(() => (boardHeight.value * 0.4) / 1.75);
+
+const DEFAULT_BASELINE = computed(
+  () => boardHeight.value * (1 - BOTTOM_PADDING_FRAC / BASE_PADDING_FRAC),
+);
+
+// Thrust frac reads thrustEnabled (not thrustRenderVisible) so the scale target
+// updates as soon as the user toggles, before the animation fires.
+function thrustFracFor(
+  rockets: (RocketConfig | null)[],
+  maxLength: number,
+): number {
+  if (!thrustEnabled.value || maxLength <= 0) return 0;
+  const maxPlumeM = Math.max(
+    ...rockets.map((r) => (r?.toThrust ?? 0) / KN_PER_PLUME_METRE),
+    0,
+  );
+  return maxPlumeM / maxLength;
+}
+
+function targetScaleForLength(
+  maxLength: number,
+  rockets: (RocketConfig | null)[],
+): number {
+  if (maxLength <= 0) return humanOnlyScale.value;
+  const tf = thrustFracFor(rockets, maxLength);
+  return boardHeight.value / (maxLength * (BASE_PADDING_FRAC + tf));
+}
+
+function targetBaselineY(
+  maxLength: number,
+  rockets: (RocketConfig | null)[],
+): number {
+  if (maxLength <= 0) return DEFAULT_BASELINE.value;
+  const tf = thrustFracFor(rockets, maxLength);
+  const total = BASE_PADDING_FRAC + tf;
+  return boardHeight.value * (1 - (BOTTOM_PADDING_FRAC + tf) / total);
+}
 
 // ---------------------------------------------------------------------------
 // Stage separation helpers
@@ -86,49 +125,120 @@ function effectiveMaxLen(
 }
 
 // ---------------------------------------------------------------------------
+// Animation
+// ---------------------------------------------------------------------------
+
+const layerRef = ref(null);
+const {
+  animatedWorldScale,
+  animatedBaselineY,
+  rocketAOpacity,
+  rocketBOpacity,
+  displayRocketA,
+  displayRocketB,
+  animate,
+  fadeOut,
+  fadeIn,
+} = useCanvasAnimation(humanOnlyScale.value, DEFAULT_BASELINE.value, layerRef);
+
+// ---------------------------------------------------------------------------
 // State machine
 // ---------------------------------------------------------------------------
 
 const separationVisible = ref(false);
 const showScaleReference = ref(true);
-const stageSeparationEnabled = ref(false);
 
-const { send } = useCanvasMachine({
+const { send, isAnimating } = useCanvasMachine({
   animate,
   animatedWorldScale: () => animatedWorldScale.value,
   animatedBaselineY: () => animatedBaselineY.value,
   displayRocketA: () => displayRocketA.value,
   displayRocketB: () => displayRocketB.value,
   getTargetScale(rockets, separated) {
-    const maxLen = effectiveMaxLen(rockets, separated);
-    return targetScaleForLength(maxLen, rockets);
+    return targetScaleForLength(effectiveMaxLen(rockets, separated), rockets);
   },
   getTargetBaseline(rockets, separated) {
-    const maxLen = effectiveMaxLen(rockets, separated);
-    return maxLen > 0 ? targetBaselineY(maxLen, rockets) : DEFAULT_BASELINE;
+    return targetBaselineY(effectiveMaxLen(rockets, separated), rockets);
   },
   setDisplayRockets(a, b) {
     displayRocketA.value = a;
     displayRocketB.value = b;
   },
-  syncVisibleBands() {
-    const maxLen = Math.max(
-      displayRocketA.value?.length ?? 0,
-      displayRocketB.value?.length ?? 0,
-    );
-    syncVisibleBandsBase(maxLen);
+  showDiagram(id) {
+    if (id === "separation") separationVisible.value = true;
+    else showNode(id as NodeTypeId);
   },
-  showBands: showBands as (ids: string[]) => void,
-  hideBand: hideBand as (id: string) => void,
-  disableAllBands,
-  setSeparationVisible(v) {
-    separationVisible.value = v;
+  hideDiagram(id) {
+    if (id === "separation") separationVisible.value = false;
+    else hideNode(id as NodeTypeId);
   },
+  disableEffectNodes,
   fadeOut,
   fadeIn,
 });
 
-// Dispatch rocket changes to the machine
+// ---------------------------------------------------------------------------
+// CSS-first animation sequencing
+//
+// A single pending-event slot ensures rapid toggles don't queue up stale events.
+// Diagram-affecting nodes: CSS column animates first (CSS_COLUMN_DURATION_MS),
+// then the machine fires Konva animation.
+// Non-diagram nodes: immediate — no machine event needed.
+// ---------------------------------------------------------------------------
+
+let pendingMachineEvent: ReturnType<typeof setTimeout> | null = null;
+
+function cancelPending() {
+  if (pendingMachineEvent !== null) {
+    clearTimeout(pendingMachineEvent);
+    pendingMachineEvent = null;
+  }
+}
+
+function scheduleAfterColumn(event: Parameters<typeof send>[0]) {
+  cancelPending();
+  pendingMachineEvent = setTimeout(() => {
+    pendingMachineEvent = null;
+    send(event);
+  }, CSS_COLUMN_DURATION_MS);
+}
+
+onUnmounted(cancelPending);
+
+function handleNodeToggle(id: NodeTypeId) {
+  const isCurrentlyEnabled =
+    nodeList.value.find((n) => n.id === id)?.active ?? false;
+
+  if (!isDiagramNode(id)) {
+    if (isCurrentlyEnabled) disableNode(id);
+    else enableNode(id);
+    return;
+  }
+
+  if (isCurrentlyEnabled) {
+    disableNode(id);
+  } else {
+    // Enabling separation: close any conflicting effect-node columns first
+    // so the CSS animation completes before the machine fires.
+    if (id === "separation" && hasEffectNodesEnabled.value) {
+      disableEffectNodes();
+    }
+    enableNode(id);
+  }
+
+  scheduleAfterColumn({
+    type: "DIAGRAM_OPTION_CHANGED",
+    id,
+    enable: !isCurrentlyEnabled,
+  });
+}
+
+// When the machine forces separation off (e.g. user enables a node from separation-active),
+// sync the separation column back to disabled.
+watch(separationVisible, (v) => {
+  if (!v) disableNode("separation");
+});
+
 watch([() => props.rocketAData, () => props.rocketBData], ([newA, newB]) => {
   if (props.rocketAFetching || props.rocketBFetching) return;
   send({
@@ -138,21 +248,16 @@ watch([() => props.rocketAData, () => props.rocketBData], ([newA, newB]) => {
   });
 });
 
-// Dispatch separation toggle to the machine
-watch(stageSeparationEnabled, (enable) => {
-  send({ type: "SEPARATION_TOGGLED", enable });
-});
-
-function handleToggleBand(id: BandId) {
-  const enable = !enabledBands[id];
-  if (enable) stageSeparationEnabled.value = false;
-  toggleBand(id);
-  send({ type: "BAND_TOGGLED", id, enable });
-}
-
 const hasRocketWithStages = computed(() =>
   [displayRocketA.value, displayRocketB.value].some(
     (r) => r && (diagrams[r.id]?.stages.length ?? 0) > 0,
+  ),
+);
+
+// Filter separation node from the panel when no staged rockets are loaded.
+const panelNodes = computed(() =>
+  nodeList.value.filter(
+    (n) => n.id !== "separation" || hasRocketWithStages.value,
   ),
 );
 
@@ -166,7 +271,7 @@ const HUMAN_REAL_H_M = 1.75;
 const EDGE_GAP = 80;
 const CANVAS_PAD = 20;
 
-const xHuman = canvasWidth * 0.5;
+const xHuman = computed(() => boardWidth.value * 0.5);
 
 const humanHalfW = computed(
   () =>
@@ -179,8 +284,7 @@ const humanHalfW = computed(
 function rocketHalfW(rocket: RocketConfig | null): number {
   if (!rocket) return 0;
   const entry = diagrams[rocket.id];
-  if (!entry) return 0;
-  if (!rocket.length) return 0;
+  if (!entry || !rocket.length) return 0;
   return (
     (entry.nativeWidth *
       (rocket.length / entry.nativeHeight) *
@@ -190,7 +294,7 @@ function rocketHalfW(rocket: RocketConfig | null): number {
 }
 
 const rocketAnchorX = (rocketHalfWidth: number, direction: -1 | 1) =>
-  xHuman + direction * (humanHalfW.value + EDGE_GAP + rocketHalfWidth);
+  xHuman.value + direction * (humanHalfW.value + EDGE_GAP + rocketHalfWidth);
 
 const leftRocketX = computed(() => {
   const hw = rocketHalfW(displayRocketA.value);
@@ -199,134 +303,143 @@ const leftRocketX = computed(() => {
 
 const rightRocketX = computed(() => {
   const hw = rocketHalfW(displayRocketB.value);
-  return Math.min(rocketAnchorX(hw, 1), canvasWidth - hw - CANVAS_PAD);
+  return Math.min(rocketAnchorX(hw, 1), boardWidth.value - hw - CANVAS_PAD);
 });
 
-const stageConfig = { width: canvasWidth, height: canvasHeight };
+const stageConfig = computed(() => ({
+  width: boardWidth.value,
+  height: boardHeight.value,
+}));
 
 const leftMarginBounds = computed(() => ({
   x: CANVAS_PAD,
   y: 0,
   width: leftRocketX.value - rocketHalfW(displayRocketA.value) - CANVAS_PAD,
-  height: canvasHeight,
+  height: boardHeight.value,
 }));
 
 const rightMarginBounds = computed(() => ({
   x: rightRocketX.value + rocketHalfW(displayRocketB.value),
   y: 0,
   width:
-    canvasWidth -
+    boardWidth.value -
     CANVAS_PAD -
     (rightRocketX.value + rocketHalfW(displayRocketB.value)),
-  height: canvasHeight,
+  height: boardHeight.value,
 }));
+
+function plumeHeight(thrust: number | null): number {
+  return ((thrust ?? 0) / KN_PER_PLUME_METRE) * animatedWorldScale.value;
+}
 </script>
 
 <template>
-  <div class="relative">
-    <v-stage :config="stageConfig">
-      <v-layer ref="layerRef">
-        <RocketImage
-          v-if="displayRocketA"
-          :rocket="displayRocketA"
-          :x="leftRocketX"
-          :baselineY="animatedBaselineY"
-          :worldScale="animatedWorldScale"
-          :separated="separationVisible"
-          :opacity="rocketAOpacity"
-        />
-        <ThrustIndicator
-          v-if="displayRocketA && visibleBands.thrust"
-          :x="leftRocketX"
-          :baselineY="animatedBaselineY"
-          :rocketWidth="2 * rocketHalfW(displayRocketA)"
-          :thrust="displayRocketA.toThrust"
-          :plumeHeight="
-            ((displayRocketA.toThrust ?? 0) / KN_PER_PLUME_METRE) *
-            animatedWorldScale
-          "
-        />
-        <RocketImage
-          v-if="displayRocketB"
-          :rocket="displayRocketB"
-          :x="rightRocketX"
-          :baselineY="animatedBaselineY"
-          :worldScale="animatedWorldScale"
-          :separated="separationVisible"
-          :opacity="rocketBOpacity"
-        />
-        <ThrustIndicator
-          v-if="displayRocketB && visibleBands.thrust"
-          :x="rightRocketX"
-          :baselineY="animatedBaselineY"
-          :rocketWidth="2 * rocketHalfW(displayRocketB)"
-          :thrust="displayRocketB.toThrust"
-          :plumeHeight="
-            ((displayRocketB.toThrust ?? 0) / KN_PER_PLUME_METRE) *
-            animatedWorldScale
-          "
-        />
-        <!-- DEBUG: remove before ship -->
-        <v-rect
-          :config="{
-            ...leftMarginBounds,
-            fill: 'rgba(100, 200, 255, 0.1)',
-            stroke: 'rgba(100, 200, 255, 0.4)',
-            strokeWidth: 1,
-            dash: [4, 4],
-          }"
-        />
-        <v-rect
-          :config="{
-            ...rightMarginBounds,
-            fill: 'rgba(255, 150, 100, 0.1)',
-            stroke: 'rgba(255, 150, 100, 0.4)',
-            strokeWidth: 1,
-            dash: [4, 4],
-          }"
-        />
-        <HumanFigure
-          v-if="showScaleReference"
-          :x="xHuman"
-          :baselineY="animatedBaselineY"
-          :worldScale="animatedWorldScale"
-        />
-      </v-layer>
-    </v-stage>
+  <div class="flex h-[calc(100vh-127px)]">
+    <NodeColumn :nodes="columnANodes" :width="columnAWidth" />
+
+    <div ref="boardRef" class="relative flex-1 overflow-hidden">
+      <v-stage :config="stageConfig">
+        <v-layer ref="layerRef">
+          <RocketImage
+            v-if="displayRocketA"
+            :rocket="displayRocketA"
+            :x="leftRocketX"
+            :baselineY="animatedBaselineY"
+            :worldScale="animatedWorldScale"
+            :separated="separationVisible"
+            :opacity="rocketAOpacity"
+          />
+          <ThrustIndicator
+            v-if="displayRocketA && thrustRenderVisible"
+            :x="leftRocketX"
+            :baselineY="animatedBaselineY"
+            :rocketWidth="2 * rocketHalfW(displayRocketA)"
+            :thrust="displayRocketA.toThrust"
+            :plumeHeight="plumeHeight(displayRocketA.toThrust)"
+          />
+          <RocketImage
+            v-if="displayRocketB"
+            :rocket="displayRocketB"
+            :x="rightRocketX"
+            :baselineY="animatedBaselineY"
+            :worldScale="animatedWorldScale"
+            :separated="separationVisible"
+            :opacity="rocketBOpacity"
+          />
+          <ThrustIndicator
+            v-if="displayRocketB && thrustRenderVisible"
+            :x="rightRocketX"
+            :baselineY="animatedBaselineY"
+            :rocketWidth="2 * rocketHalfW(displayRocketB)"
+            :thrust="displayRocketB.toThrust"
+            :plumeHeight="plumeHeight(displayRocketB.toThrust)"
+          />
+          <!-- DEBUG: remove before ship -->
+          <v-rect
+            :config="{
+              ...leftMarginBounds,
+              fill: 'rgba(100, 200, 255, 0.1)',
+              stroke: 'rgba(100, 200, 255, 0.4)',
+              strokeWidth: 1,
+              dash: [4, 4],
+            }"
+          />
+          <v-rect
+            :config="{
+              ...rightMarginBounds,
+              fill: 'rgba(255, 150, 100, 0.1)',
+              stroke: 'rgba(255, 150, 100, 0.4)',
+              strokeWidth: 1,
+              dash: [4, 4],
+            }"
+          />
+          <HumanFigure
+            v-if="showScaleReference"
+            :x="xHuman"
+            :baselineY="animatedBaselineY"
+            :worldScale="animatedWorldScale"
+          />
+        </v-layer>
+      </v-stage>
+
+      <!-- DEBUG: remove before ship -->
+      <div
+        class="absolute top-2 right-2 font-mono text-xs text-status-warning space-y-0.5 pointer-events-none text-right"
+      >
+        <div>animatedWorldScale: {{ animatedWorldScale.toFixed(4) }}</div>
+        <div>
+          baselineY: {{ animatedBaselineY.toFixed(0) }} xA:
+          {{ leftRocketX }} xB: {{ rightRocketX }}
+        </div>
+        <div>
+          board: {{ boardWidth.toFixed(0) }}×{{ boardHeight.toFixed(0) }}
+        </div>
+        <div>
+          A:
+          {{
+            displayRocketA
+              ? `id=${displayRocketA.id} len=${displayRocketA.length}m`
+              : "none"
+          }}
+        </div>
+        <div>
+          B:
+          {{
+            displayRocketB
+              ? `id=${displayRocketB.id} len=${displayRocketB.length}m`
+              : "none"
+          }}
+        </div>
+      </div>
+    </div>
+
+    <NodeColumn :nodes="columnBNodes" :width="columnBWidth" />
 
     <CanvasPanel
       v-model:showScaleReference="showScaleReference"
-      v-model:stageSeparationEnabled="stageSeparationEnabled"
-      :hasRocketWithStages="hasRocketWithStages"
-      :bands="bandList"
-      @toggle-band="handleToggleBand($event as BandId)"
+      :nodes="panelNodes"
+      :isAnimating="isAnimating"
+      @toggle-node="handleNodeToggle($event as NodeTypeId)"
     />
-    <!-- DEBUG: remove before ship -->
-    <div
-      class="absolute top-2 right-2 font-mono text-xs text-status-warning space-y-0.5 pointer-events-none text-right"
-    >
-      <div>animatedWorldScale: {{ animatedWorldScale.toFixed(4) }}</div>
-      <div>worldScale: {{ animatedWorldScale.toFixed(4) }}</div>
-      <div>
-        baselineY: {{ animatedBaselineY.toFixed(0) }} xA: {{ leftRocketX }} xB:
-        {{ rightRocketX }}
-      </div>
-      <div>
-        A:
-        {{
-          displayRocketA
-            ? `id=${displayRocketA.id} len=${displayRocketA.length}m`
-            : "none"
-        }}
-      </div>
-      <div>
-        B:
-        {{
-          displayRocketB
-            ? `id=${displayRocketB.id} len=${displayRocketB.length}m`
-            : "none"
-        }}
-      </div>
-    </div>
   </div>
 </template>
