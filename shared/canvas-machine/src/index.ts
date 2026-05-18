@@ -97,6 +97,14 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
         event.type === "DIAGRAM_TOGGLED" && !event.enable,
       hasPendingDiagram: ({ context }) => context.pendingDiagramId !== null,
       hasActiveDiagram: ({ context }) => context.activeDiagramId !== null,
+      isTurningOffActiveDiagram: ({ event, context }) =>
+        event.type === "DIAGRAM_TOGGLED" &&
+        !event.enable &&
+        event.id === context.activeDiagramId,
+      isSwitchingDiagram: ({ event, context }) =>
+        event.type === "DIAGRAM_TOGGLED" &&
+        event.enable &&
+        event.id !== context.activeDiagramId,
     },
 
     // ------------------------------------------------------------------
@@ -175,6 +183,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
       ),
     },
   }).createMachine({
+    /** @xstate-layout N4IgpgJg5mDOIC5QGMCGA7Abq2A6AlhADZgDEASgPIDCA0gKIAqA+gMr0Ay91jAkpQDlm1ABIBBAQHF6AEQDaABgC6iUAAcA9rHwAXfBvSqQAD0QAmACwBGXAGYAnAoBsZgKwAaEAE9Er267sADjNAqzcAX3DPNCwcAmIyGV4xSXIxAFlmRkpJSS55ZSNNbT0DI1MESxsHZzdPHwRQ3FdI6IxsPAx8AFtUPXQoAFoAJw1kAGswHVhSCAMwAiwNSdwYjtwu3v6h0Ymp2AR8JbRS9EUlc6KtXX1DJBNEKwB2VwtcCydAl-rEF-t3pyvBTPQKuJ5WCxmVogNZxTZ9I47MaTaazeaLTDLBawzroHoIgYjZH7Q7HBEGc5yKwqe7FG5le4VexPWy4My2Cy2b7eR5WQHvexmKxfFpRGHtOF4raIol7VFzdALI6YlY4jZSglIuUHZVjclnZRyMw09TXU7lR4KVxmNkKWxhDw8hC2T7vPwO6Fq+HbWUomZUOhMNicbh8QTCcRSWSXWlm24WhAQswKXBWZ7C7kNJ4suwWYJJ0HgyGeiW4-E+3Z+0hJFJpTLZXL5GOmkrxxmPLmBZofEU-BBObN2eyuBSBQWFpMl2Jl6WEyv7avJVIZLI5PLR6lXVsM0AVCFW3BPMyAlyOhquJoWaz2JyQifFsVejU+iD4VBQYaobqDAxoxUYrFVlLdVyxlV930-b8DFJTETluSlCljbc7l3R5HCcVM6idKwL1ZMFQgiR9gO9MC3w-L8f3QCgaAYFh2C4Hh+CEUQJGkAoTRAOlzXbRNAn8ZocNPPtHACWxLGzAd7yhIjpxA2chnA8ioKomtl3rNcm0Qlt6RQh5E2zFMhKdMxLFwZkT0ItpZMUyDBlQZA9EwMgA1o4MGLDZjIzY5tOLjHc9KqIdajPS0TNwYFXFPKd1hsij7McxIlzrVdG2jLTfOQhNApqIyGi+PCcss8VrLI2z4vwJzF1rFcG3XeRNyQnSsusILcseawbQhQJOReaLJVAwlYqggAzYa-yVJZVWI59SIgiiNFGmC9VOBCOK4ttUIQZlWXZHqQsTEI3jHbquVFKz1hIwbSvm0bxoAqbZMuhTrpG4alrgilDQa7TuM2tx-ndLCs0CFML1cexTr6mdNUGIaf1ulyg3o0MmIjVi0rWvzdKZHNdtOvsvi7Px0KKp8BueubXqqtSUrqnz1v8ipwaeOwHT7bMjo9GSLpmq7KfhsbVOS2qm2+jKmp4lw3gsQUM32yTcFBCHeuhdANAgOAjBxLcJc2wYnD7fWofiEgdd+vSwhtQr9qeewbGPUnpvJ319jNjaLYsVwbCeSE5YJn27GBWwHBCMFJ25-r5Nhl7KLdxnzBwnab17J0xxtK0rGD8cw4fc64jh8qnLj7HEEhPscIhwOexVvPoZfGOFuG4uE0Bf4njHYL-YCJ4LNFSIgA */
     id: "canvas",
     context: {
       pendingRockets: null,
@@ -272,20 +281,14 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
           DIAGRAM_TOGGLED: [
             {
               // Turn off the currently active diagram.
-              guard: ({ event, context }) =>
-                event.type === "DIAGRAM_TOGGLED" &&
-                !event.enable &&
-                event.id === context.activeDiagramId,
+              guard: "isTurningOffActiveDiagram",
               target: "animating-diagram-off",
               actions: "hideActiveDiagram",
             },
             {
               // Switch to a different diagram — AppCanvas resolves any column
               // conflicts before sending; machine handles the animation switch.
-              guard: ({ event, context }) =>
-                event.type === "DIAGRAM_TOGGLED" &&
-                event.enable &&
-                event.id !== context.activeDiagramId,
+              guard: "isSwitchingDiagram",
               target: "animating-diagram-on",
               actions: ["hideActiveDiagram", "setActiveDiagramId"],
             },
