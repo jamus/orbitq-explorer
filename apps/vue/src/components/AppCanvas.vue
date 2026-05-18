@@ -164,11 +164,14 @@ const { send } = useCanvasMachine({
     displayRocketA.value = a;
     displayRocketB.value = b;
   },
-  setSeparationVisible(v) {
-    separationVisible.value = v;
+  showDiagram(id) {
+    if (id === "separation") separationVisible.value = true;
+    else showNode(id as NodeTypeId);
   },
-  showNode: (id) => showNode(id as NodeTypeId),
-  hideNode: (id) => hideNode(id as NodeTypeId),
+  hideDiagram(id) {
+    if (id === "separation") separationVisible.value = false;
+    else hideNode(id as NodeTypeId);
+  },
   disableEffectNodes,
   fadeOut,
   fadeIn,
@@ -212,32 +215,22 @@ function handleNodeToggle(id: NodeTypeId) {
     return;
   }
 
-  if (id === "separation") {
-    if (isCurrentlyEnabled) {
-      disableNode(id);
-      scheduleAfterColumn({ type: "SEPARATION_TOGGLED", enable: false });
-    } else {
-      enableNode(id);
-      if (hasEffectNodesEnabled.value) {
-        // Close effect-node columns first, then fire separation animation.
-        disableEffectNodes();
-        scheduleAfterColumn({ type: "SEPARATION_TOGGLED", enable: true });
-      } else {
-        cancelPending();
-        send({ type: "SEPARATION_TOGGLED", enable: true });
-      }
-    }
-    return;
-  }
-
-  // All other diagram nodes: CSS column animates first, then Konva fires.
   if (isCurrentlyEnabled) {
     disableNode(id);
-    scheduleAfterColumn({ type: "NODE_TOGGLED", id, enable: false });
   } else {
+    // Enabling separation: close any conflicting effect-node columns first
+    // so the CSS animation completes before the machine fires.
+    if (id === "separation" && hasEffectNodesEnabled.value) {
+      disableEffectNodes();
+    }
     enableNode(id);
-    scheduleAfterColumn({ type: "NODE_TOGGLED", id, enable: true });
   }
+
+  scheduleAfterColumn({
+    type: "DIAGRAM_TOGGLED",
+    id,
+    enable: !isCurrentlyEnabled,
+  });
 }
 
 // When the machine forces separation off (e.g. user enables a node from separation-active),

@@ -12,11 +12,10 @@ interface PendingRockets {
 
 interface CanvasContext {
   pendingRockets: PendingRockets | null;
-  separationActive: boolean;
-  // activeNodeId: diagram-affecting node currently displayed (or being animated to).
-  // pendingNodeId: diagram-affecting node queued while a rocket animation runs.
-  activeNodeId: string | null;
-  pendingNodeId: string | null;
+  // activeDiagramId: the diagram effect currently shown (or being animated to).
+  // pendingDiagramId: a diagram effect queued while a rocket animation is running.
+  activeDiagramId: string | null;
+  pendingDiagramId: string | null;
 }
 
 export type CanvasEvent =
@@ -25,8 +24,7 @@ export type CanvasEvent =
       rocketA: RocketConfig | null;
       rocketB: RocketConfig | null;
     }
-  | { type: "NODE_TOGGLED"; id: string; enable: boolean }
-  | { type: "SEPARATION_TOGGLED"; enable: boolean };
+  | { type: "DIAGRAM_TOGGLED"; id: string; enable: boolean };
 
 // ---------------------------------------------------------------------------
 // Deps injected by the canvas component.
@@ -52,10 +50,10 @@ export interface CanvasMachineDeps {
   displayRocketA: () => RocketConfig | null;
   displayRocketB: () => RocketConfig | null;
   setDisplayRockets: (a: RocketConfig | null, b: RocketConfig | null) => void;
-  setSeparationVisible: (v: boolean) => void;
-  // Node rendering control — called by machine to sync visible state with animation.
-  showNode: (id: string) => void;
-  hideNode: (id: string) => void;
+  // Generic diagram show/hide — AppCanvas routes to the right call per node id.
+  showDiagram: (id: string) => void;
+  hideDiagram: (id: string) => void;
+  // Disables all non-separation diagram nodes — called when entering separation.
   disableEffectNodes: () => void;
   fadeOut: (
     pendingA: RocketConfig | null,
@@ -93,16 +91,12 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
     // Guards
     // ------------------------------------------------------------------
     guards: {
-      isNodeToggleOn: ({ event }) =>
-        event.type === "NODE_TOGGLED" && event.enable,
-      isNodeToggleOff: ({ event }) =>
-        event.type === "NODE_TOGGLED" && !event.enable,
-      isSeparationToggleOn: ({ event }) =>
-        event.type === "SEPARATION_TOGGLED" && event.enable,
-      isSeparationToggleOff: ({ event }) =>
-        event.type === "SEPARATION_TOGGLED" && !event.enable,
-      isSeparationActive: ({ context }) => context.separationActive,
-      hasPendingNode: ({ context }) => context.pendingNodeId !== null,
+      isDiagramToggleOn: ({ event }) =>
+        event.type === "DIAGRAM_TOGGLED" && event.enable,
+      isDiagramToggleOff: ({ event }) =>
+        event.type === "DIAGRAM_TOGGLED" && !event.enable,
+      hasPendingDiagram: ({ context }) => context.pendingDiagramId !== null,
+      hasActiveDiagram: ({ context }) => context.activeDiagramId !== null,
     },
 
     // ------------------------------------------------------------------
@@ -113,46 +107,43 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
         if (event.type !== "ROCKET_SELECTION_CHANGED") return {};
         return { pendingRockets: { a: event.rocketA, b: event.rocketB } };
       }),
-      clearPendingRockets: assign({ pendingRockets: null }),
 
       commitRockets: ({ context }) => {
         const r = context.pendingRockets;
         deps.setDisplayRockets(r?.a ?? null, r?.b ?? null);
       },
 
-      setActiveNodeId: assign(({ event }) => {
-        if (event.type !== "NODE_TOGGLED") return {};
-        return { activeNodeId: event.id };
+      setActiveDiagramId: assign(({ event }) => {
+        if (event.type !== "DIAGRAM_TOGGLED") return {};
+        return { activeDiagramId: event.id };
       }),
-      clearActiveNodeId: assign({ activeNodeId: null }),
+      clearActiveDiagramId: assign({ activeDiagramId: null }),
 
-      setPendingNodeId: assign(({ event }) => {
-        if (event.type !== "NODE_TOGGLED") return {};
-        return { pendingNodeId: event.id };
+      setPendingDiagramId: assign(({ event }) => {
+        if (event.type !== "DIAGRAM_TOGGLED") return {};
+        return { pendingDiagramId: event.id };
       }),
-      clearPendingNodeId: assign({ pendingNodeId: null }),
+      clearPendingDiagramId: assign({ pendingDiagramId: null }),
 
-      // Move pendingNodeId → activeNodeId (after a rocket animation with a queued node).
-      adoptPendingNode: assign(({ context }) => ({
-        activeNodeId: context.pendingNodeId,
-        pendingNodeId: null,
+      // Promote pendingDiagramId → activeDiagramId once a rocket animation settles.
+      adoptPendingDiagram: assign(({ context }) => ({
+        activeDiagramId: context.pendingDiagramId,
+        pendingDiagramId: null,
       })),
 
-      showActiveNode: ({ context }) => {
-        if (context.activeNodeId) deps.showNode(context.activeNodeId);
+      showActiveDiagram: ({ context }) => {
+        if (context.activeDiagramId) deps.showDiagram(context.activeDiagramId);
       },
-      hideActiveNode: ({ context }) => {
-        if (context.activeNodeId) deps.hideNode(context.activeNodeId);
+      hideActiveDiagram: ({ context }) => {
+        if (context.activeDiagramId) deps.hideDiagram(context.activeDiagramId);
       },
 
-      // Used when entering separation: disables effect nodes (e.g. thrust) via the
-      // composable. Separation itself is intentionally skipped — see disableEffectNodes().
-      disableEffectNodes: () => deps.disableEffectNodes(),
-
-      activateSeparation: assign({ separationActive: true }),
-      deactivateSeparation: assign({ separationActive: false }),
-      showSeparation: () => deps.setSeparationVisible(true),
-      hideSeparation: () => deps.setSeparationVisible(false),
+      // Safety net for machine-internal transitions into animating-diagram-on
+      // when the incoming diagram is separation (e.g. diagram-active switching).
+      // AppCanvas handles the common case before sending the event.
+      disableEffectNodesIfSeparation: ({ context }) => {
+        if (context.activeDiagramId === "separation") deps.disableEffectNodes();
+      },
 
       fadeOut: ({ context }) =>
         deps.fadeOut(
@@ -169,21 +160,26 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
       animateRockets: fromPromise(({ input }: { input: PendingRockets }) =>
         animateAsync([input.a, input.b], false),
       ),
-      // Animates to current display rockets at their natural (non-separated) scale.
-      // getTargetScale reads thrustEnabled reactively, so the result is correct whether
-      // a diagram node is being turned on or off.
-      animateDefault: fromPromise(() => animateAsync(displayRockets(), false)),
-      animateSeparationOn: fromPromise(() =>
-        animateAsync(displayRockets(), true),
+
+      // Diagram on — branches on id so each node can define its own animation
+      // without new machine states (e.g. thrust plume grow, separation spread).
+      animateDiagramOn: fromPromise(({ input }: { input: string }) =>
+        animateAsync(displayRockets(), input === "separation"),
+      ),
+
+      // Diagram off — id passed for future node-specific off-animations
+      // (e.g. thrust plume fade before worldscale snaps back).
+      animateDiagramOff: fromPromise(({ input: _id }: { input: string }) =>
+        // future: if (_id === "thrust") return animateThrustOff();
+        animateAsync(displayRockets(), false),
       ),
     },
   }).createMachine({
     id: "canvas",
     context: {
       pendingRockets: null,
-      separationActive: false,
-      activeNodeId: null,
-      pendingNodeId: null,
+      activeDiagramId: null,
+      pendingDiagramId: null,
     },
     initial: "idle",
     states: {
@@ -194,14 +190,10 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             target: "animating-rockets",
             actions: "setPendingRockets",
           },
-          NODE_TOGGLED: {
-            guard: "isNodeToggleOn",
-            target: "animating-node-on",
-            actions: "setActiveNodeId",
-          },
-          SEPARATION_TOGGLED: {
-            guard: "isSeparationToggleOn",
-            target: "animating-separation-on",
+          DIAGRAM_TOGGLED: {
+            guard: "isDiagramToggleOn",
+            target: "animating-diagram-on",
+            actions: "setActiveDiagramId",
           },
         },
       },
@@ -215,13 +207,15 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             context.pendingRockets ?? { a: null, b: null },
           onDone: [
             {
-              guard: "hasPendingNode",
-              target: "animating-node-on",
-              actions: ["commitRockets", "fadeIn", "adoptPendingNode"],
+              // A diagram was toggled during the rocket animation — adopt it now.
+              guard: "hasPendingDiagram",
+              target: "animating-diagram-on",
+              actions: ["commitRockets", "fadeIn", "adoptPendingDiagram"],
             },
             {
-              guard: "isSeparationActive",
-              target: "separation-active",
+              // A diagram was already active before rockets changed — resume it.
+              guard: "hasActiveDiagram",
+              target: "diagram-active",
               actions: ["commitRockets", "fadeIn"],
             },
             {
@@ -235,25 +229,24 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             reenter: true,
             actions: "setPendingRockets",
           },
-          NODE_TOGGLED: [
-            { guard: "isNodeToggleOn", actions: "setPendingNodeId" },
-            { actions: "clearPendingNodeId" },
+          DIAGRAM_TOGGLED: [
+            { guard: "isDiagramToggleOn", actions: "setPendingDiagramId" },
+            { actions: "clearPendingDiagramId" },
           ],
-          SEPARATION_TOGGLED: {
-            guard: "isSeparationToggleOn",
-            target: "animating-separation-on",
-            actions: "clearPendingRockets",
-          },
         },
       },
 
       // -----------------------------------------------------------------
-      "animating-node-on": {
+      "animating-diagram-on": {
+        // Safety net: if the incoming diagram is separation and this is a
+        // machine-internal switch, ensure effect nodes are cleared.
+        entry: "disableEffectNodesIfSeparation",
         invoke: {
-          src: "animateDefault",
+          src: "animateDiagramOn",
+          input: ({ context }) => context.activeDiagramId ?? "",
           onDone: {
-            target: "node-active",
-            actions: "showActiveNode",
+            target: "diagram-active",
+            actions: "showActiveDiagram",
           },
         },
         on: {
@@ -261,121 +254,60 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             target: "animating-rockets",
             actions: "setPendingRockets",
           },
-          NODE_TOGGLED: {
-            guard: "isNodeToggleOff",
-            target: "animating-node-off",
-            actions: "hideActiveNode",
-          },
-          SEPARATION_TOGGLED: {
-            guard: "isSeparationToggleOn",
-            target: "animating-separation-on",
-            actions: ["hideActiveNode", "clearActiveNodeId"],
+          DIAGRAM_TOGGLED: {
+            guard: "isDiagramToggleOff",
+            target: "animating-diagram-off",
+            actions: "hideActiveDiagram",
           },
         },
       },
 
       // -----------------------------------------------------------------
-      "node-active": {
+      "diagram-active": {
         on: {
           ROCKET_SELECTION_CHANGED: {
             target: "animating-rockets",
             actions: "setPendingRockets",
           },
-          NODE_TOGGLED: {
-            guard: "isNodeToggleOff",
-            target: "animating-node-off",
-            actions: "hideActiveNode",
-          },
-          SEPARATION_TOGGLED: {
-            guard: "isSeparationToggleOn",
-            target: "animating-separation-on",
-            actions: ["hideActiveNode", "clearActiveNodeId"],
-          },
+          DIAGRAM_TOGGLED: [
+            {
+              // Turn off the currently active diagram.
+              guard: ({ event, context }) =>
+                event.type === "DIAGRAM_TOGGLED" &&
+                !event.enable &&
+                event.id === context.activeDiagramId,
+              target: "animating-diagram-off",
+              actions: "hideActiveDiagram",
+            },
+            {
+              // Switch to a different diagram — AppCanvas resolves any column
+              // conflicts before sending; machine handles the animation switch.
+              guard: ({ event, context }) =>
+                event.type === "DIAGRAM_TOGGLED" &&
+                event.enable &&
+                event.id !== context.activeDiagramId,
+              target: "animating-diagram-on",
+              actions: ["hideActiveDiagram", "setActiveDiagramId"],
+            },
+          ],
         },
       },
 
       // -----------------------------------------------------------------
-      "animating-node-off": {
+      "animating-diagram-off": {
         invoke: {
-          src: "animateDefault",
-          onDone: {
-            target: "idle",
-            actions: "clearActiveNodeId",
-          },
-        },
-        on: {
-          ROCKET_SELECTION_CHANGED: {
-            target: "animating-rockets",
-            actions: "setPendingRockets",
-          },
-          NODE_TOGGLED: {
-            guard: "isNodeToggleOn",
-            target: "animating-node-on",
-            actions: "setActiveNodeId",
-          },
-          SEPARATION_TOGGLED: {
-            guard: "isSeparationToggleOn",
-            target: "animating-separation-on",
-          },
-        },
-      },
-
-      // -----------------------------------------------------------------
-      "animating-separation-on": {
-        // AppCanvas calls disableEffectNodes() before sending this event in the
-        // common case. This entry action is a safety net for machine-internal
-        // transitions (e.g. node-active → here) where AppCanvas is not involved.
-        entry: "disableEffectNodes",
-        invoke: {
-          src: "animateSeparationOn",
-          onDone: {
-            target: "separation-active",
-            actions: ["showSeparation", "activateSeparation", "fadeIn"],
-          },
-        },
-        on: {
-          ROCKET_SELECTION_CHANGED: {
-            target: "animating-rockets",
-            actions: ["setPendingRockets", "deactivateSeparation"],
-          },
-        },
-      },
-
-      // -----------------------------------------------------------------
-      "separation-active": {
-        on: {
-          ROCKET_SELECTION_CHANGED: {
-            target: "animating-rockets",
-            actions: "setPendingRockets",
-          },
-          NODE_TOGGLED: {
-            guard: "isNodeToggleOn",
-            target: "animating-node-on",
-            actions: [
-              "hideSeparation",
-              "deactivateSeparation",
-              "setActiveNodeId",
-            ],
-          },
-          SEPARATION_TOGGLED: {
-            guard: "isSeparationToggleOff",
-            target: "animating-separation-off",
-            actions: ["hideSeparation", "deactivateSeparation"],
-          },
-        },
-      },
-
-      // -----------------------------------------------------------------
-      "animating-separation-off": {
-        invoke: {
-          src: "animateDefault",
+          src: "animateDiagramOff",
+          input: ({ context }) => context.activeDiagramId ?? "",
           onDone: [
             {
-              guard: "hasPendingNode",
-              target: "animating-node-on",
-              actions: "adoptPendingNode",
+              guard: "hasPendingDiagram",
+              target: "animating-diagram-on",
+              actions: "adoptPendingDiagram",
             },
-            { target: "idle" },
+            {
+              target: "idle",
+              actions: "clearActiveDiagramId",
+            },
           ],
         },
         on: {
@@ -383,10 +315,10 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             target: "animating-rockets",
             actions: "setPendingRockets",
           },
-          NODE_TOGGLED: {
-            guard: "isNodeToggleOn",
-            actions: "setPendingNodeId",
-          },
+          DIAGRAM_TOGGLED: [
+            { guard: "isDiagramToggleOn", actions: "setPendingDiagramId" },
+            { actions: "clearPendingDiagramId" },
+          ],
         },
       },
     },
