@@ -334,17 +334,17 @@ const magnifierTargetPos = ref<{ x: number; y: number } | null>(null);
 
 const handleMagnification = (
   payload: {
-    pos: { x: number; y: number } | null;
-    targetPos: { x: number; y: number } | null;
+    pointerPosition: { x: number; y: number } | null;
+    humanPosition: { x: number; y: number } | null;
   } | null,
 ) => {
-  if (!payload?.pos || !payload?.targetPos) {
+  if (!payload?.pointerPosition || !payload?.humanPosition) {
     showMagnifier.value = null;
     magnifierTargetPos.value = null;
     return;
   }
-  showMagnifier.value = payload.pos;
-  magnifierTargetPos.value = payload.targetPos;
+  showMagnifier.value = payload.pointerPosition;
+  magnifierTargetPos.value = payload.humanPosition;
 };
 
 function plumeHeight(thrust: number | null): number {
@@ -425,6 +425,7 @@ function plumeHeight(thrust: number | null): number {
             :x="showMagnifier ? showMagnifier.x : 0"
             :y="showMagnifier ? showMagnifier.y : 0"
             :targetPos="showMagnifier ? magnifierTargetPos : null"
+            :worldScale="animatedWorldScale"
           />
         </v-layer>
       </v-stage>

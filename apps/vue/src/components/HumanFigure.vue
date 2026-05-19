@@ -4,6 +4,7 @@ import rawHuman from "@shared/assets/images/diagrams/human.svg?raw";
 import { parseSvgPaths } from "@shared/utils/parseSvgPaths";
 
 const REAL_HEIGHT_M = 1.75;
+const HOVER_MARGIN = 100;
 
 const props = defineProps<{
   x: number;
@@ -15,8 +16,8 @@ const emits = defineEmits<{
   (
     e: "hover-human",
     payload: {
-      pos: { x: number; y: number } | null;
-      targetPos: { x: number; y: number } | null;
+      pointerPosition: { x: number; y: number } | null;
+      humanPosition: { x: number; y: number } | null;
     } | null,
   ): void;
 }>();
@@ -44,7 +45,6 @@ const pathConfig = computed(() => ({
   strokeScaleEnabled: false,
 }));
 
-const HOVER_MARGIN = 100;
 const hitRectConfig = computed(() => ({
   x: viewBox.minX - HOVER_MARGIN,
   y: viewBox.minY - HOVER_MARGIN,
@@ -54,14 +54,14 @@ const hitRectConfig = computed(() => ({
   listening: true,
 }));
 
-const handlePointerMove = (e: any) => {
-  const pos = e.target.getStage().getPointerPosition();
-  const targetPos = {
-    x: e.target.parent.attrs.x,
-    y: e.target.parent.attrs.y,
+const handlePointerMove = (event: any) => {
+  const pointerPosition = event.target.getStage().getPointerPosition();
+  const humanPosition = {
+    x: event.target.parent.attrs.x,
+    y: event.target.parent.attrs.y,
   };
   if (needsMagnification.value) {
-    emits("hover-human", { pos, targetPos });
+    emits("hover-human", { pointerPosition, humanPosition });
   }
 };
 
@@ -73,8 +73,8 @@ const handlePointerLeave = () => {
 <template>
   <v-group :config="groupConfig">
     <v-path
-      v-for="(path, i) in paths"
-      :key="i"
+      v-for="(path, index) in paths"
+      :key="index"
       :config="{ ...pathConfig, data: path.d }"
     />
     <v-rect
