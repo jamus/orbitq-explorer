@@ -426,6 +426,7 @@ function plumeHeight(thrust: number | null): number {
             :y="showMagnifier ? showMagnifier.y : 0"
             :targetPos="showMagnifier ? magnifierTargetPos : null"
             :worldScale="animatedWorldScale"
+            canvasBg="#1e1e1e"
           />
         </v-layer>
       </v-stage>
