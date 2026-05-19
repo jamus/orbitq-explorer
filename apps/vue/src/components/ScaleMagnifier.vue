@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import rawHuman from "@shared/assets/images/diagrams/human.svg?raw";
 import { parseSvgPaths } from "@shared/utils/parseSvgPaths";
+import { canvasColors } from "@orbitq/styles/canvas";
 
 const REAL_HEIGHT_M = 1.75;
 const RADIUS = 70;
@@ -9,12 +10,15 @@ const MAG_ZOOM = 15;
 // Human center is clamped to this fraction of the radius so it's always partially visible
 const MAX_CONTENT_OFFSET = RADIUS * 1.1;
 
+function clipCircle(ctx: any) {
+  ctx.arc(0, 0, RADIUS, 0, Math.PI * 2);
+}
+
 const props = defineProps<{
   x: number;
   y: number;
   targetPos: { x: number; y: number } | null;
   worldScale: number;
-  canvasBg: string;
 }>();
 
 const { paths, viewBox } = parseSvgPaths(rawHuman);
@@ -33,7 +37,7 @@ onMounted(() => {
   canvas.height = size;
   const ctx = canvas.getContext("2d")!;
 
-  ctx.fillStyle = props.canvasBg;
+  ctx.fillStyle = canvasColors.canvasBg;
   ctx.fillRect(0, 0, size, size);
 
   ctx.strokeStyle = lineColor;
@@ -48,10 +52,6 @@ onMounted(() => {
 
   gridPatternCanvas.value = canvas;
 });
-
-const humanScaleFactor = computed(
-  () => (REAL_HEIGHT_M / viewBox.height) * props.worldScale,
-);
 
 const humanClipPos = computed(() => {
   if (!props.targetPos) return { x: 0, y: 0 };
@@ -87,34 +87,29 @@ const scaleMagConfig = computed(() => ({
   x: props.x,
   y: props.y,
   radius: RADIUS,
-  fill: props.canvasBg,
-  stroke: props.canvasBg,
+  fill: canvasColors.canvasBg,
+  stroke: canvasColors.canvasBg,
   strokeWidth: 4,
   listening: false,
 }));
 
-const haveTargetPos = computed(() => props.targetPos !== null);
-const hideMagnifier = computed(() => props.x === 0 && props.y === 0);
-
-// Outer group: positioned at the magnifier center, clips content to the circle
 const clipGroupConfig = computed(() => ({
   x: props.x,
   y: props.y,
-  clipFunc: (ctx: any) => {
-    ctx.arc(0, 0, RADIUS, 0, Math.PI * 2);
-  },
+  clipFunc: clipCircle,
 }));
 
 const humanGroupConfig = computed(() => {
   if (!props.targetPos) return {};
   const { x, y } = humanClipPos.value;
+  const scale = MAG_ZOOM * (REAL_HEIGHT_M / viewBox.height) * props.worldScale;
   return {
     x,
     y,
     offsetX: viewBox.minX + viewBox.width / 2,
     offsetY: viewBox.minY + viewBox.height / 2,
-    scaleX: MAG_ZOOM * humanScaleFactor.value,
-    scaleY: MAG_ZOOM * humanScaleFactor.value,
+    scaleX: scale,
+    scaleY: scale,
   };
 });
 
@@ -128,8 +123,8 @@ const pathConfig = {
 
 <template>
   <v-group>
-    <v-circle v-if="!hideMagnifier" :config="scaleMagConfig" />
-    <v-group v-if="haveTargetPos && !hideMagnifier" :config="clipGroupConfig">
+    <v-circle v-if="targetPos" :config="scaleMagConfig" />
+    <v-group v-if="targetPos" :config="clipGroupConfig">
       <v-rect v-if="gridPatternCanvas" :config="gridRectConfig" />
       <v-group :config="humanGroupConfig">
         <v-path

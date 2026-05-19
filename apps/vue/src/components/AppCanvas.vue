@@ -355,9 +355,6 @@ function plumeHeight(thrust: number | null): number {
 <template>
   <div class="flex h-[calc(100vh-127px)]">
     <NodeColumn :nodes="columnANodes" :width="columnAWidth" />
-    <div style="position: absolute; top: 0">
-      x: {{ showMagnifier?.x.toFixed(0) }} y: {{ showMagnifier?.y.toFixed(0) }}
-    </div>
     <div ref="boardRef" class="relative flex-1 overflow-hidden">
       <v-stage :config="stageConfig">
         <v-layer ref="layerRef">
@@ -426,7 +423,6 @@ function plumeHeight(thrust: number | null): number {
             :y="showMagnifier ? showMagnifier.y : 0"
             :targetPos="showMagnifier ? magnifierTargetPos : null"
             :worldScale="animatedWorldScale"
-            canvasBg="#1e1e1e"
           />
         </v-layer>
       </v-stage>
