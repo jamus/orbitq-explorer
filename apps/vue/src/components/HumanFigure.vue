@@ -30,19 +30,33 @@ const groupConfig = computed(() => ({
   scaleY: scaleFactor.value,
 }));
 
-const pathConfig = {
+const needsMagnification = computed(() => scaleFactor.value < 0.25);
+
+const pathConfig = computed(() => ({
   fill: "white",
-  hitStrokeWidth: 400,
-};
+  stroke: "transparent",
+  strokeWidth: needsMagnification.value ? 8 : 0,
+  hitStrokeWidth: needsMagnification.value ? 8 : 0,
+  strokeScaleEnabled: false,
+}));
 
 const handlePointerMove = (e: any) => {
   const pos = e.target.getStage().getPointerPosition();
-  emits("hover-human", pos);
+  if (needsMagnification.value) {
+    emits("hover-human", pos);
+  } else {
+    emits("hover-human", null);
+  }
 };
 </script>
 
 <template>
-  <v-group :config="groupConfig" @pointermove="handlePointerMove">
+  <div>needsMagnification: {{ needsMagnification }}</div>
+  <v-group
+    :config="groupConfig"
+    @pointermove="handlePointerMove"
+    @pointerleave="() => emits('hover-human', null)"
+  >
     <v-path
       v-for="(path, i) in paths"
       :key="i"

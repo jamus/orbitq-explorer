@@ -12,6 +12,7 @@ import ThrustIndicator from "./ThrustIndicator.vue";
 import CanvasPanel from "./CanvasPanel.vue";
 import NodeColumn from "./NodeColumn.vue";
 import { diagrams } from "@shared/const/diagrams";
+import ScaleMagnifier from "./ScaleMagnifier.vue";
 
 const props = defineProps<{
   rocketAData: RocketConfig | null;
@@ -328,7 +329,10 @@ const rightMarginBounds = computed(() => ({
   height: boardHeight.value,
 }));
 
+const showMagnifier = ref<{ x: number; y: number } | null>(null);
+
 const handleStarEvent = (pos: { x: number; y: number } | null) => {
+  showMagnifier.value = pos;
   console.log("Star event pos:", pos);
 };
 
@@ -340,7 +344,9 @@ function plumeHeight(thrust: number | null): number {
 <template>
   <div class="flex h-[calc(100vh-127px)]">
     <NodeColumn :nodes="columnANodes" :width="columnAWidth" />
-
+    <div style="position: absolute; top: 0">
+      x: {{ showMagnifier?.x.toFixed(0) }} y: {{ showMagnifier?.y.toFixed(0) }}
+    </div>
     <div ref="boardRef" class="relative flex-1 overflow-hidden">
       <v-stage :config="stageConfig">
         <v-layer ref="layerRef">
@@ -403,6 +409,10 @@ function plumeHeight(thrust: number | null): number {
             :baselineY="animatedBaselineY"
             :worldScale="animatedWorldScale"
             @hover-human="handleStarEvent"
+          />
+          <ScaleMagnifier
+            :x="showMagnifier ? showMagnifier.x : 0"
+            :y="showMagnifier ? showMagnifier.y : 0"
           />
         </v-layer>
       </v-stage>
