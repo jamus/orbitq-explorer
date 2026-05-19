@@ -40,10 +40,18 @@ const needsMagnification = computed(() => scaleFactor.value < 0.25);
 
 const pathConfig = computed(() => ({
   fill: "white",
-  stroke: "red",
-  // strokeWidth: needsMagnification.value ? 8 : 0,
-  // hitStrokeWidth: needsMagnification.value ? 8 : 0,
+  stroke: "transparent",
   strokeScaleEnabled: false,
+}));
+
+const HOVER_MARGIN = 100;
+const hitRectConfig = computed(() => ({
+  x: viewBox.minX - HOVER_MARGIN,
+  y: viewBox.minY - HOVER_MARGIN,
+  width: viewBox.width + HOVER_MARGIN * 2,
+  height: viewBox.height + HOVER_MARGIN * 2,
+  fill: "transparent",
+  listening: true,
 }));
 
 const handlePointerMove = (e: any) => {
@@ -63,25 +71,16 @@ const handlePointerLeave = () => {
 </script>
 
 <template>
-  <div>needsMagnification: {{ needsMagnification }}</div>
-  <v-group
-    :config="groupConfig"
-    @pointermove="handlePointerMove"
-    @pointerleave="
-      () => {
-        handlePointerLeave();
-      }
-    "
-    @pointerout="
-      () => {
-        console.log('pointerout');
-      }
-    "
-  >
+  <v-group :config="groupConfig">
     <v-path
       v-for="(path, i) in paths"
       :key="i"
       :config="{ ...pathConfig, data: path.d }"
+    />
+    <v-rect
+      :config="hitRectConfig"
+      @pointermove="handlePointerMove"
+      @pointerleave="handlePointerLeave"
     />
   </v-group>
 </template>
