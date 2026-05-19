@@ -330,10 +330,21 @@ const rightMarginBounds = computed(() => ({
 }));
 
 const showMagnifier = ref<{ x: number; y: number } | null>(null);
+const magnifierTargetPos = ref<{ x: number; y: number } | null>(null);
 
-const handleStarEvent = (pos: { x: number; y: number } | null) => {
-  showMagnifier.value = pos;
-  console.log("Star event pos:", pos);
+const handleMagnification = (
+  payload: {
+    pos: { x: number; y: number } | null;
+    targetPos: { x: number; y: number } | null;
+  } | null,
+) => {
+  if (!payload?.pos || !payload?.targetPos) {
+    showMagnifier.value = null;
+    magnifierTargetPos.value = null;
+    return;
+  }
+  showMagnifier.value = payload.pos;
+  magnifierTargetPos.value = payload.targetPos;
 };
 
 function plumeHeight(thrust: number | null): number {
@@ -408,11 +419,12 @@ function plumeHeight(thrust: number | null): number {
             :x="xHuman"
             :baselineY="animatedBaselineY"
             :worldScale="animatedWorldScale"
-            @hover-human="handleStarEvent"
+            @hover-human="handleMagnification"
           />
           <ScaleMagnifier
             :x="showMagnifier ? showMagnifier.x : 0"
             :y="showMagnifier ? showMagnifier.y : 0"
+            :targetPos="showMagnifier ? magnifierTargetPos : null"
           />
         </v-layer>
       </v-stage>
