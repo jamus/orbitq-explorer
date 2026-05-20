@@ -37,22 +37,13 @@ export interface CanvasMachineDeps {
   ) => void;
   animatedWorldScale: () => number;
   animatedBaselineY: () => number;
-  getTargetScale: (
-    rockets: (RocketConfig | null)[],
-    separated: boolean,
-  ) => number;
-  getTargetBaseline: (
-    rockets: (RocketConfig | null)[],
-    separated: boolean,
-  ) => number;
+  getTargetScale: (rockets: (RocketConfig | null)[]) => number;
+  getTargetBaseline: (rockets: (RocketConfig | null)[]) => number;
   displayRocketA: () => RocketConfig | null;
   displayRocketB: () => RocketConfig | null;
   setDisplayRockets: (a: RocketConfig | null, b: RocketConfig | null) => void;
-  // Generic diagram show/hide — AppCanvas routes to the right call per node id.
   showDiagram: (id: string) => void;
   hideDiagram: (id: string) => void;
-  // Disables all non-separation diagram nodes — called when entering separation.
-  disableEffectNodes: () => void;
   fadeOut: (
     pendingA: RocketConfig | null,
     pendingB: RocketConfig | null,
@@ -65,16 +56,13 @@ export interface CanvasMachineDeps {
 // ---------------------------------------------------------------------------
 
 export function createCanvasMachine(deps: CanvasMachineDeps) {
-  function animateAsync(
-    rockets: (RocketConfig | null)[],
-    separated: boolean,
-  ): Promise<void> {
+  function animateAsync(rockets: (RocketConfig | null)[]): Promise<void> {
     return new Promise((resolve) => {
       deps.animate(
         deps.animatedWorldScale(),
-        deps.getTargetScale(rockets, separated),
+        deps.getTargetScale(rockets),
         deps.animatedBaselineY(),
-        deps.getTargetBaseline(rockets, separated),
+        deps.getTargetBaseline(rockets),
         resolve,
       );
     });
@@ -132,10 +120,6 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
       // Safety net for machine-internal transitions into animating-diagram-on
       // when the incoming diagram is separation (e.g. diagram-active switching).
       // AppCanvas handles the common case before sending the event.
-      disableEffectNodesIfSeparation: ({ context }) => {
-        if (context.activeDiagramId === "separation") deps.disableEffectNodes();
-      },
-
       fadeOut: ({ context }) =>
         deps.fadeOut(
           context.pendingRockets?.a ?? null,
@@ -149,20 +133,15 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
     // ------------------------------------------------------------------
     actors: {
       animateRockets: fromPromise(({ input }: { input: PendingRockets }) =>
-        animateAsync([input.a, input.b], false),
+        animateAsync([input.a, input.b]),
       ),
 
-      // Diagram on — branches on id so each node can define its own animation
-      // without new machine states (e.g. thrust plume grow, separation spread).
-      animateDiagramOn: fromPromise(({ input }: { input: string }) =>
-        animateAsync(displayRockets(), input === "separation"),
+      animateDiagramOn: fromPromise(({ input: _id }: { input: string }) =>
+        animateAsync(displayRockets()),
       ),
 
-      // Diagram off — id passed for future node-specific off-animations
-      // (e.g. thrust plume fade before worldscale snaps back).
       animateDiagramOff: fromPromise(({ input: _id }: { input: string }) =>
-        // future: if (_id === "thrust") return animateThrustOff();
-        animateAsync(displayRockets(), false),
+        animateAsync(displayRockets()),
       ),
     },
   }).createMachine({
@@ -222,7 +201,6 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
 
       // -----------------------------------------------------------------
       "animating-diagram-on": {
-        entry: "disableEffectNodesIfSeparation",
         invoke: {
           src: "animateDiagramOn",
           input: ({ context }) => context.activeDiagramId ?? "",

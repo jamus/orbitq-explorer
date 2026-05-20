@@ -94,12 +94,17 @@ function animateToOffsets(targets: number[]) {
 watch(
   () => props.separated,
   (sep) => {
-    const n = entry.value?.stages.length ?? 0;
+    const stages = entry.value?.stages;
+    const n = stages?.length ?? 0;
     if (n === 0) return;
     if (sep) {
       const gap = entry.value!.viewBox.height * 0.1;
-      const mid = (n - 1) / 2;
-      animateToOffsets(Array.from({ length: n }, (_, i) => (mid - i) * gap));
+      const midpointSuffix = (n - 1) / 2;
+      const suffixOf = (s: { id: string }) =>
+        parseInt(s.id.replace("Stage-", ""), 10) - 1;
+      animateToOffsets(
+        stages!.map((s) => (midpointSuffix - suffixOf(s)) * gap),
+      );
     } else {
       animateToOffsets(new Array(n).fill(0));
     }

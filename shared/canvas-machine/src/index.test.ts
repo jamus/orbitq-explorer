@@ -24,7 +24,6 @@ function makeDeps(
     setDisplayRockets: vi.fn(),
     showDiagram: vi.fn(),
     hideDiagram: vi.fn(),
-    disableEffectNodes: vi.fn(),
     fadeOut: vi.fn(),
     fadeIn: vi.fn(),
     ...overrides,
@@ -178,54 +177,6 @@ describe("canvas machine", () => {
       expect(deps.showDiagram).toHaveBeenCalledWith("thrust");
     });
 
-    it("calls disableEffectNodes when activating separation", () => {
-      const deps = makeDeps();
-      const actor = start(deps);
-      actor.send({
-        type: "DIAGRAM_OPTION_CHANGED",
-        id: "separation",
-        enable: true,
-      });
-      expect(deps.disableEffectNodes).toHaveBeenCalled();
-    });
-
-    it("does not call disableEffectNodes for non-separation nodes", () => {
-      const deps = makeDeps();
-      const actor = start(deps);
-      actor.send({
-        type: "DIAGRAM_OPTION_CHANGED",
-        id: "thrust",
-        enable: true,
-      });
-      expect(deps.disableEffectNodes).not.toHaveBeenCalled();
-    });
-
-    it("passes separated=true to getTargetScale for separation", async () => {
-      const getTargetScale = vi.fn().mockReturnValue(10);
-      const deps = makeDeps({ getTargetScale });
-      const actor = start(deps);
-      actor.send({
-        type: "DIAGRAM_OPTION_CHANGED",
-        id: "separation",
-        enable: true,
-      });
-      await waitFor(actor, (s) => s.value === "diagram-active");
-      expect(getTargetScale).toHaveBeenCalledWith(expect.anything(), true);
-    });
-
-    it("passes separated=false to getTargetScale for non-separation nodes", async () => {
-      const getTargetScale = vi.fn().mockReturnValue(10);
-      const deps = makeDeps({ getTargetScale });
-      const actor = start(deps);
-      actor.send({
-        type: "DIAGRAM_OPTION_CHANGED",
-        id: "thrust",
-        enable: true,
-      });
-      await waitFor(actor, (s) => s.value === "diagram-active");
-      expect(getTargetScale).toHaveBeenCalledWith(expect.anything(), false);
-    });
-
     it("ignores DIAGRAM_OPTION_CHANGED while animating — panel is locked", () => {
       const { deps, resume: _resume } = makeSuspendedDeps();
       const actor = start(deps);
@@ -274,7 +225,7 @@ describe("canvas machine", () => {
       const actor = await reachDiagramActive(makeDeps(), "thrust");
       actor.send({
         type: "DIAGRAM_OPTION_CHANGED",
-        id: "separation",
+        id: "overview",
         enable: false,
       });
       expect(actor.getSnapshot().value).toBe("diagram-active");
@@ -285,11 +236,11 @@ describe("canvas machine", () => {
       const actor = await reachDiagramActive(deps, "thrust");
       actor.send({
         type: "DIAGRAM_OPTION_CHANGED",
-        id: "separation",
+        id: "overview",
         enable: true,
       });
       expect(actor.getSnapshot().value).toBe("animating-diagram-on");
-      expect(actor.getSnapshot().context.activeDiagramId).toBe("separation");
+      expect(actor.getSnapshot().context.activeDiagramId).toBe("overview");
       expect(deps.hideDiagram).toHaveBeenCalledWith("thrust");
     });
 
@@ -350,26 +301,10 @@ describe("canvas machine", () => {
       const { actor } = await reachDiagramOff();
       actor.send({
         type: "DIAGRAM_OPTION_CHANGED",
-        id: "separation",
+        id: "thrust",
         enable: true,
       });
       expect(actor.getSnapshot().value).toBe("animating-diagram-off");
-    });
-
-    it("passes separated=false to getTargetScale — always animates to default scale", async () => {
-      const getTargetScale = vi.fn().mockReturnValue(10);
-      const actor = await reachDiagramActive(
-        makeDeps({ getTargetScale }),
-        "thrust",
-      );
-      getTargetScale.mockClear();
-      actor.send({
-        type: "DIAGRAM_OPTION_CHANGED",
-        id: "thrust",
-        enable: false,
-      });
-      await waitFor(actor, (s) => s.value === "idle");
-      expect(getTargetScale).toHaveBeenCalledWith(expect.anything(), false);
     });
   });
 });

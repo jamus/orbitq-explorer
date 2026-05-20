@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from "vue";
 import type { RocketConfig } from "@orbitq/graphql";
-import { useNodeGrid } from "../composables/useNodeGrid";
+import { useNodeGrid, NODE_COLUMN_WIDTH } from "../composables/useNodeGrid";
 import type { NodeTypeId } from "../composables/useNodeGrid";
 import { useBoardSize } from "../composables/useBoardSize";
 import { useCanvasAnimation } from "../composables/useCanvasAnimation";
@@ -49,16 +49,12 @@ const {
   disableNode,
   showNode,
   hideNode,
-  disableEffectNodes,
   isDiagramNode,
   nodeList,
   columnANodes,
   columnBNodes,
-  columnAWidth,
-  columnBWidth,
   thrustEnabled,
   thrustRenderVisible,
-  hasEffectNodesEnabled,
 } = useNodeGrid();
 
 // ---------------------------------------------------------------------------
@@ -105,7 +101,7 @@ function targetBaselineY(
 }
 
 // ---------------------------------------------------------------------------
-// Stage separation helpers
+// Stage separation
 // ---------------------------------------------------------------------------
 
 function effectiveLength(
@@ -146,8 +142,9 @@ const {
 // State machine
 // ---------------------------------------------------------------------------
 
-const separationVisible = ref(false);
 const showScaleReference = ref(true);
+const separationVisible = ref(false);
+const isSeparationAnimating = ref(false);
 
 const { send, isAnimating } = useCanvasMachine({
   animate,
@@ -155,25 +152,28 @@ const { send, isAnimating } = useCanvasMachine({
   animatedBaselineY: () => animatedBaselineY.value,
   displayRocketA: () => displayRocketA.value,
   displayRocketB: () => displayRocketB.value,
-  getTargetScale(rockets, separated) {
-    return targetScaleForLength(effectiveMaxLen(rockets, separated), rockets);
+  getTargetScale(rockets) {
+    return targetScaleForLength(
+      effectiveMaxLen(rockets, separationVisible.value),
+      rockets,
+    );
   },
-  getTargetBaseline(rockets, separated) {
-    return targetBaselineY(effectiveMaxLen(rockets, separated), rockets);
+  getTargetBaseline(rockets) {
+    return targetBaselineY(
+      effectiveMaxLen(rockets, separationVisible.value),
+      rockets,
+    );
   },
   setDisplayRockets(a, b) {
     displayRocketA.value = a;
     displayRocketB.value = b;
   },
   showDiagram(id) {
-    if (id === "separation") separationVisible.value = true;
-    else showNode(id as NodeTypeId);
+    showNode(id as NodeTypeId);
   },
   hideDiagram(id) {
-    if (id === "separation") separationVisible.value = false;
-    else hideNode(id as NodeTypeId);
+    hideNode(id as NodeTypeId);
   },
-  disableEffectNodes,
   fadeOut,
   fadeIn,
 });
@@ -216,14 +216,14 @@ function handleNodeToggle(id: NodeTypeId) {
     return;
   }
 
+  // Enabling a diagram node while separation is active — dismiss separation first.
+  if (!isCurrentlyEnabled && separationVisible.value) {
+    separationVisible.value = false;
+  }
+
   if (isCurrentlyEnabled) {
     disableNode(id);
   } else {
-    // Enabling separation: close any conflicting effect-node columns first
-    // so the CSS animation completes before the machine fires.
-    if (id === "separation" && hasEffectNodesEnabled.value) {
-      disableEffectNodes();
-    }
     enableNode(id);
   }
 
@@ -234,12 +234,6 @@ function handleNodeToggle(id: NodeTypeId) {
   });
 }
 
-// When the machine forces separation off (e.g. user enables a node from separation-active),
-// sync the separation column back to disabled.
-watch(separationVisible, (v) => {
-  if (!v) disableNode("separation");
-});
-
 watch([() => props.rocketAData, () => props.rocketBData], ([newA, newB]) => {
   if (props.rocketAFetching || props.rocketBFetching) return;
   send({
@@ -249,17 +243,82 @@ watch([() => props.rocketAData, () => props.rocketBData], ([newA, newB]) => {
   });
 });
 
-const hasRocketWithStages = computed(() =>
-  [displayRocketA.value, displayRocketB.value].some(
-    (r) => r && (diagrams[r.id]?.stages.length ?? 0) > 0,
-  ),
+const rocketHasStages = (r: RocketConfig | null) =>
+  !!(r && (diagrams[r.id]?.stages.length ?? 0) > 0);
+
+const hasRocketAWithStages = computed(() =>
+  rocketHasStages(displayRocketA.value),
+);
+const hasRocketBWithStages = computed(() =>
+  rocketHasStages(displayRocketB.value),
+);
+const hasRocketWithStages = computed(
+  () => hasRocketAWithStages.value || hasRocketBWithStages.value,
 );
 
-// Filter separation node from the panel when no staged rockets are loaded.
-const panelNodes = computed(() =>
-  nodeList.value.filter(
-    (n) => n.id !== "separation" || hasRocketWithStages.value,
+// Auto-show the stages node when any staged rocket is loaded.
+// Reset separation when stages disappear.
+watch(
+  hasRocketWithStages,
+  (has) => {
+    if (has) enableNode("stages");
+    else {
+      disableNode("stages");
+      separationVisible.value = false;
+    }
+  },
+  { immediate: true },
+);
+
+function handleSeparationToggle() {
+  if (!separationVisible.value && thrustEnabled.value) {
+    // Thrust is active — disable it and let the machine's diagram-off animation
+    // serve as the separation zoom. Avoids two concurrent animate() calls
+    // (which would leave the machine stuck in animating-diagram-off forever).
+    cancelPending();
+    disableNode("thrust");
+    separationVisible.value = true;
+    send({ type: "DIAGRAM_OPTION_CHANGED", id: "thrust", enable: false });
+    return;
+  }
+
+  separationVisible.value = !separationVisible.value;
+  isSeparationAnimating.value = true;
+  const rockets = [displayRocketA.value, displayRocketB.value];
+  const maxLen = effectiveMaxLen(rockets, separationVisible.value);
+  animate(
+    animatedWorldScale.value,
+    targetScaleForLength(maxLen, rockets),
+    animatedBaselineY.value,
+    targetBaselineY(maxLen, rockets),
+    () => {
+      isSeparationAnimating.value = false;
+    },
+  );
+}
+
+// Per-side filtered node arrays — suppress the stages card on a given side
+// when that rocket has no stages, even if the other rocket does.
+const columnANodesDisplay = computed(() =>
+  columnANodes.value.filter(
+    (n) => n.id !== "stages" || hasRocketAWithStages.value,
   ),
+);
+const columnBNodesDisplay = computed(() =>
+  columnBNodes.value.filter(
+    (n) => n.id !== "stages" || hasRocketBWithStages.value,
+  ),
+);
+const columnAWidthDisplay = computed(() =>
+  columnANodesDisplay.value.length > 0 ? NODE_COLUMN_WIDTH : 0,
+);
+const columnBWidthDisplay = computed(() =>
+  columnBNodesDisplay.value.length > 0 ? NODE_COLUMN_WIDTH : 0,
+);
+
+// Filter stages node from the panel — it auto-enables and has its own card UI.
+const panelNodes = computed(() =>
+  nodeList.value.filter((n) => n.id !== "stages"),
 );
 
 // ---------------------------------------------------------------------------
@@ -312,23 +371,6 @@ const stageConfig = computed(() => ({
   height: boardHeight.value,
 }));
 
-const leftMarginBounds = computed(() => ({
-  x: CANVAS_PAD,
-  y: 0,
-  width: leftRocketX.value - rocketHalfW(displayRocketA.value) - CANVAS_PAD,
-  height: boardHeight.value,
-}));
-
-const rightMarginBounds = computed(() => ({
-  x: rightRocketX.value + rocketHalfW(displayRocketB.value),
-  y: 0,
-  width:
-    boardWidth.value -
-    CANVAS_PAD -
-    (rightRocketX.value + rocketHalfW(displayRocketB.value)),
-  height: boardHeight.value,
-}));
-
 const showMagnifier = ref<{ x: number; y: number } | null>(null);
 const magnifierTargetPos = ref<{ x: number; y: number } | null>(null);
 
@@ -354,7 +396,13 @@ function plumeHeight(thrust: number | null): number {
 
 <template>
   <div class="flex h-[calc(100vh-127px)]">
-    <NodeColumn :nodes="columnANodes" :width="columnAWidth" />
+    <NodeColumn
+      :nodes="columnANodesDisplay"
+      :width="columnAWidthDisplay"
+      :separationActive="separationVisible"
+      :isAnimating="isAnimating || isSeparationAnimating"
+      @trigger-separation="handleSeparationToggle"
+    />
     <div ref="boardRef" class="relative flex-1 overflow-hidden">
       <v-stage :config="stageConfig">
         <v-layer ref="layerRef">
@@ -392,25 +440,7 @@ function plumeHeight(thrust: number | null): number {
             :thrust="displayRocketB.toThrust"
             :plumeHeight="plumeHeight(displayRocketB.toThrust)"
           />
-          <!-- DEBUG: remove before ship -->
-          <!-- <v-rect
-            :config="{
-              ...leftMarginBounds,
-              fill: 'rgba(100, 200, 255, 0.1)',
-              stroke: 'rgba(100, 200, 255, 0.4)',
-              strokeWidth: 1,
-              dash: [4, 4],
-            }"
-          />
-          <v-rect
-            :config="{
-              ...rightMarginBounds,
-              fill: 'rgba(255, 150, 100, 0.1)',
-              stroke: 'rgba(255, 150, 100, 0.4)',
-              strokeWidth: 1,
-              dash: [4, 4],
-            }"
-          /> -->
+
           <HumanFigure
             v-if="showScaleReference"
             :x="xHuman"
@@ -426,47 +456,20 @@ function plumeHeight(thrust: number | null): number {
           />
         </v-layer>
       </v-stage>
-
-      <!-- DEBUG: remove before ship -->
-      <!-- <div
-        class="absolute top-2 right-2 font-mono text-xs text-status-warning space-y-0.5 pointer-events-none text-right"
-      >
-        <div>animatedWorldScale: {{ animatedWorldScale.toFixed(4) }}</div>
-        <div>
-          baselineY: {{ animatedBaselineY.toFixed(0) }} xA:
-          {{ leftRocketX }} xB: {{ rightRocketX }}
-        </div>
-        <div>
-          board: {{ boardWidth.toFixed(0) }}×{{ boardHeight.toFixed(0) }}
-        </div>
-        <div>
-          A:
-          {{
-            displayRocketA
-              ? `id=${displayRocketA.id} len=${displayRocketA.length}m`
-              : "none"
-          }}
-        </div>
-        <div>
-          B:
-          {{
-            displayRocketB
-              ? `id=${displayRocketB.id} len=${displayRocketB.length}m`
-              : "none"
-          }}
-        </div>
-      </div> -->
     </div>
 
     <NodeColumn
-      :nodes="columnBNodes"
-      :width="displayRocketB ? columnBWidth : 0"
+      :nodes="columnBNodesDisplay"
+      :width="displayRocketB ? columnBWidthDisplay : 0"
+      :separationActive="separationVisible"
+      :isAnimating="isAnimating || isSeparationAnimating"
+      @trigger-separation="handleSeparationToggle"
     />
 
     <CanvasPanel
       v-model:showScaleReference="showScaleReference"
       :nodes="panelNodes"
-      :isAnimating="isAnimating"
+      :isAnimating="isAnimating || isSeparationAnimating"
       @toggle-node="handleNodeToggle($event as NodeTypeId)"
     />
   </div>
