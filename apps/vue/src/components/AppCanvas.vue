@@ -458,7 +458,10 @@ function plumeHeight(thrust: number | null): number {
       </div> -->
     </div>
 
-    <NodeColumn :nodes="columnBNodes" :width="columnBWidth" />
+    <NodeColumn
+      :nodes="columnBNodes"
+      :width="displayRocketB ? columnBWidth : 0"
+    />
 
     <CanvasPanel
       v-model:showScaleReference="showScaleReference"
