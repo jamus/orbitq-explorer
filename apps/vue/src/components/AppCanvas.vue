@@ -393,7 +393,7 @@ function plumeHeight(thrust: number | null): number {
             :plumeHeight="plumeHeight(displayRocketB.toThrust)"
           />
           <!-- DEBUG: remove before ship -->
-          <v-rect
+          <!-- <v-rect
             :config="{
               ...leftMarginBounds,
               fill: 'rgba(100, 200, 255, 0.1)',
@@ -410,7 +410,7 @@ function plumeHeight(thrust: number | null): number {
               strokeWidth: 1,
               dash: [4, 4],
             }"
-          />
+          /> -->
           <HumanFigure
             v-if="showScaleReference"
             :x="xHuman"
@@ -428,7 +428,7 @@ function plumeHeight(thrust: number | null): number {
       </v-stage>
 
       <!-- DEBUG: remove before ship -->
-      <div
+      <!-- <div
         class="absolute top-2 right-2 font-mono text-xs text-status-warning space-y-0.5 pointer-events-none text-right"
       >
         <div>animatedWorldScale: {{ animatedWorldScale.toFixed(4) }}</div>
@@ -455,10 +455,13 @@ function plumeHeight(thrust: number | null): number {
               : "none"
           }}
         </div>
-      </div>
+      </div> -->
     </div>
 
-    <NodeColumn :nodes="columnBNodes" :width="columnBWidth" />
+    <NodeColumn
+      :nodes="columnBNodes"
+      :width="displayRocketB ? columnBWidth : 0"
+    />
 
     <CanvasPanel
       v-model:showScaleReference="showScaleReference"
