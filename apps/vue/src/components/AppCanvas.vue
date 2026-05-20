@@ -12,6 +12,7 @@ import ThrustIndicator from "./ThrustIndicator.vue";
 import CanvasPanel from "./CanvasPanel.vue";
 import NodeColumn from "./NodeColumn.vue";
 import { diagrams } from "@shared/const/diagrams";
+import ScaleMagnifier from "./ScaleMagnifier.vue";
 
 const props = defineProps<{
   rocketAData: RocketConfig | null;
@@ -328,6 +329,24 @@ const rightMarginBounds = computed(() => ({
   height: boardHeight.value,
 }));
 
+const showMagnifier = ref<{ x: number; y: number } | null>(null);
+const magnifierTargetPos = ref<{ x: number; y: number } | null>(null);
+
+const handleMagnification = (
+  payload: {
+    pointerPosition: { x: number; y: number } | null;
+    humanPosition: { x: number; y: number } | null;
+  } | null,
+) => {
+  if (!payload?.pointerPosition || !payload?.humanPosition) {
+    showMagnifier.value = null;
+    magnifierTargetPos.value = null;
+    return;
+  }
+  showMagnifier.value = payload.pointerPosition;
+  magnifierTargetPos.value = payload.humanPosition;
+};
+
 function plumeHeight(thrust: number | null): number {
   return ((thrust ?? 0) / KN_PER_PLUME_METRE) * animatedWorldScale.value;
 }
@@ -336,7 +355,6 @@ function plumeHeight(thrust: number | null): number {
 <template>
   <div class="flex h-[calc(100vh-127px)]">
     <NodeColumn :nodes="columnANodes" :width="columnAWidth" />
-
     <div ref="boardRef" class="relative flex-1 overflow-hidden">
       <v-stage :config="stageConfig">
         <v-layer ref="layerRef">
@@ -397,6 +415,13 @@ function plumeHeight(thrust: number | null): number {
             v-if="showScaleReference"
             :x="xHuman"
             :baselineY="animatedBaselineY"
+            :worldScale="animatedWorldScale"
+            @hover-human="handleMagnification"
+          />
+          <ScaleMagnifier
+            :x="showMagnifier ? showMagnifier.x : 0"
+            :y="showMagnifier ? showMagnifier.y : 0"
+            :targetPos="showMagnifier ? magnifierTargetPos : null"
             :worldScale="animatedWorldScale"
           />
         </v-layer>
