@@ -64,6 +64,5 @@ export function parseSvgStages(svgRaw: string): StageData[] {
   if (typeof DOMParser === "undefined") return [];
   const doc = new DOMParser().parseFromString(svgRaw, "image/svg+xml");
   const stageEls = doc.querySelectorAll('g[id^="Stage-"]');
-  console.log(`Found ${stageEls.length} stage groups in SVG`);
   return Array.from(stageEls).map(parseStageEl);
 }
