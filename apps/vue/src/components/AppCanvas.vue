@@ -114,11 +114,11 @@ function effectiveLength(
   return n > 1 ? rocket.length * (1 + (n - 1) * 0.1) : rocket.length;
 }
 
-function effectiveMaxLen(
-  rockets: (RocketConfig | null)[],
-  separated: boolean,
-): number {
-  return Math.max(...rockets.map((r) => effectiveLength(r, separated)), 0);
+function effectiveMaxLen(rockets: (RocketConfig | null)[]): number {
+  return Math.max(
+    ...rockets.map((r) => effectiveLength(r, separationVisible.value)),
+    0,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -144,7 +144,6 @@ const {
 
 const showScaleReference = ref(true);
 const separationVisible = ref(false);
-const isSeparationAnimating = ref(false);
 
 const { send, isAnimating } = useCanvasMachine({
   animate,
@@ -153,16 +152,10 @@ const { send, isAnimating } = useCanvasMachine({
   displayRocketA: () => displayRocketA.value,
   displayRocketB: () => displayRocketB.value,
   getTargetScale(rockets) {
-    return targetScaleForLength(
-      effectiveMaxLen(rockets, separationVisible.value),
-      rockets,
-    );
+    return targetScaleForLength(effectiveMaxLen(rockets), rockets);
   },
   getTargetBaseline(rockets) {
-    return targetBaselineY(
-      effectiveMaxLen(rockets, separationVisible.value),
-      rockets,
-    );
+    return targetBaselineY(effectiveMaxLen(rockets), rockets);
   },
   setDisplayRockets(a, b) {
     displayRocketA.value = a;
@@ -170,9 +163,11 @@ const { send, isAnimating } = useCanvasMachine({
   },
   showDiagram(id) {
     showNode(id as NodeTypeId);
+    if (id === "stages") separationVisible.value = true;
   },
   hideDiagram(id) {
     hideNode(id as NodeTypeId);
+    if (id === "stages") separationVisible.value = false;
   },
   fadeOut,
   fadeIn,
@@ -214,11 +209,6 @@ function handleNodeToggle(id: NodeTypeId) {
     if (isCurrentlyEnabled) disableNode(id);
     else enableNode(id);
     return;
-  }
-
-  // Enabling a diagram node while separation is active — dismiss separation first.
-  if (!isCurrentlyEnabled && separationVisible.value) {
-    separationVisible.value = false;
   }
 
   if (isCurrentlyEnabled) {
@@ -272,29 +262,14 @@ watch(
 
 function handleSeparationToggle() {
   if (!separationVisible.value && thrustEnabled.value) {
-    // Thrust is active — disable it and let the machine's diagram-off animation
-    // serve as the separation zoom. Avoids two concurrent animate() calls
-    // (which would leave the machine stuck in animating-diagram-off forever).
     cancelPending();
     disableNode("thrust");
-    separationVisible.value = true;
-    send({ type: "DIAGRAM_OPTION_CHANGED", id: "thrust", enable: false });
-    return;
   }
-
-  separationVisible.value = !separationVisible.value;
-  isSeparationAnimating.value = true;
-  const rockets = [displayRocketA.value, displayRocketB.value];
-  const maxLen = effectiveMaxLen(rockets, separationVisible.value);
-  animate(
-    animatedWorldScale.value,
-    targetScaleForLength(maxLen, rockets),
-    animatedBaselineY.value,
-    targetBaselineY(maxLen, rockets),
-    () => {
-      isSeparationAnimating.value = false;
-    },
-  );
+  scheduleAfterColumn({
+    type: "DIAGRAM_OPTION_CHANGED",
+    id: "stages",
+    enable: !separationVisible.value,
+  });
 }
 
 // Per-side filtered node arrays — suppress the stages card on a given side
@@ -400,8 +375,8 @@ function plumeHeight(thrust: number | null): number {
       :nodes="columnANodesDisplay"
       :width="columnAWidthDisplay"
       :separationActive="separationVisible"
-      :isAnimating="isAnimating || isSeparationAnimating"
-      @trigger-separation="handleSeparationToggle"
+      :isAnimating="isAnimating"
+      @trigger-separation="handleSeparationToggle()"
     />
     <div ref="boardRef" class="relative flex-1 overflow-hidden">
       <v-stage :config="stageConfig">
@@ -462,14 +437,14 @@ function plumeHeight(thrust: number | null): number {
       :nodes="columnBNodesDisplay"
       :width="displayRocketB ? columnBWidthDisplay : 0"
       :separationActive="separationVisible"
-      :isAnimating="isAnimating || isSeparationAnimating"
-      @trigger-separation="handleSeparationToggle"
+      :isAnimating="isAnimating"
+      @trigger-separation="handleSeparationToggle()"
     />
 
     <CanvasPanel
       v-model:showScaleReference="showScaleReference"
       :nodes="panelNodes"
-      :isAnimating="isAnimating || isSeparationAnimating"
+      :isAnimating="isAnimating"
       @toggle-node="handleNodeToggle($event as NodeTypeId)"
     />
   </div>

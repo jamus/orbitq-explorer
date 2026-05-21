@@ -183,7 +183,7 @@ export function createCanvasMachine(deps: CanvasMachineDeps) {
             {
               guard: "hasActiveDiagram",
               target: "diagram-active",
-              actions: ["commitRockets", "fadeIn"],
+              actions: ["commitRockets", "fadeIn", "showActiveDiagram"],
             },
             {
               target: "idle",

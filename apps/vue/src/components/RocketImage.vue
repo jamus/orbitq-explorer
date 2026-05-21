@@ -109,6 +109,7 @@ watch(
       animateToOffsets(new Array(n).fill(0));
     }
   },
+  { immediate: true },
 );
 
 onUnmounted(() => anim?.stop());

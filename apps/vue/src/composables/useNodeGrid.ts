@@ -12,7 +12,7 @@ type NodeTypeDef = {
 const NODE_REGISTRY: Record<NodeTypeId, NodeTypeDef> = {
   thrust: { label: "Thrust", owner: "both", affectsDiagram: true },
   overview: { label: "Overview", owner: "both", affectsDiagram: false },
-  stages: { label: "Stages", owner: "both", affectsDiagram: false },
+  stages: { label: "Stages", owner: "both", affectsDiagram: true },
 };
 
 export const NODE_COLUMN_WIDTH = 260;
