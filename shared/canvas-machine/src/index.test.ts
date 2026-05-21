@@ -113,6 +113,24 @@ describe("canvas machine", () => {
       expect(deps.fadeOut).toHaveBeenCalled();
     });
 
+    it("passes the pending rockets to fadeOut", () => {
+      const deps = makeDeps();
+      const actor = start(deps);
+      actor.send({ type: "ROCKET_SELECTION_CHANGED", rocketA, rocketB });
+      expect(deps.fadeOut).toHaveBeenCalledWith(rocketA, rocketB);
+    });
+
+    it("passes null rockets to fadeOut when pending contains nulls", () => {
+      const deps = makeDeps();
+      const actor = start(deps);
+      actor.send({
+        type: "ROCKET_SELECTION_CHANGED",
+        rocketA: null,
+        rocketB: null,
+      });
+      expect(deps.fadeOut).toHaveBeenCalledWith(null, null);
+    });
+
     it("commits rockets and calls fadeIn after animation", async () => {
       const deps = makeDeps();
       const actor = start(deps);
@@ -250,6 +268,64 @@ describe("canvas machine", () => {
       actor.send({ type: "ROCKET_SELECTION_CHANGED", rocketA, rocketB: null });
       await waitFor(actor, (s) => s.value === "diagram-active");
       expect(actor.getSnapshot().context.activeDiagramId).toBe("thrust");
+    });
+
+    it("re-calls showDiagram after a rocket change — so separation re-initialises for new rockets", async () => {
+      const deps = makeDeps();
+      const actor = await reachDiagramActive(deps, "stages");
+      actor.send({ type: "ROCKET_SELECTION_CHANGED", rocketA, rocketB });
+      await waitFor(actor, (s) => s.value === "diagram-active");
+      expect(deps.showDiagram).toHaveBeenCalledTimes(2);
+      expect(deps.showDiagram).toHaveBeenLastCalledWith("stages");
+    });
+
+    it("ignores DIAGRAM_OPTION_CHANGED(on, same id) — no-op when already active", async () => {
+      const actor = await reachDiagramActive(makeDeps(), "thrust");
+      actor.send({
+        type: "DIAGRAM_OPTION_CHANGED",
+        id: "thrust",
+        enable: true,
+      });
+      expect(actor.getSnapshot().value).toBe("diagram-active");
+      expect(actor.getSnapshot().context.activeDiagramId).toBe("thrust");
+    });
+
+    it("switches from thrust to stages — isSwitchingDiagram fires", async () => {
+      const deps = makeDeps();
+      const actor = await reachDiagramActive(deps, "thrust");
+      actor.send({
+        type: "DIAGRAM_OPTION_CHANGED",
+        id: "stages",
+        enable: true,
+      });
+      expect(actor.getSnapshot().value).toBe("animating-diagram-on");
+      expect(actor.getSnapshot().context.activeDiagramId).toBe("stages");
+      expect(deps.hideDiagram).toHaveBeenCalledWith("thrust");
+    });
+
+    it("completes switch from thrust to stages in diagram-active", async () => {
+      const deps = makeDeps();
+      const actor = await reachDiagramActive(deps, "thrust");
+      actor.send({
+        type: "DIAGRAM_OPTION_CHANGED",
+        id: "stages",
+        enable: true,
+      });
+      await waitFor(actor, (s) => s.value === "diagram-active");
+      expect(actor.getSnapshot().context.activeDiagramId).toBe("stages");
+      expect(deps.showDiagram).toHaveBeenCalledWith("stages");
+    });
+
+    it("dismisses thrust — simulates separation activating while thrust is active", async () => {
+      const deps = makeDeps();
+      const actor = await reachDiagramActive(deps, "thrust");
+      actor.send({
+        type: "DIAGRAM_OPTION_CHANGED",
+        id: "thrust",
+        enable: false,
+      });
+      await waitFor(actor, (s) => s.value === "idle");
+      expect(actor.getSnapshot().context.activeDiagramId).toBeNull();
     });
   });
 
