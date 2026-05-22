@@ -51,6 +51,21 @@ function parseStageEl(g: Element): StageData {
   return { id: (g as SVGGElement).id, paths, engines };
 }
 
+// Parser for simple SVGs with no stage structure (e.g. human figure).
+// Returns all paths in document order alongside the viewBox.
+export function parseSimpleSvg(svgRaw: string): {
+  paths: PathData[];
+  viewBox: ViewBox;
+} {
+  const { viewBox } = parseSvgViewBox(svgRaw);
+  if (typeof DOMParser === "undefined") return { paths: [], viewBox };
+  const doc = new DOMParser().parseFromString(svgRaw, "image/svg+xml");
+  const paths = Array.from(doc.querySelectorAll("path"))
+    .map(parsePathEl)
+    .filter((p): p is PathData => p !== null);
+  return { paths, viewBox };
+}
+
 // DOM-based parser for stage groups. Selects <g id="stage_*"> elements and
 // collects their paths. Throws if no stage groups are found — every rocket
 // diagram must have at least one stage. Returns [] only when DOMParser is
