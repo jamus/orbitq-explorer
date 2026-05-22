@@ -113,6 +113,22 @@ watch(
 );
 
 onUnmounted(() => anim?.stop());
+
+// --- Engine hover + context menu ---
+
+const hoveredEngineId = ref<string | null>(null);
+
+type ContextMenu = { x: number; y: number; engineId: string };
+const contextMenu = ref<ContextMenu | null>(null);
+
+function onEngineContextMenu(e: any, engineId: string) {
+  e.evt.preventDefault();
+  contextMenu.value = { x: e.evt.clientX, y: e.evt.clientY, engineId };
+}
+
+function closeContextMenu() {
+  contextMenu.value = null;
+}
 </script>
 
 <template>
@@ -130,14 +146,42 @@ onUnmounted(() => anim?.stop());
       <v-group
         v-for="engine in stage.engines"
         :key="engine.id"
-        @mouseover="() => console.log(engine.id)"
+        @mouseenter="hoveredEngineId = engine.id"
+        @mouseleave="hoveredEngineId = null"
+        @contextmenu="onEngineContextMenu($event, engine.id)"
       >
         <v-path
           v-for="(path, index) in engine.paths"
           :key="index"
-          :config="{ ...pathConfig, data: path.d, listening: true }"
+          :config="{
+            ...pathConfig,
+            data: path.d,
+            listening: true,
+            stroke:
+              hoveredEngineId === engine.id ? '#3b82f6' : pathConfig.stroke,
+          }"
         />
       </v-group>
     </v-group>
   </v-group>
+
+  <Teleport to="body">
+    <template v-if="contextMenu">
+      <div
+        class="fixed inset-0 z-40"
+        @click="closeContextMenu"
+        @contextmenu.prevent
+      />
+      <div
+        class="fixed z-50 min-w-32 rounded border border-zinc-200 bg-white py-1 shadow-lg"
+        :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+      >
+        <div
+          class="border-b border-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-400"
+        >
+          {{ contextMenu.engineId }}
+        </div>
+      </div>
+    </template>
+  </Teleport>
 </template>
