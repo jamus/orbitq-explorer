@@ -1,8 +1,4 @@
-export type PathData = {
-  d: string;
-  id?: string;
-  className?: string;
-};
+export type PathData = { d: string; id?: string };
 export type StageData = { id: string; paths: PathData[] };
 export type ViewBox = {
   minX: number;
@@ -12,43 +8,22 @@ export type ViewBox = {
 };
 
 // Regex-based parser — runs at module init before DOMParser is available.
-// Extracts all <path> elements and the viewBox from the raw SVG string.
-export function parseSvgPaths(svgRaw: string): {
-  paths: PathData[];
-  viewBox: ViewBox;
-} {
+// Extracts the viewBox from the raw SVG string.
+export function parseSvgViewBox(svgRaw: string): { viewBox: ViewBox } {
   const vbMatch = svgRaw.match(/viewBox="([^"]+)"/);
   if (!vbMatch) throw new Error("SVG missing viewBox attribute");
   const [minX, minY, width, height] = vbMatch[1]
     .trim()
     .split(/\s+/)
     .map(Number);
-
-  const paths: PathData[] = [];
-  const pathRe = /<path\b[^>]*>/g;
-  let m: RegExpExecArray | null;
-  while ((m = pathRe.exec(svgRaw)) !== null) {
-    const el = m[0];
-    const d = el.match(/\bd="([^"]+)"/)?.[1];
-    const id = el.match(/\bid="([^"]+)"/)?.[1];
-    const className = el.match(/\bclass="([^"]+)"/)?.[1];
-    if (d)
-      paths.push({
-        d,
-        ...(id && { id }),
-        ...(className && { className }),
-      });
-  }
-
-  return { paths, viewBox: { minX, minY, width, height } };
+  return { viewBox: { minX, minY, width, height } };
 }
 
 function parsePathEl(el: Element): PathData | null {
   const d = el.getAttribute("d");
   if (!d) return null;
   const id = el.getAttribute("id") ?? undefined;
-  const className = el.getAttribute("class") ?? undefined;
-  return { d, ...(id && { id }), ...(className && { className }) };
+  return { d, ...(id && { id }) };
 }
 
 function parseStageEl(g: Element): StageData {
@@ -58,11 +33,15 @@ function parseStageEl(g: Element): StageData {
   return { id: (g as SVGGElement).id, paths };
 }
 
-// DOM-based parser for stage groups. Selects <g id="Stage-*"> elements and
-// collects their paths. Returns [] for diagrams with no stage groups.
+// DOM-based parser for stage groups. Selects <g id="stage_*"> elements and
+// collects their paths. Throws if no stage groups are found — every rocket
+// diagram must have at least one stage. Returns [] only when DOMParser is
+// unavailable (build/SSR context).
 export function parseSvgStages(svgRaw: string): StageData[] {
   if (typeof DOMParser === "undefined") return [];
   const doc = new DOMParser().parseFromString(svgRaw, "image/svg+xml");
-  const stageEls = doc.querySelectorAll('g[id^="Stage-"]');
-  return Array.from(stageEls).map(parseStageEl);
+  const stageEls = doc.querySelectorAll('g[id^="stage_"]');
+  const stages = Array.from(stageEls).map(parseStageEl);
+  if (stages.length === 0) throw new Error("Diagram SVG has no stage groups");
+  return stages;
 }

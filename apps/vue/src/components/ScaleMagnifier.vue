@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import rawHuman from "@shared/assets/images/diagrams/human.svg?raw";
-import { parseSvgPaths } from "@shared/utils/parseSvgPaths";
+import { parseSvgViewBox } from "@shared/utils/parseSvgPaths";
 import { canvasColors } from "@orbitq/styles/canvas";
 
 const REAL_HEIGHT_M = 1.75;
@@ -21,7 +21,7 @@ const props = defineProps<{
   worldScale: number;
 }>();
 
-const { paths, viewBox } = parseSvgPaths(rawHuman);
+const { paths, viewBox } = parseSvgViewBox(rawHuman);
 
 const gridPatternCanvas = ref<HTMLCanvasElement | null>(null);
 

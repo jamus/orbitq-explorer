@@ -96,12 +96,12 @@ watch(
   (sep) => {
     const stages = entry.value?.stages;
     const n = stages?.length ?? 0;
-    if (n === 0) return;
+    if (n <= 1) return;
     if (sep) {
       const gap = entry.value!.viewBox.height * 0.1;
       const midpointSuffix = (n - 1) / 2;
       const suffixOf = (s: { id: string }) =>
-        parseInt(s.id.replace("Stage-", ""), 10) - 1;
+        parseInt(s.id.replace("stage_", ""), 10) - 1;
       animateToOffsets(
         stages!.map((s) => (midpointSuffix - suffixOf(s)) * gap),
       );
@@ -117,25 +117,16 @@ onUnmounted(() => anim?.stop());
 
 <template>
   <v-group v-if="groupConfig" :config="groupConfig" ref="rootGroupRef">
-    <template v-if="entry!.stages.length">
-      <v-group
-        v-for="(stage, i) in entry!.stages"
-        :key="stage.id"
-        :config="{ y: stageOffsets[i] ?? 0 }"
-      >
-        <v-path
-          v-for="(path, j) in stage.paths"
-          :key="j"
-          :config="{ ...pathConfig, data: path.d }"
-        />
-      </v-group>
-    </template>
-    <template v-else>
+    <v-group
+      v-for="(stage, i) in entry!.stages"
+      :key="stage.id"
+      :config="{ y: stageOffsets[i] ?? 0 }"
+    >
       <v-path
-        v-for="(path, i) in entry!.paths"
-        :key="i"
+        v-for="(path, j) in stage.paths"
+        :key="j"
         :config="{ ...pathConfig, data: path.d }"
       />
-    </template>
+    </v-group>
   </v-group>
 </template>

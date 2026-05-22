@@ -1,20 +1,18 @@
 import raw14 from "@shared/assets/images/diagrams/falcon-9v1.1.svg?raw";
-import raw26 from "@shared/assets/images/diagrams/electron.svg?raw";
-import raw128 from "@shared/assets/images/diagrams/128.svg?raw";
-import raw143 from "@shared/assets/images/diagrams/143.svg?raw";
-import raw527 from "@shared/assets/images/diagrams/starship-v2.svg?raw";
+// import raw26 from "@shared/assets/images/diagrams/electron.svg?raw";
+// import raw128 from "@shared/assets/images/diagrams/128.svg?raw";
+// import raw143 from "@shared/assets/images/diagrams/143.svg?raw";
+import raw527 from "@shared/assets/images/diagrams/527.svg?raw"; // starship v2
 import {
-  parseSvgPaths,
+  parseSvgViewBox,
   parseSvgStages,
-  type PathData,
   type StageData,
   type ViewBox,
 } from "../utils/parseSvgPaths";
 
-export type { PathData, StageData, ViewBox };
+export type { StageData, ViewBox };
 
 export type DiagramEntry = {
-  paths: PathData[];
   stages: StageData[];
   viewBox: ViewBox;
   nativeWidth: number;
@@ -22,10 +20,9 @@ export type DiagramEntry = {
 };
 
 function makeDiagramEntry(svgRaw: string): DiagramEntry {
-  const { paths, viewBox } = parseSvgPaths(svgRaw);
+  const { viewBox } = parseSvgViewBox(svgRaw);
   const stages = parseSvgStages(svgRaw);
   return {
-    paths,
     stages,
     viewBox,
     nativeWidth: viewBox.width,
@@ -35,8 +32,8 @@ function makeDiagramEntry(svgRaw: string): DiagramEntry {
 
 export const diagrams: { [key: number]: DiagramEntry } = {
   14: makeDiagramEntry(raw14),
-  26: makeDiagramEntry(raw26),
-  128: makeDiagramEntry(raw128),
-  143: makeDiagramEntry(raw143),
+  // 26: makeDiagramEntry(raw26),
+  // 128: makeDiagramEntry(raw128),
+  // 143: makeDiagramEntry(raw143),
   527: makeDiagramEntry(raw527),
 };

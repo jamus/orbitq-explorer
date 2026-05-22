@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import rawHuman from "@shared/assets/images/diagrams/human.svg?raw";
-import { parseSvgPaths } from "@shared/utils/parseSvgPaths";
+import { parseSvgViewBox } from "@shared/utils/parseSvgPaths";
 
 const REAL_HEIGHT_M = 1.75;
 const HOVER_MARGIN = 100;
@@ -22,7 +22,7 @@ const emits = defineEmits<{
   ): void;
 }>();
 
-const { paths, viewBox } = parseSvgPaths(rawHuman);
+const { paths, viewBox } = parseSvgViewBox(rawHuman);
 
 const scaleFactor = computed(
   () => (REAL_HEIGHT_M / viewBox.height) * props.worldScale,
