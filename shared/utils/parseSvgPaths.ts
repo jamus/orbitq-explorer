@@ -1,5 +1,10 @@
 export type PathData = { d: string; id?: string };
-export type StageData = { id: string; paths: PathData[] };
+export type EngineData = { id: string; paths: PathData[] };
+export type StageData = {
+  id: string;
+  paths: PathData[];
+  engines: EngineData[];
+};
 export type ViewBox = {
   minX: number;
   minY: number;
@@ -26,11 +31,24 @@ function parsePathEl(el: Element): PathData | null {
   return { d, ...(id && { id }) };
 }
 
-function parseStageEl(g: Element): StageData {
+function parseEngineEl(g: Element): EngineData {
   const paths = Array.from(g.querySelectorAll("path"))
     .map(parsePathEl)
     .filter((p): p is PathData => p !== null);
-  return { id: (g as SVGGElement).id, paths };
+  return { id: g.id, paths };
+}
+
+function parseStageEl(g: Element): StageData {
+  const engineEls = Array.from(g.querySelectorAll(':scope > g[id^="engine_"]'));
+  const engines = engineEls.map(parseEngineEl);
+  const enginePathSet = new Set(
+    engineEls.flatMap((e) => Array.from(e.querySelectorAll("path"))),
+  );
+  const paths = Array.from(g.querySelectorAll("path"))
+    .filter((p) => !enginePathSet.has(p))
+    .map(parsePathEl)
+    .filter((p): p is PathData => p !== null);
+  return { id: (g as SVGGElement).id, paths, engines };
 }
 
 // DOM-based parser for stage groups. Selects <g id="stage_*"> elements and

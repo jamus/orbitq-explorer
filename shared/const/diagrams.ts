@@ -7,10 +7,11 @@ import {
   parseSvgViewBox,
   parseSvgStages,
   type StageData,
+  type EngineData,
   type ViewBox,
 } from "../utils/parseSvgPaths";
 
-export type { StageData, ViewBox };
+export type { StageData, EngineData, ViewBox };
 
 export type DiagramEntry = {
   stages: StageData[];

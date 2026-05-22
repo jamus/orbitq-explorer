@@ -123,10 +123,21 @@ onUnmounted(() => anim?.stop());
       :config="{ y: stageOffsets[i] ?? 0 }"
     >
       <v-path
-        v-for="(path, j) in stage.paths"
-        :key="j"
+        v-for="(path, index) in stage.paths"
+        :key="index"
         :config="{ ...pathConfig, data: path.d }"
       />
+      <v-group
+        v-for="engine in stage.engines"
+        :key="engine.id"
+        @mouseover="() => console.log(engine.id)"
+      >
+        <v-path
+          v-for="(path, index) in engine.paths"
+          :key="index"
+          :config="{ ...pathConfig, data: path.d, listening: true }"
+        />
+      </v-group>
     </v-group>
   </v-group>
 </template>
