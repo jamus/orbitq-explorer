@@ -57,18 +57,17 @@ const {
   thrustRenderVisible,
 } = useNodeGrid();
 
+const isThrustActive = computed(() => {
+  const thrustNode = nodeList.value.find((n) => n.id === "thrust");
+  return thrustNode?.active ?? false;
+});
+
 function onShowThrust() {
-  console.log("Show thrust event");
-  const isActive =
-    nodeList.value.find((n) => n.id === "thrust")?.active ?? false;
-  if (!isActive) handleNodeToggle("thrust");
+  if (!isThrustActive.value) handleNodeToggle("thrust");
 }
 
 function onHideThrust() {
-  console.log("Hide thrust event");
-  const isActive =
-    nodeList.value.find((n) => n.id === "thrust")?.active ?? false;
-  if (isActive) handleNodeToggle("thrust");
+  if (isThrustActive.value) handleNodeToggle("thrust");
 }
 
 // ---------------------------------------------------------------------------

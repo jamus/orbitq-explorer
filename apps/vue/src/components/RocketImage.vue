@@ -119,12 +119,12 @@ onUnmounted(() => anim?.stop());
 
 const hoveredEngineId = ref<string | null>(null);
 
-type ContextMenu = { x: number; y: number; engineId: string };
+type ContextMenu = { x: number; y: number };
 const contextMenu = ref<ContextMenu | null>(null);
 
-function onEngineContextMenu(e: any, engineId: string) {
+function onEngineContextMenu(e: any) {
   e.evt.preventDefault();
-  contextMenu.value = { x: e.evt.clientX, y: e.evt.clientY, engineId };
+  contextMenu.value = { x: e.evt.clientX, y: e.evt.clientY };
 }
 
 function closeContextMenu() {
@@ -137,7 +137,7 @@ const emit = defineEmits<{
 
 function onShowThrust() {
   if (!contextMenu.value) return;
-  emit("show-thrust", contextMenu.value.engineId);
+  emit("show-thrust");
   closeContextMenu();
 }
 </script>
@@ -182,7 +182,6 @@ function onShowThrust() {
     v-if="contextMenu"
     :x="contextMenu.x"
     :y="contextMenu.y"
-    :title="contextMenu.engineId"
     @close="closeContextMenu"
   >
     <button

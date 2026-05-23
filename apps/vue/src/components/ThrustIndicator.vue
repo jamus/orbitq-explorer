@@ -73,7 +73,6 @@ const contextMenu = ref<ContextMenu | null>(null);
 
 function onTrustContextMenu(e: any) {
   e.evt.preventDefault();
-  console.log("Engine context menu event:", e);
   contextMenu.value = { x: e.evt.clientX, y: e.evt.clientY };
 }
 function onHideThrust() {
