@@ -1,5 +1,5 @@
 import raw14 from "@shared/assets/images/diagrams/falcon-9v1.1.svg?raw";
-// import raw26 from "@shared/assets/images/diagrams/electron.svg?raw";
+import raw26 from "@shared/assets/images/diagrams/electron.svg?raw";
 // import raw128 from "@shared/assets/images/diagrams/128.svg?raw";
 // import raw143 from "@shared/assets/images/diagrams/143.svg?raw";
 import raw527 from "@shared/assets/images/diagrams/527.svg?raw"; // starship v2
@@ -33,7 +33,7 @@ function makeDiagramEntry(svgRaw: string): DiagramEntry {
 
 export const diagrams: { [key: number]: DiagramEntry } = {
   14: makeDiagramEntry(raw14),
-  // 26: makeDiagramEntry(raw26),
+  26: makeDiagramEntry(raw26),
   // 128: makeDiagramEntry(raw128),
   // 143: makeDiagramEntry(raw143),
   527: makeDiagramEntry(raw527),
