@@ -174,6 +174,7 @@ function onShowThrust() {
             ...pathConfig,
             data: path.d,
             listening: true,
+            hitStrokeWidth: 12,
             stroke:
               hoveredEngineId === engine.id
                 ? canvasColors.interactionHighlight
