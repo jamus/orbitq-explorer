@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { parseSvgViewBox, parseSvgStages } from "./parseSvgPaths.ts";
+import {
+  parseSvgViewBox,
+  parseSvgStages,
+  parseSimpleSvg,
+} from "./parseSvgPaths.ts";
 
 // ---------------------------------------------------------------------------
 // parseSvgViewBox
@@ -91,5 +95,125 @@ describe("parseSvgStages", () => {
     expect(stages).toHaveLength(1);
     expect(stages[0].paths).toHaveLength(1);
     expect(stages[0].paths[0].d).toBe("M0,0");
+  });
+
+  it("returns empty engines array when stage has no engine_ subgroups", () => {
+    const svg = `<svg viewBox="0 0 100 200">
+      <g id="stage_01"><path d="M0,0" fill="blue"/></g>
+    </svg>`;
+    const stages = parseSvgStages(svg);
+    expect(stages[0].engines).toEqual([]);
+  });
+
+  it("extracts engine_ subgroups from a stage", () => {
+    const svg = `<svg viewBox="0 0 100 200">
+      <g id="stage_01">
+        <path d="M0,0" fill="blue"/>
+        <g id="engine_1"><path d="M10,10" fill="red"/></g>
+      </g>
+    </svg>`;
+    const stages = parseSvgStages(svg);
+    expect(stages[0].engines).toHaveLength(1);
+    expect(stages[0].engines[0].id).toBe("engine_1");
+    expect(stages[0].engines[0].paths).toHaveLength(1);
+    expect(stages[0].engines[0].paths[0].d).toBe("M10,10");
+  });
+
+  it("excludes engine paths from stage paths", () => {
+    const svg = `<svg viewBox="0 0 100 200">
+      <g id="stage_01">
+        <path d="M0,0" fill="blue"/>
+        <g id="engine_1"><path d="M10,10" fill="red"/></g>
+      </g>
+    </svg>`;
+    const stages = parseSvgStages(svg);
+    expect(stages[0].paths).toHaveLength(1);
+    expect(stages[0].paths[0].d).toBe("M0,0");
+  });
+
+  it("handles multiple engines in a stage", () => {
+    const svg = `<svg viewBox="0 0 100 200">
+      <g id="stage_01">
+        <path d="M0,0" fill="blue"/>
+        <g id="engine_1"><path d="M10,10" fill="red"/></g>
+        <g id="engine_2"><path d="M20,20" fill="green"/></g>
+      </g>
+    </svg>`;
+    const stages = parseSvgStages(svg);
+    expect(stages[0].engines).toHaveLength(2);
+    expect(stages[0].engines[0].id).toBe("engine_1");
+    expect(stages[0].engines[1].id).toBe("engine_2");
+    expect(stages[0].paths).toHaveLength(1);
+  });
+
+  it("does not pick up nested groups without engine_ prefix as engines", () => {
+    const svg = `<svg viewBox="0 0 100 200">
+      <g id="stage_01">
+        <g id="fairing"><path d="M5,5" fill="gray"/></g>
+        <g id="engine_1"><path d="M10,10" fill="red"/></g>
+      </g>
+    </svg>`;
+    const stages = parseSvgStages(svg);
+    expect(stages[0].engines).toHaveLength(1);
+    expect(stages[0].engines[0].id).toBe("engine_1");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseSimpleSvg
+// ---------------------------------------------------------------------------
+
+describe("parseSimpleSvg", () => {
+  it("returns viewBox and all paths", () => {
+    const svg = `<svg viewBox="0 0 50 80">
+      <path d="M0,0" fill="red"/>
+      <path d="M1,1" fill="blue"/>
+    </svg>`;
+    const { viewBox, paths } = parseSimpleSvg(svg);
+    expect(viewBox).toEqual({ minX: 0, minY: 0, width: 50, height: 80 });
+    expect(paths).toHaveLength(2);
+    expect(paths[0].d).toBe("M0,0");
+    expect(paths[1].d).toBe("M1,1");
+  });
+
+  it("includes paths nested inside groups", () => {
+    const svg = `<svg viewBox="0 0 100 200">
+      <g id="body"><path d="M5,5" fill="gray"/></g>
+    </svg>`;
+    const { paths } = parseSimpleSvg(svg);
+    expect(paths).toHaveLength(1);
+    expect(paths[0].d).toBe("M5,5");
+  });
+
+  it("skips paths with no d attribute", () => {
+    const svg = `<svg viewBox="0 0 100 200">
+      <path fill="red"/>
+      <path d="M0,0" fill="blue"/>
+    </svg>`;
+    const { paths } = parseSimpleSvg(svg);
+    expect(paths).toHaveLength(1);
+    expect(paths[0].d).toBe("M0,0");
+  });
+
+  it("preserves optional id on paths", () => {
+    const svg = `<svg viewBox="0 0 100 200">
+      <path d="M0,0" fill="red" id="head"/>
+    </svg>`;
+    const { paths } = parseSimpleSvg(svg);
+    expect(paths[0].id).toBe("head");
+  });
+
+  it("omits id when not present on a path", () => {
+    const svg = `<svg viewBox="0 0 100 200">
+      <path d="M0,0" fill="red"/>
+    </svg>`;
+    const { paths } = parseSimpleSvg(svg);
+    expect(paths[0]).not.toHaveProperty("id");
+  });
+
+  it("throws when viewBox is absent", () => {
+    expect(() => parseSimpleSvg(`<svg><path d="M0,0"/></svg>`)).toThrow(
+      "SVG missing viewBox attribute",
+    );
   });
 });

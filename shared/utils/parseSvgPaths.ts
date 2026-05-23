@@ -39,7 +39,9 @@ function parseEngineEl(g: Element): EngineData {
 }
 
 function parseStageEl(g: Element): StageData {
-  const engineEls = Array.from(g.querySelectorAll(':scope > g[id^="engine_"]'));
+  const engineEls = Array.from(g.children).filter(
+    (el) => el.tagName === "g" && el.getAttribute("id")?.startsWith("engine_"),
+  );
   const engines = engineEls.map(parseEngineEl);
   const enginePathSet = new Set(
     engineEls.flatMap((e) => Array.from(e.querySelectorAll("path"))),
