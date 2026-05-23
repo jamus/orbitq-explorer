@@ -13,6 +13,7 @@ import CanvasPanel from "./CanvasPanel.vue";
 import NodeColumn from "./NodeColumn.vue";
 import { diagrams } from "@shared/const/diagrams";
 import ScaleMagnifier from "./ScaleMagnifier.vue";
+import { useContextMenu } from "../composables/useContextMenu";
 
 const props = defineProps<{
   rocketAData: RocketConfig | null;
@@ -39,6 +40,8 @@ const CSS_COLUMN_DURATION_MS = 300;
 
 const boardRef = ref<HTMLElement | null>(null);
 const { boardWidth, boardHeight } = useBoardSize(boardRef);
+
+const { closeAll } = useContextMenu();
 
 // ---------------------------------------------------------------------------
 // Node grid
@@ -392,7 +395,10 @@ function plumeHeight(thrust: number | null): number {
       @trigger-separation="handleSeparationToggle()"
     />
     <div ref="boardRef" class="relative flex-1 overflow-hidden">
-      <v-stage :config="stageConfig">
+      <v-stage
+        :config="stageConfig"
+        @click="(e: any) => e.evt.button === 0 && !e.evt.ctrlKey && closeAll()"
+      >
         <v-layer ref="layerRef">
           <RocketImage
             v-if="displayRocketA"

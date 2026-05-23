@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { canvasColors } from "@orbitq/styles/canvas";
 import DiagramContextMenu from "./DiagramContextMenu.vue";
+import { useContextMenu } from "../composables/useContextMenu";
 
 const props = defineProps<{
   x: number;
@@ -10,6 +11,11 @@ const props = defineProps<{
   thrust: number | null;
   plumeHeight: number;
 }>();
+
+const { closeSignal } = useContextMenu();
+watch(closeSignal, () => {
+  contextMenu.value = null;
+});
 
 const thrustHovered = ref(false);
 

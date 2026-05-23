@@ -5,6 +5,7 @@ import type { RocketConfig } from "@orbitq/graphql";
 import { diagrams } from "@shared/const/diagrams";
 import { canvasColors } from "@orbitq/styles/canvas";
 import DiagramContextMenu from "./DiagramContextMenu.vue";
+import { useContextMenu } from "../composables/useContextMenu";
 
 const SEPARATION_DURATION = 500;
 const STROKE_WIDTH = 1.5;
@@ -117,6 +118,11 @@ onUnmounted(() => anim?.stop());
 
 // --- Engine hover + context menu ---
 
+const { closeSignal } = useContextMenu();
+watch(closeSignal, () => {
+  contextMenu.value = null;
+});
+
 const hoveredEngineId = ref<string | null>(null);
 
 type ContextMenu = { x: number; y: number };
@@ -178,12 +184,7 @@ function onShowThrust() {
     </v-group>
   </v-group>
 
-  <DiagramContextMenu
-    v-if="contextMenu"
-    :x="contextMenu.x"
-    :y="contextMenu.y"
-    @close="closeContextMenu"
-  >
+  <DiagramContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y">
     <button
       class="w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
       @click="onShowThrust"

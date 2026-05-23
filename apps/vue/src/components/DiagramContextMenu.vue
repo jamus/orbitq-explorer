@@ -4,19 +4,10 @@ defineProps<{
   y: number;
   title?: string;
 }>();
-
-const emit = defineEmits<{
-  close: [];
-}>();
 </script>
 
 <template>
   <Teleport to="body">
-    <div
-      class="fixed inset-0 z-40"
-      @click="emit('close')"
-      @contextmenu.prevent
-    />
     <div
       class="fixed z-50 min-w-32 rounded border border-zinc-200 bg-white py-1 shadow-lg"
       :style="{ left: x + 'px', top: y + 'px' }"
