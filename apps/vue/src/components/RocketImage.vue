@@ -130,6 +130,16 @@ function onEngineContextMenu(e: any, engineId: string) {
 function closeContextMenu() {
   contextMenu.value = null;
 }
+
+const emit = defineEmits<{
+  "show-thrust": [engineId: string];
+}>();
+
+function onShowThrust() {
+  if (!contextMenu.value) return;
+  emit("show-thrust", contextMenu.value.engineId);
+  closeContextMenu();
+}
 </script>
 
 <template>
@@ -159,7 +169,9 @@ function closeContextMenu() {
             data: path.d,
             listening: true,
             stroke:
-              hoveredEngineId === engine.id ? '#3b82f6' : pathConfig.stroke,
+              hoveredEngineId === engine.id
+                ? canvasColors.interactionHighlight
+                : pathConfig.stroke,
           }"
         />
       </v-group>
@@ -172,5 +184,12 @@ function closeContextMenu() {
     :y="contextMenu.y"
     :title="contextMenu.engineId"
     @close="closeContextMenu"
-  />
+  >
+    <button
+      class="w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+      @click="onShowThrust"
+    >
+      Show thrust
+    </button>
+  </DiagramContextMenu>
 </template>

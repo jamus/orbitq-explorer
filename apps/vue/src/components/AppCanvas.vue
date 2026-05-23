@@ -57,6 +57,20 @@ const {
   thrustRenderVisible,
 } = useNodeGrid();
 
+function onShowThrust() {
+  console.log("Show thrust event");
+  const isActive =
+    nodeList.value.find((n) => n.id === "thrust")?.active ?? false;
+  if (!isActive) handleNodeToggle("thrust");
+}
+
+function onHideThrust() {
+  console.log("Hide thrust event");
+  const isActive =
+    nodeList.value.find((n) => n.id === "thrust")?.active ?? false;
+  if (isActive) handleNodeToggle("thrust");
+}
+
 // ---------------------------------------------------------------------------
 // Layout helpers — derived from reactive board dimensions
 // ---------------------------------------------------------------------------
@@ -389,6 +403,7 @@ function plumeHeight(thrust: number | null): number {
             :worldScale="animatedWorldScale"
             :separated="separationVisible"
             :opacity="rocketAOpacity"
+            @show-thrust="onShowThrust"
           />
           <ThrustIndicator
             v-if="displayRocketA && thrustRenderVisible"
@@ -397,6 +412,7 @@ function plumeHeight(thrust: number | null): number {
             :rocketWidth="2 * rocketHalfW(displayRocketA)"
             :thrust="displayRocketA.toThrust"
             :plumeHeight="plumeHeight(displayRocketA.toThrust)"
+            @hide-thrust="onHideThrust"
           />
           <RocketImage
             v-if="displayRocketB"
@@ -406,6 +422,7 @@ function plumeHeight(thrust: number | null): number {
             :worldScale="animatedWorldScale"
             :separated="separationVisible"
             :opacity="rocketBOpacity"
+            @show-thrust="onShowThrust"
           />
           <ThrustIndicator
             v-if="displayRocketB && thrustRenderVisible"
@@ -414,6 +431,7 @@ function plumeHeight(thrust: number | null): number {
             :rocketWidth="2 * rocketHalfW(displayRocketB)"
             :thrust="displayRocketB.toThrust"
             :plumeHeight="plumeHeight(displayRocketB.toThrust)"
+            @hide-thrust="onHideThrust"
           />
 
           <HumanFigure
