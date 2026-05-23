@@ -4,6 +4,7 @@ import Konva from "konva";
 import type { RocketConfig } from "@orbitq/graphql";
 import { diagrams } from "@shared/const/diagrams";
 import { canvasColors } from "@orbitq/styles/canvas";
+import DiagramContextMenu from "./DiagramContextMenu.vue";
 
 const SEPARATION_DURATION = 500;
 const STROKE_WIDTH = 1.5;
@@ -165,23 +166,11 @@ function closeContextMenu() {
     </v-group>
   </v-group>
 
-  <Teleport to="body">
-    <template v-if="contextMenu">
-      <div
-        class="fixed inset-0 z-40"
-        @click="closeContextMenu"
-        @contextmenu.prevent
-      />
-      <div
-        class="fixed z-50 min-w-32 rounded border border-zinc-200 bg-white py-1 shadow-lg"
-        :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
-      >
-        <div
-          class="border-b border-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-400"
-        >
-          {{ contextMenu.engineId }}
-        </div>
-      </div>
-    </template>
-  </Teleport>
+  <DiagramContextMenu
+    v-if="contextMenu"
+    :x="contextMenu.x"
+    :y="contextMenu.y"
+    :title="contextMenu.engineId"
+    @close="closeContextMenu"
+  />
 </template>
