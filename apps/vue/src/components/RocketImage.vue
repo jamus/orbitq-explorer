@@ -132,7 +132,7 @@ function closeContextMenu() {
 }
 
 const emit = defineEmits<{
-  "show-thrust": [engineId: string];
+  "show-thrust": [];
 }>();
 
 function onShowThrust() {
@@ -159,7 +159,7 @@ function onShowThrust() {
         :key="engine.id"
         @mouseenter="hoveredEngineId = engine.id"
         @mouseleave="hoveredEngineId = null"
-        @contextmenu="onEngineContextMenu($event, engine.id)"
+        @contextmenu="onEngineContextMenu($event)"
       >
         <v-path
           v-for="(path, index) in engine.paths"
