@@ -4,6 +4,8 @@ import Konva from "konva";
 import type { RocketConfig } from "@orbitq/graphql";
 import { diagrams } from "@shared/const/diagrams";
 import { canvasColors } from "@orbitq/styles/canvas";
+import DiagramContextMenu from "./DiagramContextMenu.vue";
+import { useContextMenu } from "../composables/useContextMenu";
 
 const SEPARATION_DURATION = 500;
 const STROKE_WIDTH = 1.5;
@@ -96,12 +98,12 @@ watch(
   (sep) => {
     const stages = entry.value?.stages;
     const n = stages?.length ?? 0;
-    if (n === 0) return;
+    if (n <= 1) return;
     if (sep) {
       const gap = entry.value!.viewBox.height * 0.1;
       const midpointSuffix = (n - 1) / 2;
       const suffixOf = (s: { id: string }) =>
-        parseInt(s.id.replace("Stage-", ""), 10) - 1;
+        parseInt(s.id.replace("stage_", ""), 10) - 1;
       animateToOffsets(
         stages!.map((s) => (midpointSuffix - suffixOf(s)) * gap),
       );
@@ -113,29 +115,82 @@ watch(
 );
 
 onUnmounted(() => anim?.stop());
+
+// --- Engine hover + context menu ---
+
+const { closeSignal } = useContextMenu();
+watch(closeSignal, () => {
+  contextMenu.value = null;
+});
+
+const hoveredEngineId = ref<string | null>(null);
+
+type ContextMenu = { x: number; y: number };
+const contextMenu = ref<ContextMenu | null>(null);
+
+function onEngineContextMenu(e: any) {
+  e.evt.preventDefault();
+  contextMenu.value = { x: e.evt.clientX, y: e.evt.clientY };
+}
+
+function closeContextMenu() {
+  contextMenu.value = null;
+}
+
+const emit = defineEmits<{
+  "show-thrust": [];
+}>();
+
+function onShowThrust() {
+  if (!contextMenu.value) return;
+  emit("show-thrust");
+  closeContextMenu();
+}
 </script>
 
 <template>
   <v-group v-if="groupConfig" :config="groupConfig" ref="rootGroupRef">
-    <template v-if="entry!.stages.length">
-      <v-group
-        v-for="(stage, i) in entry!.stages"
-        :key="stage.id"
-        :config="{ y: stageOffsets[i] ?? 0 }"
-      >
-        <v-path
-          v-for="(path, j) in stage.paths"
-          :key="j"
-          :config="{ ...pathConfig, data: path.d }"
-        />
-      </v-group>
-    </template>
-    <template v-else>
+    <v-group
+      v-for="(stage, i) in entry!.stages"
+      :key="stage.id"
+      :config="{ y: stageOffsets[i] ?? 0 }"
+    >
       <v-path
-        v-for="(path, i) in entry!.paths"
-        :key="i"
+        v-for="(path, index) in stage.paths"
+        :key="index"
         :config="{ ...pathConfig, data: path.d }"
       />
-    </template>
+      <v-group
+        v-for="engine in stage.engines"
+        :key="engine.id"
+        @mouseenter="hoveredEngineId = engine.id"
+        @mouseleave="hoveredEngineId = null"
+        @contextmenu="onEngineContextMenu($event)"
+      >
+        <v-path
+          v-for="(path, index) in engine.paths"
+          :key="index"
+          :config="{
+            ...pathConfig,
+            data: path.d,
+            listening: true,
+            hitStrokeWidth: 12,
+            stroke:
+              hoveredEngineId === engine.id
+                ? canvasColors.interactionHighlight
+                : pathConfig.stroke,
+          }"
+        />
+      </v-group>
+    </v-group>
   </v-group>
+
+  <DiagramContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y">
+    <button
+      class="w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+      @click="onShowThrust"
+    >
+      Show thrust
+    </button>
+  </DiagramContextMenu>
 </template>

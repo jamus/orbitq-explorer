@@ -13,6 +13,7 @@ import CanvasPanel from "./CanvasPanel.vue";
 import NodeColumn from "./NodeColumn.vue";
 import { diagrams } from "@shared/const/diagrams";
 import ScaleMagnifier from "./ScaleMagnifier.vue";
+import { useContextMenu } from "../composables/useContextMenu";
 
 const props = defineProps<{
   rocketAData: RocketConfig | null;
@@ -40,6 +41,8 @@ const CSS_COLUMN_DURATION_MS = 300;
 const boardRef = ref<HTMLElement | null>(null);
 const { boardWidth, boardHeight } = useBoardSize(boardRef);
 
+const { closeAll } = useContextMenu();
+
 // ---------------------------------------------------------------------------
 // Node grid
 // ---------------------------------------------------------------------------
@@ -56,6 +59,19 @@ const {
   thrustEnabled,
   thrustRenderVisible,
 } = useNodeGrid();
+
+const isThrustActive = computed(() => {
+  const thrustNode = nodeList.value.find((n) => n.id === "thrust");
+  return thrustNode?.active ?? false;
+});
+
+function onShowThrust() {
+  if (!isThrustActive.value) handleNodeToggle("thrust");
+}
+
+function onHideThrust() {
+  if (isThrustActive.value) handleNodeToggle("thrust");
+}
 
 // ---------------------------------------------------------------------------
 // Layout helpers — derived from reactive board dimensions
@@ -379,7 +395,10 @@ function plumeHeight(thrust: number | null): number {
       @trigger-separation="handleSeparationToggle()"
     />
     <div ref="boardRef" class="relative flex-1 overflow-hidden">
-      <v-stage :config="stageConfig">
+      <v-stage
+        :config="stageConfig"
+        @click="(e: any) => e.evt.button === 0 && !e.evt.ctrlKey && closeAll()"
+      >
         <v-layer ref="layerRef">
           <RocketImage
             v-if="displayRocketA"
@@ -389,6 +408,7 @@ function plumeHeight(thrust: number | null): number {
             :worldScale="animatedWorldScale"
             :separated="separationVisible"
             :opacity="rocketAOpacity"
+            @show-thrust="onShowThrust"
           />
           <ThrustIndicator
             v-if="displayRocketA && thrustRenderVisible"
@@ -397,6 +417,7 @@ function plumeHeight(thrust: number | null): number {
             :rocketWidth="2 * rocketHalfW(displayRocketA)"
             :thrust="displayRocketA.toThrust"
             :plumeHeight="plumeHeight(displayRocketA.toThrust)"
+            @hide-thrust="onHideThrust"
           />
           <RocketImage
             v-if="displayRocketB"
@@ -406,6 +427,7 @@ function plumeHeight(thrust: number | null): number {
             :worldScale="animatedWorldScale"
             :separated="separationVisible"
             :opacity="rocketBOpacity"
+            @show-thrust="onShowThrust"
           />
           <ThrustIndicator
             v-if="displayRocketB && thrustRenderVisible"
@@ -414,6 +436,7 @@ function plumeHeight(thrust: number | null): number {
             :rocketWidth="2 * rocketHalfW(displayRocketB)"
             :thrust="displayRocketB.toThrust"
             :plumeHeight="plumeHeight(displayRocketB.toThrust)"
+            @hide-thrust="onHideThrust"
           />
 
           <HumanFigure

@@ -1,9 +1,10 @@
-export type PathData = {
-  d: string;
-  id?: string;
-  className?: string;
+export type PathData = { d: string; id?: string };
+export type EngineData = { id: string; paths: PathData[] };
+export type StageData = {
+  id: string;
+  paths: PathData[];
+  engines: EngineData[];
 };
-export type StageData = { id: string; paths: PathData[] };
 export type ViewBox = {
   minX: number;
   minY: number;
@@ -12,57 +13,70 @@ export type ViewBox = {
 };
 
 // Regex-based parser — runs at module init before DOMParser is available.
-// Extracts all <path> elements and the viewBox from the raw SVG string.
-export function parseSvgPaths(svgRaw: string): {
-  paths: PathData[];
-  viewBox: ViewBox;
-} {
+// Extracts the viewBox from the raw SVG string.
+export function parseSvgViewBox(svgRaw: string): { viewBox: ViewBox } {
   const vbMatch = svgRaw.match(/viewBox="([^"]+)"/);
   if (!vbMatch) throw new Error("SVG missing viewBox attribute");
   const [minX, minY, width, height] = vbMatch[1]
     .trim()
     .split(/\s+/)
     .map(Number);
-
-  const paths: PathData[] = [];
-  const pathRe = /<path\b[^>]*>/g;
-  let m: RegExpExecArray | null;
-  while ((m = pathRe.exec(svgRaw)) !== null) {
-    const el = m[0];
-    const d = el.match(/\bd="([^"]+)"/)?.[1];
-    const id = el.match(/\bid="([^"]+)"/)?.[1];
-    const className = el.match(/\bclass="([^"]+)"/)?.[1];
-    if (d)
-      paths.push({
-        d,
-        ...(id && { id }),
-        ...(className && { className }),
-      });
-  }
-
-  return { paths, viewBox: { minX, minY, width, height } };
+  return { viewBox: { minX, minY, width, height } };
 }
 
 function parsePathEl(el: Element): PathData | null {
   const d = el.getAttribute("d");
   if (!d) return null;
   const id = el.getAttribute("id") ?? undefined;
-  const className = el.getAttribute("class") ?? undefined;
-  return { d, ...(id && { id }), ...(className && { className }) };
+  return { d, ...(id && { id }) };
 }
 
-function parseStageEl(g: Element): StageData {
+function parseEngineEl(g: Element): EngineData {
   const paths = Array.from(g.querySelectorAll("path"))
     .map(parsePathEl)
     .filter((p): p is PathData => p !== null);
-  return { id: (g as SVGGElement).id, paths };
+  return { id: g.id, paths };
 }
 
-// DOM-based parser for stage groups. Selects <g id="Stage-*"> elements and
-// collects their paths. Returns [] for diagrams with no stage groups.
+function parseStageEl(g: Element): StageData {
+  const engineEls = Array.from(g.children).filter(
+    (el) => el.tagName === "g" && el.getAttribute("id")?.startsWith("engine_"),
+  );
+  const engines = engineEls.map(parseEngineEl);
+  const enginePathSet = new Set(
+    engineEls.flatMap((e) => Array.from(e.querySelectorAll("path"))),
+  );
+  const paths = Array.from(g.querySelectorAll("path"))
+    .filter((p) => !enginePathSet.has(p))
+    .map(parsePathEl)
+    .filter((p): p is PathData => p !== null);
+  return { id: (g as SVGGElement).id, paths, engines };
+}
+
+// Parser for simple SVGs with no stage structure (e.g. human figure).
+// Returns all paths in document order alongside the viewBox.
+export function parseSimpleSvg(svgRaw: string): {
+  paths: PathData[];
+  viewBox: ViewBox;
+} {
+  const { viewBox } = parseSvgViewBox(svgRaw);
+  if (typeof DOMParser === "undefined") return { paths: [], viewBox };
+  const doc = new DOMParser().parseFromString(svgRaw, "image/svg+xml");
+  const paths = Array.from(doc.querySelectorAll("path"))
+    .map(parsePathEl)
+    .filter((p): p is PathData => p !== null);
+  return { paths, viewBox };
+}
+
+// DOM-based parser for stage groups. Selects <g id="stage_*"> elements and
+// collects their paths. Throws if no stage groups are found — every rocket
+// diagram must have at least one stage. Returns [] only when DOMParser is
+// unavailable (build/SSR context).
 export function parseSvgStages(svgRaw: string): StageData[] {
   if (typeof DOMParser === "undefined") return [];
   const doc = new DOMParser().parseFromString(svgRaw, "image/svg+xml");
-  const stageEls = doc.querySelectorAll('g[id^="Stage-"]');
-  return Array.from(stageEls).map(parseStageEl);
+  const stageEls = doc.querySelectorAll('g[id^="stage_"]');
+  const stages = Array.from(stageEls).map(parseStageEl);
+  if (stages.length === 0) throw new Error("Diagram SVG has no stage groups");
+  return stages;
 }

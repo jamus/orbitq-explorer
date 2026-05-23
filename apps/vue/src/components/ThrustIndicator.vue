@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { canvasColors } from "@orbitq/styles/canvas";
+import DiagramContextMenu from "./DiagramContextMenu.vue";
+import { useContextMenu } from "../composables/useContextMenu";
 
 const props = defineProps<{
   x: number;
@@ -9,6 +11,13 @@ const props = defineProps<{
   thrust: number | null;
   plumeHeight: number;
 }>();
+
+const { closeSignal } = useContextMenu();
+watch(closeSignal, () => {
+  contextMenu.value = null;
+});
+
+const thrustHovered = ref(false);
 
 const rocketWidth = computed(() => props.rocketWidth);
 const plumeHeight = computed(() => props.plumeHeight);
@@ -33,10 +42,12 @@ const lineConfig = computed(() => {
     ],
     closed: true,
     fill: canvasColors.thrustPlume,
-    stroke: "none",
+    stroke: thrustHovered.value
+      ? canvasColors.interactionHighlight
+      : "transparent",
     strokeWidth: 1.5,
     strokeScaleEnabled: false,
-    listening: false,
+    listening: true,
   };
 });
 
@@ -56,13 +67,47 @@ const textConfig = computed(() => ({
   fontFamily: "monospace",
   fill: canvasColors.thrustPlume,
   align: "center",
-  listening: false,
+  listening: true,
 }));
+
+const emit = defineEmits<{
+  "hide-thrust": [];
+}>();
+
+type ContextMenu = { x: number; y: number };
+const contextMenu = ref<ContextMenu | null>(null);
+
+function onTrustContextMenu(e: any) {
+  e.evt.preventDefault();
+  contextMenu.value = { x: e.evt.clientX, y: e.evt.clientY };
+}
+function onHideThrust() {
+  if (!contextMenu.value) return;
+  emit("hide-thrust");
+  closeContextMenu();
+}
+
+function closeContextMenu() {
+  contextMenu.value = null;
+}
 </script>
 
 <template>
-  <v-group v-if="thrust !== null" :config="groupConfig">
+  <v-group
+    :config="groupConfig"
+    @mouseenter="thrustHovered = true"
+    @mouseleave="thrustHovered = false"
+    @contextmenu="onTrustContextMenu($event)"
+  >
     <v-line :config="lineConfig" />
     <v-text :config="textConfig" />
   </v-group>
+  <DiagramContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y">
+    <button
+      class="w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+      @click="onHideThrust"
+    >
+      Hide thrust
+    </button>
+  </DiagramContextMenu>
 </template>
