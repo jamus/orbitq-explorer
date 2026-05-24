@@ -90,13 +90,24 @@ function onHideThrust() {
 function closeContextMenu() {
   contextMenu.value = null;
 }
+
+function onMouseEnter(e: any) {
+  console.log("mouse enter thrust", e);
+  thrustHovered.value = true;
+  // document.body.style.cursor = "pointer";
+}
+
+function onMouseLeave() {
+  thrustHovered.value = false;
+  // document.body.style.cursor = "default";
+}
 </script>
 
 <template>
   <v-group
     :config="groupConfig"
-    @mouseenter="thrustHovered = true"
-    @mouseleave="thrustHovered = false"
+    @mouseenter="onMouseEnter"
+    @mouseleave="onMouseLeave"
     @contextmenu="onTrustContextMenu($event)"
   >
     <v-line :config="lineConfig" />

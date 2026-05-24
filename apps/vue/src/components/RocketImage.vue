@@ -45,7 +45,7 @@ const pathConfig = computed(() => ({
   stroke: canvasColors.rocketStroke,
   strokeWidth: STROKE_WIDTH,
   strokeScaleEnabled: false,
-  listening: false,
+  listening: true,
 }));
 
 // --- Stage separation animation ---
@@ -123,8 +123,6 @@ watch(closeSignal, () => {
   contextMenu.value = null;
 });
 
-const hoveredEngineId = ref<string | null>(null);
-
 type ContextMenu = { x: number; y: number };
 const contextMenu = ref<ContextMenu | null>(null);
 
@@ -146,10 +144,72 @@ function onShowThrust() {
   emit("show-thrust");
   closeContextMenu();
 }
+
+function setCanvasCursor(e: any, cursor: string) {
+  e.target.getStage()?.container().style.setProperty("cursor", cursor);
+}
+
+function tweenGroupPaths(
+  group: any,
+  stroke: string,
+  duration = 0.2,
+): Konva.Tween[] {
+  const tweens: Konva.Tween[] = group
+    .find("Path")
+    .map((path: any) => new Konva.Tween({ node: path, duration, stroke }));
+  tweens.forEach((t) => t.play());
+  return tweens;
+}
+
+let engineTweens: Konva.Tween[] = [];
+
+function isEngineGroup(node: any): boolean {
+  return node.id?.()?.startsWith("engine") === true;
+}
+
+function findEngineAncestor(node: any): any {
+  let n = node;
+  while (n) {
+    if (isEngineGroup(n)) return n;
+    n = n.parent;
+  }
+  return null;
+}
+
+function onRocketEnter() {
+  const rootNode = rootGroupRef.value?.getNode();
+  if (!rootNode) return;
+  engineTweens.forEach((t) => t.destroy());
+  const engineGroups = rootNode.find((n: any) => isEngineGroup(n));
+  engineTweens = engineGroups.flatMap((group: any) =>
+    tweenGroupPaths(group, canvasColors.interactionHighlight),
+  );
+}
+
+function onRocketLeave(e: any) {
+  setCanvasCursor(e, "");
+  engineTweens.forEach((t) => t.destroy());
+  const rootNode = rootGroupRef.value?.getNode();
+  if (!rootNode) return;
+  engineTweens = rootNode
+    .find((n: any) => isEngineGroup(n))
+    .flatMap((group: any) => tweenGroupPaths(group, canvasColors.rocketStroke));
+}
+
+function onRocketMouseOver(e: any) {
+  setCanvasCursor(e, findEngineAncestor(e.target) ? "pointer" : "");
+}
 </script>
 
 <template>
-  <v-group v-if="groupConfig" :config="groupConfig" ref="rootGroupRef">
+  <v-group
+    v-if="groupConfig"
+    :config="groupConfig"
+    ref="rootGroupRef"
+    @mouseenter="onRocketEnter"
+    @mouseleave="onRocketLeave"
+    @mouseover="onRocketMouseOver"
+  >
     <v-group
       v-for="(stage, i) in entry!.stages"
       :key="stage.id"
@@ -163,8 +223,7 @@ function onShowThrust() {
       <v-group
         v-for="engine in stage.engines"
         :key="engine.id"
-        @mouseenter="hoveredEngineId = engine.id"
-        @mouseleave="hoveredEngineId = null"
+        :config="{ id: engine.id }"
         @contextmenu="onEngineContextMenu($event)"
       >
         <v-path
@@ -175,10 +234,6 @@ function onShowThrust() {
             data: path.d,
             listening: true,
             hitStrokeWidth: 12,
-            stroke:
-              hoveredEngineId === engine.id
-                ? canvasColors.interactionHighlight
-                : pathConfig.stroke,
           }"
         />
       </v-group>
