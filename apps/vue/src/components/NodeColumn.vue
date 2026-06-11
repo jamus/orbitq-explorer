@@ -9,6 +9,7 @@ defineProps<{
   width: number;
   separationActive: boolean;
   isAnimating: boolean;
+  stageCount?: number;
 }>();
 
 const emit = defineEmits<{
@@ -32,6 +33,7 @@ const emit = defineEmits<{
           :owner="node.owner"
           :separationActive="separationActive"
           :isAnimating="isAnimating"
+          :stageCount="stageCount ?? 0"
           @trigger-separation="emit('trigger-separation')"
         />
         <NodeCard v-else :label="node.label" :owner="node.owner" />

@@ -312,6 +312,17 @@ const panelNodes = computed(() =>
   nodeList.value.filter((n) => n.id !== "stages"),
 );
 
+const stageCountA = computed(() =>
+  displayRocketA.value
+    ? (diagrams[displayRocketA.value.id]?.stages.length ?? 0)
+    : 0,
+);
+const stageCountB = computed(() =>
+  displayRocketB.value
+    ? (diagrams[displayRocketB.value.id]?.stages.length ?? 0)
+    : 0,
+);
+
 // ---------------------------------------------------------------------------
 // Canvas positioning
 // ---------------------------------------------------------------------------
@@ -392,6 +403,7 @@ function plumeHeight(thrust: number | null): number {
       :width="columnAWidthDisplay"
       :separationActive="separationVisible"
       :isAnimating="isAnimating"
+      :stageCount="stageCountA"
       @trigger-separation="handleSeparationToggle()"
     />
     <div ref="boardRef" class="relative flex-1 overflow-hidden">
@@ -461,6 +473,7 @@ function plumeHeight(thrust: number | null): number {
       :width="displayRocketB ? columnBWidthDisplay : 0"
       :separationActive="separationVisible"
       :isAnimating="isAnimating"
+      :stageCount="stageCountB"
       @trigger-separation="handleSeparationToggle()"
     />
 

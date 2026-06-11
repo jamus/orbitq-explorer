@@ -6,6 +6,7 @@ defineProps<{
   owner: NodeOwner;
   separationActive: boolean;
   isAnimating: boolean;
+  stageCount: number;
 }>();
 
 const emit = defineEmits<{
@@ -27,6 +28,15 @@ const emit = defineEmits<{
     >
       {{ label }}
     </span>
+    <ul class="flex flex-col gap-1">
+      <li
+        v-for="i in stageCount"
+        :key="i"
+        class="font-mono text-[11px] text-orbitq-300"
+      >
+        Stage {{ String(i).padStart(2, "0") }}
+      </li>
+    </ul>
     <button
       class="w-full py-1.5 px-3 rounded border text-xs font-mono uppercase tracking-wider transition-colors duration-200"
       :class="[
