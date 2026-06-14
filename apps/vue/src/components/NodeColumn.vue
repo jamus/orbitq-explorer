@@ -36,7 +36,12 @@ const emit = defineEmits<{
           :stageCount="stageCount ?? 0"
           @trigger-separation="emit('trigger-separation')"
         />
-        <NodeCard v-else :label="node.label" :owner="node.owner" />
+        <NodeCard
+          v-else
+          :label="node.label"
+          :owner="node.owner"
+          :id="node.id"
+        />
       </template>
     </div>
   </div>

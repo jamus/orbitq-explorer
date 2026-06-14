@@ -19,7 +19,16 @@ const props = defineProps<{
   opacity?: number;
 }>();
 
-const entry = computed(() => diagrams[props.rocket.id]);
+const entry = computed(() => {
+  console.log("RocketImage props", props.rocket);
+  const diagram = diagrams[props.rocket.id];
+  console.log(diagram, "diagram for rocket", props.rocket.id);
+  if (!diagram) {
+    console.warn(`No diagram found for rocket ${props.rocket.id}`);
+    return null;
+  }
+  return diagram;
+});
 
 const scaleFactor = computed(() => {
   if (!entry.value || !props.rocket.length) return null;
@@ -57,6 +66,7 @@ watch(
   entry,
   (e) => {
     stageOffsets.value = new Array(e?.stages.length ?? 0).fill(0);
+    console.log("RocketImage entry", entry.value);
   },
   { immediate: true },
 );
@@ -123,12 +133,13 @@ watch(closeSignal, () => {
   contextMenu.value = null;
 });
 
-type ContextMenu = { x: number; y: number };
+type ContextMenu = { target: string; x: number; y: number };
 const contextMenu = ref<ContextMenu | null>(null);
 
 function onEngineContextMenu(e: any) {
   e.evt.preventDefault();
-  contextMenu.value = { x: e.evt.clientX, y: e.evt.clientY };
+  const target = e.target.parent.attrs.id;
+  contextMenu.value = { target: target, x: e.evt.clientX, y: e.evt.clientY };
 }
 
 function closeContextMenu() {
@@ -137,11 +148,17 @@ function closeContextMenu() {
 
 const emit = defineEmits<{
   "show-thrust": [];
+  "show-configuration-node": [target: string];
 }>();
 
 function onShowThrust() {
   if (!contextMenu.value) return;
   emit("show-thrust");
+  closeContextMenu();
+}
+
+function onShowConfigurationNode(target: string) {
+  emit("show-configuration-node", target);
   closeContextMenu();
 }
 
@@ -242,6 +259,13 @@ function onRocketMouseOver(e: any) {
 
   <DiagramContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y">
     <button
+      class="w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+      @click="onShowConfigurationNode(contextMenu.target)"
+    >
+      Configuration
+    </button>
+    <button
+      v-if="contextMenu.target === 'engine_01'"
       class="w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
       @click="onShowThrust"
     >

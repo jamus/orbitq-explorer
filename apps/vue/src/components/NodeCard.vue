@@ -4,6 +4,7 @@ import type { NodeOwner } from "../composables/useNodeGrid";
 defineProps<{
   label: string;
   owner: NodeOwner;
+  id: string;
 }>();
 </script>
 
@@ -20,6 +21,7 @@ defineProps<{
       class="font-mono text-[11px] uppercase tracking-widest text-orbitq-500"
     >
       {{ label }}
+      {{ id }}
     </span>
   </div>
 </template>

@@ -73,6 +73,11 @@ function onHideThrust() {
   if (isThrustActive.value) handleNodeToggle("thrust");
 }
 
+function onShowConfigurationNode(target: string) {
+  console.log("onShowConfigurationNode", target);
+  handleNodeToggle("engineConfiguration" as NodeTypeId);
+}
+
 // ---------------------------------------------------------------------------
 // Layout helpers — derived from reactive board dimensions
 // ---------------------------------------------------------------------------
@@ -397,6 +402,11 @@ function plumeHeight(thrust: number | null): number {
 </script>
 
 <template>
+  <div style="position: absolute; top: 0; left: 0; padding: 8px; z-index: 10">
+    <pre>
+      {{ rocketAData ? rocketAData.length : "No Rocket A" }}
+    </pre>
+  </div>
   <div class="flex h-[calc(100vh-127px)]">
     <NodeColumn
       :nodes="columnANodesDisplay"
@@ -421,6 +431,7 @@ function plumeHeight(thrust: number | null): number {
             :separated="separationVisible"
             :opacity="rocketAOpacity"
             @show-thrust="onShowThrust"
+            @show-configuration-node="onShowConfigurationNode"
           />
           <ThrustIndicator
             v-if="displayRocketA && thrustRenderVisible"

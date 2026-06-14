@@ -1,7 +1,11 @@
 import { reactive, computed } from "vue";
 
 export type NodeOwner = "a" | "b" | "shared";
-export type NodeTypeId = "thrust" | "overview" | "stages";
+export type NodeTypeId =
+  | "thrust"
+  | "overview"
+  | "stages"
+  | "engineConfiguration";
 
 type NodeTypeDef = {
   label: string;
@@ -13,6 +17,11 @@ const NODE_REGISTRY: Record<NodeTypeId, NodeTypeDef> = {
   thrust: { label: "Thrust", owner: "both", affectsDiagram: true },
   overview: { label: "Overview", owner: "both", affectsDiagram: false },
   stages: { label: "Stages", owner: "both", affectsDiagram: true },
+  engineConfiguration: {
+    label: "Engine Configuration",
+    owner: "both",
+    affectsDiagram: false,
+  },
 };
 
 export const NODE_COLUMN_WIDTH = 260;
@@ -23,6 +32,7 @@ export function useNodeGrid() {
     thrust: false,
     overview: false,
     stages: false,
+    configuration: false,
   });
 
   // isVisible: drives actual diagram rendering (plume, spread rockets, etc.).
@@ -32,6 +42,7 @@ export function useNodeGrid() {
     thrust: false,
     overview: false,
     stages: false,
+    configuration: false,
   });
 
   function isDiagramNode(id: NodeTypeId): boolean {
