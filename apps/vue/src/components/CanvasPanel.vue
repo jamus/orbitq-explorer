@@ -104,7 +104,7 @@ const isOpen = ref(false);
             </p>
             <label
               v-for="node in props.nodes.filter((n) => n.affectsDiagram)"
-              :key="node.id"
+              :key="node.typeId"
               class="flex items-center gap-2"
               :class="
                 props.isAnimating ? 'cursor-not-allowed' : 'cursor-pointer'
@@ -114,7 +114,7 @@ const isOpen = ref(false);
                 type="checkbox"
                 :checked="node.active"
                 :disabled="props.isAnimating"
-                @change="emit('toggle-node', node.id)"
+                @change="emit('toggle-node', node.typeId)"
               />
               <span class="text-sm text-orbitq-200">{{ node.label }}</span>
             </label>
@@ -136,7 +136,7 @@ const isOpen = ref(false);
             </p>
             <label
               v-for="node in props.nodes.filter((n) => !n.affectsDiagram)"
-              :key="node.id"
+              :key="node.typeId"
               class="flex items-center gap-2"
               :class="
                 props.isAnimating ? 'cursor-not-allowed' : 'cursor-pointer'
@@ -146,7 +146,7 @@ const isOpen = ref(false);
                 type="checkbox"
                 :checked="node.active"
                 :disabled="props.isAnimating"
-                @change="emit('toggle-node', node.id)"
+                @change="emit('toggle-node', node.typeId)"
               />
               <span class="text-sm text-orbitq-200">{{ node.label }}</span>
             </label>
