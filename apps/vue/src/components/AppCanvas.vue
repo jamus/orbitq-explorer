@@ -61,7 +61,7 @@ const {
 } = useNodeGrid();
 
 const isThrustActive = computed(() => {
-  const thrustNode = nodeList.value.find((n) => n.id === "thrust");
+  const thrustNode = nodeList.value.find((n) => n.typeId === "thrust");
   return thrustNode?.active ?? false;
 });
 
@@ -75,7 +75,7 @@ function onHideThrust() {
 
 function onShowConfigurationNode(target: string) {
   console.log("onShowConfigurationNode", target);
-  handleNodeToggle("engineConfiguration" as NodeTypeId);
+  handleNodeToggle("engine_configuration" as NodeTypeId);
 }
 
 // ---------------------------------------------------------------------------
@@ -222,25 +222,25 @@ function scheduleAfterColumn(event: Parameters<typeof send>[0]) {
 
 onUnmounted(cancelPending);
 
-function handleNodeToggle(id: NodeTypeId) {
+function handleNodeToggle(typeId: NodeTypeId) {
   const isCurrentlyEnabled =
-    nodeList.value.find((n) => n.id === id)?.active ?? false;
+    nodeList.value.find((n) => n.typeId === typeId)?.active ?? false;
 
-  if (!isDiagramNode(id)) {
-    if (isCurrentlyEnabled) disableNode(id);
-    else enableNode(id);
+  if (!isDiagramNode(typeId)) {
+    if (isCurrentlyEnabled) disableNode(typeId);
+    else enableNode(typeId);
     return;
   }
 
   if (isCurrentlyEnabled) {
-    disableNode(id);
+    disableNode(typeId);
   } else {
-    enableNode(id);
+    enableNode(typeId);
   }
 
   scheduleAfterColumn({
     type: "DIAGRAM_OPTION_CHANGED",
-    id,
+    id: typeId,
     enable: !isCurrentlyEnabled,
   });
 }
@@ -297,12 +297,12 @@ function handleSeparationToggle() {
 // when that rocket has no stages, even if the other rocket does.
 const columnANodesDisplay = computed(() =>
   columnANodes.value.filter(
-    (n) => n.id !== "stages" || hasRocketAWithStages.value,
+    (n) => n.typeId !== "stages" || hasRocketAWithStages.value,
   ),
 );
 const columnBNodesDisplay = computed(() =>
   columnBNodes.value.filter(
-    (n) => n.id !== "stages" || hasRocketBWithStages.value,
+    (n) => n.typeId !== "stages" || hasRocketBWithStages.value,
   ),
 );
 const columnAWidthDisplay = computed(() =>
@@ -314,7 +314,7 @@ const columnBWidthDisplay = computed(() =>
 
 // Filter stages node from the panel — it auto-enables and has its own card UI.
 const panelNodes = computed(() =>
-  nodeList.value.filter((n) => n.id !== "stages"),
+  nodeList.value.filter((n) => n.typeId !== "stages"),
 );
 
 const stageCountA = computed(() =>

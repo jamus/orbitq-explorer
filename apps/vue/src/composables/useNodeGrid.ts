@@ -5,7 +5,7 @@ export type NodeTypeId =
   | "thrust"
   | "overview"
   | "stages"
-  | "engineConfiguration";
+  | "engine_configuration";
 
 type NodeTypeDef = {
   label: string;
@@ -17,7 +17,7 @@ const NODE_REGISTRY: Record<NodeTypeId, NodeTypeDef> = {
   thrust: { label: "Thrust", owner: "both", affectsDiagram: true },
   overview: { label: "Overview", owner: "both", affectsDiagram: false },
   stages: { label: "Stages", owner: "both", affectsDiagram: true },
-  engineConfiguration: {
+  engine_configuration: {
     label: "Engine Configuration",
     owner: "both",
     affectsDiagram: false,
@@ -32,7 +32,7 @@ export function useNodeGrid() {
     thrust: false,
     overview: false,
     stages: false,
-    configuration: false,
+    engine_configuration: false,
   });
 
   // isVisible: drives actual diagram rendering (plume, spread rockets, etc.).
@@ -42,37 +42,37 @@ export function useNodeGrid() {
     thrust: false,
     overview: false,
     stages: false,
-    configuration: false,
+    engine_configuration: false,
   });
 
-  function isDiagramNode(id: NodeTypeId): boolean {
-    return NODE_REGISTRY[id].affectsDiagram;
+  function isDiagramNode(typeId: NodeTypeId): boolean {
+    return NODE_REGISTRY[typeId].affectsDiagram;
   }
 
-  function enableNode(id: NodeTypeId) {
-    isEnabled[id] = true;
-    if (!NODE_REGISTRY[id].affectsDiagram) isVisible[id] = true;
+  function enableNode(typeId: NodeTypeId) {
+    isEnabled[typeId] = true;
+    if (!NODE_REGISTRY[typeId].affectsDiagram) isVisible[typeId] = true;
   }
 
-  function disableNode(id: NodeTypeId) {
-    isEnabled[id] = false;
-    isVisible[id] = false;
+  function disableNode(typeId: NodeTypeId) {
+    isEnabled[typeId] = false;
+    isVisible[typeId] = false;
   }
 
-  function showNode(id: NodeTypeId) {
-    isVisible[id] = true;
+  function showNode(typeId: NodeTypeId) {
+    isVisible[typeId] = true;
   }
 
-  function hideNode(id: NodeTypeId) {
-    isVisible[id] = false;
+  function hideNode(typeId: NodeTypeId) {
+    isVisible[typeId] = false;
   }
 
   const nodeList = computed(() =>
-    (Object.keys(NODE_REGISTRY) as NodeTypeId[]).map((id) => ({
-      id,
-      label: NODE_REGISTRY[id].label,
-      active: isEnabled[id],
-      affectsDiagram: NODE_REGISTRY[id].affectsDiagram,
+    (Object.keys(NODE_REGISTRY) as NodeTypeId[]).map((typeId) => ({
+      typeId,
+      label: NODE_REGISTRY[typeId].label,
+      active: isEnabled[typeId],
+      affectsDiagram: NODE_REGISTRY[typeId].affectsDiagram,
     })),
   );
 
@@ -80,16 +80,16 @@ export function useNodeGrid() {
     return computed(() =>
       (Object.keys(NODE_REGISTRY) as NodeTypeId[])
         .filter(
-          (id) =>
-            isEnabled[id] &&
-            (NODE_REGISTRY[id].owner === side ||
-              NODE_REGISTRY[id].owner === "both"),
+          (typeId) =>
+            isEnabled[typeId] &&
+            (NODE_REGISTRY[typeId].owner === side ||
+              NODE_REGISTRY[typeId].owner === "both"),
         )
-        .map((id) => ({
-          id,
-          label: NODE_REGISTRY[id].label,
+        .map((typeId) => ({
+          typeId,
+          label: NODE_REGISTRY[typeId].label,
           owner: side as NodeOwner,
-          affectsDiagram: NODE_REGISTRY[id].affectsDiagram,
+          affectsDiagram: NODE_REGISTRY[typeId].affectsDiagram,
         })),
     );
   }

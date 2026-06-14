@@ -5,7 +5,11 @@ import type { NodeOwner } from "../composables/useNodeGrid";
 import { NODE_COLUMN_WIDTH } from "../composables/useNodeGrid";
 
 defineProps<{
-  nodes: { id: string; label: string; owner: NodeOwner }[];
+  nodes: {
+    typeId: string;
+    label: string;
+    owner: NodeOwner;
+  }[];
   width: number;
   separationActive: boolean;
   isAnimating: boolean;
@@ -26,9 +30,9 @@ const emit = defineEmits<{
       class="h-full p-3 flex flex-col gap-3"
       :style="{ width: `${NODE_COLUMN_WIDTH}px` }"
     >
-      <template v-for="node in nodes" :key="node.id">
+      <template v-for="node in nodes" :key="node.typeId">
         <StagesCard
-          v-if="node.id === 'stages'"
+          v-if="node.typeId === 'stages'"
           :label="node.label"
           :owner="node.owner"
           :separationActive="separationActive"
@@ -40,7 +44,7 @@ const emit = defineEmits<{
           v-else
           :label="node.label"
           :owner="node.owner"
-          :id="node.id"
+          :typeId="node.typeId"
         />
       </template>
     </div>
