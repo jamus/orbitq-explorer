@@ -5,7 +5,7 @@ const props = defineProps<{
   showScaleReference: boolean;
   isAnimating: boolean;
   nodes: {
-    id: string;
+    typeId: string;
     label: string;
     active: boolean;
     affectsDiagram: boolean;
@@ -14,7 +14,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "update:showScaleReference": [value: boolean];
-  "toggle-node": [id: string];
+  "toggle-node": [typeId: string];
 }>();
 
 const isOpen = ref(false);

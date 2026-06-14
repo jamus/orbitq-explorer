@@ -5,7 +5,8 @@ export type NodeTypeId =
   | "thrust"
   | "overview"
   | "stages"
-  | "engine_configuration";
+  | "engine_stage_01"
+  | "engine_stage_02";
 
 type NodeTypeDef = {
   label: string;
@@ -17,8 +18,13 @@ const NODE_REGISTRY: Record<NodeTypeId, NodeTypeDef> = {
   thrust: { label: "Thrust", owner: "both", affectsDiagram: true },
   overview: { label: "Overview", owner: "both", affectsDiagram: false },
   stages: { label: "Stages", owner: "both", affectsDiagram: true },
-  engine_configuration: {
-    label: "Engine Configuration",
+  engine_stage_01: {
+    label: "Stage 1 Engine Configuration",
+    owner: "both",
+    affectsDiagram: false,
+  },
+  engine_stage_02: {
+    label: "Stage 2 Engine Configuration",
     owner: "both",
     affectsDiagram: false,
   },
@@ -32,7 +38,8 @@ export function useNodeGrid() {
     thrust: false,
     overview: false,
     stages: false,
-    engine_configuration: false,
+    engine_stage_01: false,
+    engine_stage_02: false,
   });
 
   // isVisible: drives actual diagram rendering (plume, spread rockets, etc.).
@@ -42,7 +49,8 @@ export function useNodeGrid() {
     thrust: false,
     overview: false,
     stages: false,
-    engine_configuration: false,
+    engine_stage_01: false,
+    engine_stage_02: false,
   });
 
   function isDiagramNode(typeId: NodeTypeId): boolean {

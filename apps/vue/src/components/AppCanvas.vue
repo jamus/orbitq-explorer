@@ -75,7 +75,7 @@ function onHideThrust() {
 
 function onShowConfigurationNode(target: string) {
   console.log("onShowConfigurationNode", target);
-  handleNodeToggle("engine_configuration" as NodeTypeId);
+  handleNodeToggle(target as NodeTypeId);
 }
 
 // ---------------------------------------------------------------------------
@@ -223,6 +223,7 @@ function scheduleAfterColumn(event: Parameters<typeof send>[0]) {
 onUnmounted(cancelPending);
 
 function handleNodeToggle(typeId: NodeTypeId) {
+  console.log("handleNodeToggle", typeId);
   const isCurrentlyEnabled =
     nodeList.value.find((n) => n.typeId === typeId)?.active ?? false;
 
@@ -451,6 +452,7 @@ function plumeHeight(thrust: number | null): number {
             :separated="separationVisible"
             :opacity="rocketBOpacity"
             @show-thrust="onShowThrust"
+            @show-configuration-node="onShowConfigurationNode"
           />
           <ThrustIndicator
             v-if="displayRocketB && thrustRenderVisible"

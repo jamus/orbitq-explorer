@@ -158,6 +158,7 @@ function onShowThrust() {
 }
 
 function onShowConfigurationNode(target: string) {
+  console.log("onShowConfigurationNode", target);
   emit("show-configuration-node", target);
   closeContextMenu();
 }
@@ -265,7 +266,7 @@ function onRocketMouseOver(e: any) {
       Configuration
     </button>
     <button
-      v-if="contextMenu.target === 'engine_01'"
+      v-if="contextMenu.target === 'engine_stage_01'"
       class="w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
       @click="onShowThrust"
     >
