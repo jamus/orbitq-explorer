@@ -61,7 +61,7 @@ const {
 } = useNodeGrid();
 
 const isThrustActive = computed(() => {
-  const thrustNode = nodeList.value.find((n) => n.id === "thrust");
+  const thrustNode = nodeList.value.find((n) => n.typeId === "thrust");
   return thrustNode?.active ?? false;
 });
 
@@ -71,6 +71,11 @@ function onShowThrust() {
 
 function onHideThrust() {
   if (isThrustActive.value) handleNodeToggle("thrust");
+}
+
+function onShowConfigurationNode(target: string) {
+  console.log("onShowConfigurationNode", target);
+  handleNodeToggle(target as NodeTypeId);
 }
 
 // ---------------------------------------------------------------------------
@@ -217,25 +222,26 @@ function scheduleAfterColumn(event: Parameters<typeof send>[0]) {
 
 onUnmounted(cancelPending);
 
-function handleNodeToggle(id: NodeTypeId) {
+function handleNodeToggle(typeId: NodeTypeId) {
+  console.log("handleNodeToggle", typeId);
   const isCurrentlyEnabled =
-    nodeList.value.find((n) => n.id === id)?.active ?? false;
+    nodeList.value.find((n) => n.typeId === typeId)?.active ?? false;
 
-  if (!isDiagramNode(id)) {
-    if (isCurrentlyEnabled) disableNode(id);
-    else enableNode(id);
+  if (!isDiagramNode(typeId)) {
+    if (isCurrentlyEnabled) disableNode(typeId);
+    else enableNode(typeId);
     return;
   }
 
   if (isCurrentlyEnabled) {
-    disableNode(id);
+    disableNode(typeId);
   } else {
-    enableNode(id);
+    enableNode(typeId);
   }
 
   scheduleAfterColumn({
     type: "DIAGRAM_OPTION_CHANGED",
-    id,
+    id: typeId,
     enable: !isCurrentlyEnabled,
   });
 }
@@ -292,12 +298,12 @@ function handleSeparationToggle() {
 // when that rocket has no stages, even if the other rocket does.
 const columnANodesDisplay = computed(() =>
   columnANodes.value.filter(
-    (n) => n.id !== "stages" || hasRocketAWithStages.value,
+    (n) => n.typeId !== "stages" || hasRocketAWithStages.value,
   ),
 );
 const columnBNodesDisplay = computed(() =>
   columnBNodes.value.filter(
-    (n) => n.id !== "stages" || hasRocketBWithStages.value,
+    (n) => n.typeId !== "stages" || hasRocketBWithStages.value,
   ),
 );
 const columnAWidthDisplay = computed(() =>
@@ -309,7 +315,18 @@ const columnBWidthDisplay = computed(() =>
 
 // Filter stages node from the panel — it auto-enables and has its own card UI.
 const panelNodes = computed(() =>
-  nodeList.value.filter((n) => n.id !== "stages"),
+  nodeList.value.filter((n) => n.typeId !== "stages"),
+);
+
+const stageCountA = computed(() =>
+  displayRocketA.value
+    ? (diagrams[displayRocketA.value.id]?.stages.length ?? 0)
+    : 0,
+);
+const stageCountB = computed(() =>
+  displayRocketB.value
+    ? (diagrams[displayRocketB.value.id]?.stages.length ?? 0)
+    : 0,
 );
 
 // ---------------------------------------------------------------------------
@@ -386,12 +403,18 @@ function plumeHeight(thrust: number | null): number {
 </script>
 
 <template>
+  <div style="position: absolute; top: 0; left: 0; padding: 8px; z-index: 10">
+    <pre>
+      {{ rocketAData ? rocketAData.length : "No Rocket A" }}
+    </pre>
+  </div>
   <div class="flex h-[calc(100vh-127px)]">
     <NodeColumn
       :nodes="columnANodesDisplay"
       :width="columnAWidthDisplay"
       :separationActive="separationVisible"
       :isAnimating="isAnimating"
+      :stageCount="stageCountA"
       @trigger-separation="handleSeparationToggle()"
     />
     <div ref="boardRef" class="relative flex-1 overflow-hidden">
@@ -409,6 +432,7 @@ function plumeHeight(thrust: number | null): number {
             :separated="separationVisible"
             :opacity="rocketAOpacity"
             @show-thrust="onShowThrust"
+            @show-configuration-node="onShowConfigurationNode"
           />
           <ThrustIndicator
             v-if="displayRocketA && thrustRenderVisible"
@@ -428,6 +452,7 @@ function plumeHeight(thrust: number | null): number {
             :separated="separationVisible"
             :opacity="rocketBOpacity"
             @show-thrust="onShowThrust"
+            @show-configuration-node="onShowConfigurationNode"
           />
           <ThrustIndicator
             v-if="displayRocketB && thrustRenderVisible"
@@ -461,6 +486,7 @@ function plumeHeight(thrust: number | null): number {
       :width="displayRocketB ? columnBWidthDisplay : 0"
       :separationActive="separationVisible"
       :isAnimating="isAnimating"
+      :stageCount="stageCountB"
       @trigger-separation="handleSeparationToggle()"
     />
 

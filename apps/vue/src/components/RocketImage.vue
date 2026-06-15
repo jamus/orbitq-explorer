@@ -19,7 +19,16 @@ const props = defineProps<{
   opacity?: number;
 }>();
 
-const entry = computed(() => diagrams[props.rocket.id]);
+const entry = computed(() => {
+  console.log("RocketImage props", props.rocket);
+  const diagram = diagrams[props.rocket.id];
+  console.log(diagram, "diagram for rocket", props.rocket.id);
+  if (!diagram) {
+    console.warn(`No diagram found for rocket ${props.rocket.id}`);
+    return null;
+  }
+  return diagram;
+});
 
 const scaleFactor = computed(() => {
   if (!entry.value || !props.rocket.length) return null;
@@ -45,7 +54,7 @@ const pathConfig = computed(() => ({
   stroke: canvasColors.rocketStroke,
   strokeWidth: STROKE_WIDTH,
   strokeScaleEnabled: false,
-  listening: false,
+  listening: true,
 }));
 
 // --- Stage separation animation ---
@@ -57,6 +66,7 @@ watch(
   entry,
   (e) => {
     stageOffsets.value = new Array(e?.stages.length ?? 0).fill(0);
+    console.log("RocketImage entry", entry.value);
   },
   { immediate: true },
 );
@@ -123,14 +133,13 @@ watch(closeSignal, () => {
   contextMenu.value = null;
 });
 
-const hoveredEngineId = ref<string | null>(null);
-
-type ContextMenu = { x: number; y: number };
+type ContextMenu = { target: string; x: number; y: number };
 const contextMenu = ref<ContextMenu | null>(null);
 
 function onEngineContextMenu(e: any) {
   e.evt.preventDefault();
-  contextMenu.value = { x: e.evt.clientX, y: e.evt.clientY };
+  const target = e.target.parent.attrs.id;
+  contextMenu.value = { target: target, x: e.evt.clientX, y: e.evt.clientY };
 }
 
 function closeContextMenu() {
@@ -139,6 +148,7 @@ function closeContextMenu() {
 
 const emit = defineEmits<{
   "show-thrust": [];
+  "show-configuration-node": [target: string];
 }>();
 
 function onShowThrust() {
@@ -146,10 +156,78 @@ function onShowThrust() {
   emit("show-thrust");
   closeContextMenu();
 }
+
+function onShowConfigurationNode(target: string) {
+  console.log("onShowConfigurationNode", target);
+  emit("show-configuration-node", target);
+  closeContextMenu();
+}
+
+function setCanvasCursor(e: any, cursor: string) {
+  e.target.getStage()?.container().style.setProperty("cursor", cursor);
+}
+
+function tweenGroupPaths(
+  group: any,
+  stroke: string,
+  duration = 0.2,
+): Konva.Tween[] {
+  const tweens: Konva.Tween[] = group
+    .find("Path")
+    .map((path: any) => new Konva.Tween({ node: path, duration, stroke }));
+  tweens.forEach((t) => t.play());
+  return tweens;
+}
+
+let engineTweens: Konva.Tween[] = [];
+
+function isEngineGroup(node: any): boolean {
+  return node.id?.()?.startsWith("engine") === true;
+}
+
+function findEngineAncestor(node: any): any {
+  let n = node;
+  while (n) {
+    if (isEngineGroup(n)) return n;
+    n = n.parent;
+  }
+  return null;
+}
+
+function onRocketEnter() {
+  const rootNode = rootGroupRef.value?.getNode();
+  if (!rootNode) return;
+  engineTweens.forEach((t) => t.destroy());
+  const engineGroups = rootNode.find((n: any) => isEngineGroup(n));
+  engineTweens = engineGroups.flatMap((group: any) =>
+    tweenGroupPaths(group, canvasColors.interactionHighlight),
+  );
+}
+
+function onRocketLeave(e: any) {
+  setCanvasCursor(e, "");
+  engineTweens.forEach((t) => t.destroy());
+  const rootNode = rootGroupRef.value?.getNode();
+  if (!rootNode) return;
+  engineTweens = rootNode
+    .find((n: any) => isEngineGroup(n))
+    .flatMap((group: any) => tweenGroupPaths(group, canvasColors.rocketStroke));
+}
+
+function onRocketMouseOver(e: any) {
+  setCanvasCursor(e, findEngineAncestor(e.target) ? "pointer" : "");
+}
 </script>
 
 <template>
-  <v-group v-if="groupConfig" :config="groupConfig" ref="rootGroupRef">
+  <v-group
+    v-if="groupConfig"
+    :config="groupConfig"
+    ref="rootGroupRef"
+    @mouseenter="onRocketEnter"
+    @mouseleave="onRocketLeave"
+    @mouseover="onRocketMouseOver"
+  >
     <v-group
       v-for="(stage, i) in entry!.stages"
       :key="stage.id"
@@ -163,8 +241,7 @@ function onShowThrust() {
       <v-group
         v-for="engine in stage.engines"
         :key="engine.id"
-        @mouseenter="hoveredEngineId = engine.id"
-        @mouseleave="hoveredEngineId = null"
+        :config="{ id: engine.id }"
         @contextmenu="onEngineContextMenu($event)"
       >
         <v-path
@@ -175,10 +252,6 @@ function onShowThrust() {
             data: path.d,
             listening: true,
             hitStrokeWidth: 12,
-            stroke:
-              hoveredEngineId === engine.id
-                ? canvasColors.interactionHighlight
-                : pathConfig.stroke,
           }"
         />
       </v-group>
@@ -187,6 +260,13 @@ function onShowThrust() {
 
   <DiagramContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y">
     <button
+      class="w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+      @click="onShowConfigurationNode(contextMenu.target)"
+    >
+      Configuration
+    </button>
+    <button
+      v-if="contextMenu.target === 'engine_stage_01'"
       class="w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
       @click="onShowThrust"
     >
