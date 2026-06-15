@@ -5,6 +5,12 @@ import StagesCard from "./NodeCards/StagesCard.vue";
 import type { NodeOwner } from "../composables/useNodeGrid";
 import { NODE_COLUMN_WIDTH } from "../composables/useNodeGrid";
 
+interface nodeType {
+  typeId: string;
+  label: string;
+  owner: NodeOwner;
+}
+
 const props = defineProps<{
   nodes: {
     typeId: string;
@@ -19,7 +25,41 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "trigger-separation": [];
+  "toggle-node": [typeId: string];
 }>();
+
+const getNodeComponent = (typeId: string) => {
+  console.log("getNodeComponent called with typeId:", typeId);
+  if (typeId === "stages") {
+    console.log("Returning StagesCard for typeId:", typeId);
+    return StagesCard;
+  }
+
+  if (isEngineStageNode(typeId) && isStageAvailable(typeId)) {
+    return NodeCardEngine;
+  }
+
+  return NodeCard;
+};
+
+const getNodeProps = (node: nodeType) => {
+  if (node.typeId === "stages") {
+    return {
+      typeId: node.typeId,
+      label: node.label,
+      owner: node.owner,
+      separationActive: props.separationActive,
+      isAnimating: props.isAnimating,
+      stageCount: props.stageCount ?? 0,
+    };
+  }
+
+  return {
+    typeId: node.typeId,
+    label: node.label,
+    owner: node.owner,
+  };
+};
 
 const isEngineStageNode = (typeId: string) => {
   console.log("isEngineStageNode", props.nodes);
@@ -36,43 +76,33 @@ function isStageAvailable(typeId: string): boolean {
   if (stageNumber > props.stageCount) return false;
   return true;
 }
+
+function handleToggleNode(typeId: string) {
+  emit("toggle-node", typeId);
+}
 </script>
 
 <template>
+  jamie
   <div
     class="overflow-hidden shrink-0 transition-[width] duration-300 ease-in-out"
     :style="{ width: `${width}px` }"
   >
+    is
     <div
-      class="h-full p-3 flex flex-col gap-3"
+      class="h-full p-3 flex flex-col gap-8"
       :style="{ width: `${NODE_COLUMN_WIDTH}px` }"
     >
-      <template v-for="node in nodes" :key="node.typeId">
-        <StagesCard
-          v-if="node.typeId === 'stages'"
-          :typeId="node.typeId"
-          :label="node.label"
-          :owner="node.owner"
-          :separationActive="separationActive"
-          :isAnimating="isAnimating"
-          :stageCount="stageCount ?? 0"
-          @trigger-separation="emit('trigger-separation')"
-        />
-        <div v-else-if="isEngineStageNode(node.typeId)">
-          <NodeCardEngine
-            v-if="isStageAvailable(node.typeId)"
-            :label="node.label"
-            :owner="node.owner"
-            :typeId="node.typeId"
-          />
-        </div>
-        <NodeCard
-          v-else
-          :label="node.label"
-          :owner="node.owner"
-          :typeId="node.typeId"
-        />
-      </template>
+      here
+
+      <component
+        v-for="node in nodes"
+        :key="node.typeId"
+        :is="getNodeComponent(node.typeId)"
+        v-bind="getNodeProps(node)"
+        @toggle-node="handleToggleNode($event as string)"
+        @trigger-separation="emit('trigger-separation')"
+      />
     </div>
   </div>
 </template>
