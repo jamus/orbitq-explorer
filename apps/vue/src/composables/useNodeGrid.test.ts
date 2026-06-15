@@ -107,7 +107,7 @@ describe("useNodeGrid", () => {
     it("enableNode sets both isEnabled and isVisible immediately", () => {
       const { enableNode, nodeList } = useNodeGrid();
       enableNode("overview");
-      const node = nodeList.value.find((n) => n.id === "overview");
+      const node = nodeList.value.find((n) => n.typeId === "overview");
       expect(node?.active).toBe(true);
     });
 
@@ -115,7 +115,7 @@ describe("useNodeGrid", () => {
       const { enableNode, disableNode, nodeList } = useNodeGrid();
       enableNode("overview");
       disableNode("overview");
-      const node = nodeList.value.find((n) => n.id === "overview");
+      const node = nodeList.value.find((n) => n.typeId === "overview");
       expect(node?.active).toBe(false);
     });
   });
@@ -125,33 +125,39 @@ describe("useNodeGrid", () => {
     it("enableNode adds stages to both column lists", () => {
       const { enableNode, columnANodes, columnBNodes } = useNodeGrid();
       enableNode("stages");
-      expect(columnANodes.value.some((n) => n.id === "stages")).toBe(true);
-      expect(columnBNodes.value.some((n) => n.id === "stages")).toBe(true);
+      expect(columnANodes.value.some((n) => n.typeId === "stages")).toBe(true);
+      expect(columnBNodes.value.some((n) => n.typeId === "stages")).toBe(true);
     });
 
     it("disableNode removes stages from column lists", () => {
       const { enableNode, disableNode, columnANodes } = useNodeGrid();
       enableNode("stages");
       disableNode("stages");
-      expect(columnANodes.value.some((n) => n.id === "stages")).toBe(false);
+      expect(columnANodes.value.some((n) => n.typeId === "stages")).toBe(false);
     });
 
     it("enableNode does not set isVisible — machine calls showNode when animation completes", () => {
       const { enableNode, showNode, nodeList } = useNodeGrid();
       enableNode("stages");
       // active (isEnabled) is true; isVisible is still false until machine calls showNode
-      expect(nodeList.value.find((n) => n.id === "stages")?.active).toBe(true);
+      expect(nodeList.value.find((n) => n.typeId === "stages")?.active).toBe(
+        true,
+      );
       showNode("stages");
       // showNode sets isVisible — this is the machine's responsibility
-      expect(nodeList.value.find((n) => n.id === "stages")?.active).toBe(true);
+      expect(nodeList.value.find((n) => n.typeId === "stages")?.active).toBe(
+        true,
+      );
     });
   });
 
   // -------------------------------------------------------------------------
   describe("nodeList", () => {
-    it("contains all three nodes", () => {
+    it("contains all registered nodes", () => {
       const { nodeList } = useNodeGrid();
-      expect(nodeList.value.map((n) => n.id).sort()).toEqual([
+      expect(nodeList.value.map((n) => n.typeId).sort()).toEqual([
+        "engine_stage_01",
+        "engine_stage_02",
         "overview",
         "stages",
         "thrust",
@@ -160,32 +166,34 @@ describe("useNodeGrid", () => {
 
     it("thrust has affectsDiagram true", () => {
       const { nodeList } = useNodeGrid();
-      const node = nodeList.value.find((n) => n.id === "thrust");
+      const node = nodeList.value.find((n) => n.typeId === "thrust");
       expect(node?.affectsDiagram).toBe(true);
     });
 
     it("overview has affectsDiagram false", () => {
       const { nodeList } = useNodeGrid();
-      const node = nodeList.value.find((n) => n.id === "overview");
+      const node = nodeList.value.find((n) => n.typeId === "overview");
       expect(node?.affectsDiagram).toBe(false);
     });
 
     it("stages has affectsDiagram true", () => {
       const { nodeList } = useNodeGrid();
-      const node = nodeList.value.find((n) => n.id === "stages");
+      const node = nodeList.value.find((n) => n.typeId === "stages");
       expect(node?.affectsDiagram).toBe(true);
     });
 
     it("active flag updates reactively after enableNode", () => {
       const { enableNode, nodeList } = useNodeGrid();
       enableNode("thrust");
-      expect(nodeList.value.find((n) => n.id === "thrust")?.active).toBe(true);
+      expect(nodeList.value.find((n) => n.typeId === "thrust")?.active).toBe(
+        true,
+      );
     });
 
     it("node labels are correct", () => {
       const { nodeList } = useNodeGrid();
       const labels = Object.fromEntries(
-        nodeList.value.map((n) => [n.id, n.label]),
+        nodeList.value.map((n) => [n.typeId, n.label]),
       );
       expect(labels["thrust"]).toBe("Thrust");
       expect(labels["overview"]).toBe("Overview");
@@ -198,8 +206,8 @@ describe("useNodeGrid", () => {
     it("thrust (owner: both) appears in both columns when enabled", () => {
       const { enableNode, columnANodes, columnBNodes } = useNodeGrid();
       enableNode("thrust");
-      expect(columnANodes.value.some((n) => n.id === "thrust")).toBe(true);
-      expect(columnBNodes.value.some((n) => n.id === "thrust")).toBe(true);
+      expect(columnANodes.value.some((n) => n.typeId === "thrust")).toBe(true);
+      expect(columnBNodes.value.some((n) => n.typeId === "thrust")).toBe(true);
     });
 
     it("columnAWidth equals NODE_COLUMN_WIDTH when a node is enabled", () => {
@@ -236,7 +244,7 @@ describe("useNodeGrid", () => {
       enableNode("overview");
       disableNode("thrust");
       expect(columnANodes.value).toHaveLength(1);
-      expect(columnANodes.value[0].id).toBe("overview");
+      expect(columnANodes.value[0].typeId).toBe("overview");
     });
   });
 });
