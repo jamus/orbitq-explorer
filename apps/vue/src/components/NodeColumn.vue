@@ -83,18 +83,14 @@ function handleToggleNode(typeId: string) {
 </script>
 
 <template>
-  jamie
   <div
     class="overflow-hidden shrink-0 transition-[width] duration-300 ease-in-out"
     :style="{ width: `${width}px` }"
   >
-    is
     <div
       class="h-full p-3 flex flex-col gap-8"
       :style="{ width: `${NODE_COLUMN_WIDTH}px` }"
     >
-      here
-
       <component
         v-for="node in nodes"
         :key="node.typeId"
