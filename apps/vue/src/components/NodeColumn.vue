@@ -2,6 +2,7 @@
 import NodeCard from "./NodeCards/NodeCard.vue";
 import NodeCardEngine from "./NodeCards/EngineCard.vue";
 import StagesCard from "./NodeCards/StagesCard.vue";
+import BlankNode from "./NodeCards/BlankNode.vue";
 import type { NodeOwner } from "../composables/useNodeGrid";
 import { NODE_COLUMN_WIDTH } from "../composables/useNodeGrid";
 
@@ -29,14 +30,12 @@ const emit = defineEmits<{
 }>();
 
 const getNodeComponent = (typeId: string) => {
-  console.log("getNodeComponent called with typeId:", typeId);
   if (typeId === "stages") {
-    console.log("Returning StagesCard for typeId:", typeId);
     return StagesCard;
   }
 
-  if (isEngineStageNode(typeId) && isStageAvailable(typeId)) {
-    return NodeCardEngine;
+  if (isEngineStageNode(typeId)) {
+    return engineNodeHasStage(typeId) ? NodeCardEngine : BlankNode;
   }
 
   return NodeCard;
@@ -62,19 +61,21 @@ const getNodeProps = (node: nodeType) => {
 };
 
 const isEngineStageNode = (typeId: string) => {
-  console.log("isEngineStageNode", props.nodes);
   return typeId.startsWith("engine_stage_");
 };
 
-function isStageAvailable(typeId: string): boolean {
+function engineNodeHasStage(typeId: string): boolean {
+  let engineNodeHasStage = false;
   // if engine suffix is greater than stageCount, return false
   if (!props.stageCount) return false;
   const suffix = typeId.split("_").pop();
   if (!suffix) return false;
-  const stageNumber = parseInt(suffix);
-  if (isNaN(stageNumber)) return false;
-  if (stageNumber > props.stageCount) return false;
-  return true;
+  const stageNumberForEngine = parseInt(suffix);
+  if (isNaN(stageNumberForEngine)) return false;
+  if (props.stageCount >= stageNumberForEngine) {
+    engineNodeHasStage = true;
+  }
+  return engineNodeHasStage;
 }
 
 function handleToggleNode(typeId: string) {
