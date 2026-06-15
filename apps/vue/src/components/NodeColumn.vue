@@ -2,8 +2,15 @@
 import NodeCard from "./NodeCards/NodeCard.vue";
 import NodeCardEngine from "./NodeCards/EngineCard.vue";
 import StagesCard from "./NodeCards/StagesCard.vue";
+import BlankNode from "./NodeCards/BlankNode.vue";
 import type { NodeOwner } from "../composables/useNodeGrid";
 import { NODE_COLUMN_WIDTH } from "../composables/useNodeGrid";
+
+interface nodeType {
+  typeId: string;
+  label: string;
+  owner: NodeOwner;
+}
 
 const props = defineProps<{
   nodes: {
@@ -19,22 +26,60 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "trigger-separation": [];
+  "toggle-node": [typeId: string];
 }>();
 
+const getNodeComponent = (typeId: string) => {
+  if (typeId === "stages") {
+    return StagesCard;
+  }
+
+  if (isEngineStageNode(typeId)) {
+    return engineNodeHasStage(typeId) ? NodeCardEngine : BlankNode;
+  }
+
+  return NodeCard;
+};
+
+const getNodeProps = (node: nodeType) => {
+  if (node.typeId === "stages") {
+    return {
+      typeId: node.typeId,
+      label: node.label,
+      owner: node.owner,
+      separationActive: props.separationActive,
+      isAnimating: props.isAnimating,
+      stageCount: props.stageCount ?? 0,
+    };
+  }
+
+  return {
+    typeId: node.typeId,
+    label: node.label,
+    owner: node.owner,
+  };
+};
+
 const isEngineStageNode = (typeId: string) => {
-  console.log("isEngineStageNode", props.nodes);
   return typeId.startsWith("engine_stage_");
 };
 
-function isStageAvailable(typeId: string): boolean {
+function engineNodeHasStage(typeId: string): boolean {
+  let engineNodeHasStage = false;
   // if engine suffix is greater than stageCount, return false
   if (!props.stageCount) return false;
   const suffix = typeId.split("_").pop();
   if (!suffix) return false;
-  const stageNumber = parseInt(suffix);
-  if (isNaN(stageNumber)) return false;
-  if (stageNumber > props.stageCount) return false;
-  return true;
+  const stageNumberForEngine = parseInt(suffix);
+  if (isNaN(stageNumberForEngine)) return false;
+  if (props.stageCount >= stageNumberForEngine) {
+    engineNodeHasStage = true;
+  }
+  return engineNodeHasStage;
+}
+
+function handleToggleNode(typeId: string) {
+  emit("toggle-node", typeId);
 }
 </script>
 
@@ -44,35 +89,17 @@ function isStageAvailable(typeId: string): boolean {
     :style="{ width: `${width}px` }"
   >
     <div
-      class="h-full p-3 flex flex-col gap-3"
+      class="h-full p-3 flex flex-col gap-8"
       :style="{ width: `${NODE_COLUMN_WIDTH}px` }"
     >
-      <template v-for="node in nodes" :key="node.typeId">
-        <StagesCard
-          v-if="node.typeId === 'stages'"
-          :typeId="node.typeId"
-          :label="node.label"
-          :owner="node.owner"
-          :separationActive="separationActive"
-          :isAnimating="isAnimating"
-          :stageCount="stageCount ?? 0"
-          @trigger-separation="emit('trigger-separation')"
-        />
-        <div v-else-if="isEngineStageNode(node.typeId)">
-          <NodeCardEngine
-            v-if="isStageAvailable(node.typeId)"
-            :label="node.label"
-            :owner="node.owner"
-            :typeId="node.typeId"
-          />
-        </div>
-        <NodeCard
-          v-else
-          :label="node.label"
-          :owner="node.owner"
-          :typeId="node.typeId"
-        />
-      </template>
+      <component
+        v-for="node in nodes"
+        :key="node.typeId"
+        :is="getNodeComponent(node.typeId)"
+        v-bind="getNodeProps(node)"
+        @toggle-node="handleToggleNode($event as string)"
+        @trigger-separation="emit('trigger-separation')"
+      />
     </div>
   </div>
 </template>

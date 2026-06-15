@@ -18,6 +18,7 @@ const emit = defineEmits<{
 
 <template>
   <NodeCardContainer :label="label" :owner="owner" :typeId="typeId">
+    xxx
     <ul class="flex flex-col gap-1">
       <li
         v-for="i in stageCount"

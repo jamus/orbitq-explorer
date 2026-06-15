@@ -416,6 +416,7 @@ function plumeHeight(thrust: number | null): number {
       :isAnimating="isAnimating"
       :stageCount="stageCountA"
       @trigger-separation="handleSeparationToggle()"
+      @toggle-node="handleNodeToggle($event as NodeTypeId)"
     />
     <div ref="boardRef" class="relative flex-1 overflow-hidden">
       <v-stage
@@ -488,6 +489,7 @@ function plumeHeight(thrust: number | null): number {
       :isAnimating="isAnimating"
       :stageCount="stageCountB"
       @trigger-separation="handleSeparationToggle()"
+      @toggle-node="handleNodeToggle($event as NodeTypeId)"
     />
 
     <CanvasPanel

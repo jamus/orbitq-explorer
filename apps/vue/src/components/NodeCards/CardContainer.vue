@@ -1,16 +1,24 @@
 <script setup lang="ts">
 import type { NodeOwner } from "../../composables/useNodeGrid";
 
-defineProps<{
+const props = defineProps<{
   label: string;
   owner: NodeOwner;
   typeId: string;
 }>();
+
+const emit = defineEmits<{
+  "toggle-node": [typeId: string];
+}>();
+
+const handleToggleNode = function () {
+  emit("toggle-node", props.typeId);
+};
 </script>
 
 <template>
   <div
-    class="relative w-full h-full font-mono uppercase tracking-widest text-orbitq-500 text-[11px]"
+    class="relative w-full font-mono uppercase tracking-widest text-orbitq-500 text-[11px]"
   >
     <div
       class="-top-2 left-2 absolute w-full flex justify-between items-center"
@@ -20,6 +28,7 @@ defineProps<{
       </div>
       <div class="top-0 right-0 absolute">
         <button
+          @click="handleToggleNode()"
           class="px-1 bg-orbitq-900 cursor-pointer"
           :class="{
             'text-red-400': owner === 'a',
