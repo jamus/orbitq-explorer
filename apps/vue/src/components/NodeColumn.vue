@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import NodeCard from "./NodeCard.vue";
-import NodeCardEngine from "./NodeCardEngine.vue";
-import StagesCard from "./StagesCard.vue";
+import NodeCard from "./NodeCards/NodeCard.vue";
+import NodeCardEngine from "./NodeCards/EngineCard.vue";
+import StagesCard from "./NodeCards/StagesCard.vue";
 import type { NodeOwner } from "../composables/useNodeGrid";
 import { NODE_COLUMN_WIDTH } from "../composables/useNodeGrid";
 
@@ -50,6 +50,7 @@ function isStageAvailable(typeId: string): boolean {
       <template v-for="node in nodes" :key="node.typeId">
         <StagesCard
           v-if="node.typeId === 'stages'"
+          :typeId="node.typeId"
           :label="node.label"
           :owner="node.owner"
           :separationActive="separationActive"

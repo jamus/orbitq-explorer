@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import type { NodeOwner } from "../composables/useNodeGrid";
+import type { NodeOwner } from "../../composables/useNodeGrid";
+import NodeCardContainer from "./CardContainer.vue";
 
 defineProps<{
+  typeId: string;
   label: string;
   owner: NodeOwner;
   separationActive: boolean;
@@ -15,19 +17,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div
-    class="min-h-32 rounded p-3 border-2 border-dashed flex flex-col gap-3"
-    :class="{
-      'border-red-400/40 bg-red-500/5': owner === 'a',
-      'border-sky-400/40 bg-sky-500/5': owner === 'b',
-      'border-yellow-400/50 bg-yellow-400/10': owner === 'shared',
-    }"
-  >
-    <span
-      class="font-mono text-[11px] uppercase tracking-widest text-orbitq-500"
-    >
-      {{ label }}
-    </span>
+  <NodeCardContainer :label="label" :owner="owner" :typeId="typeId">
     <ul class="flex flex-col gap-1">
       <li
         v-for="i in stageCount"
@@ -50,5 +40,5 @@ const emit = defineEmits<{
     >
       {{ separationActive ? "Join Stages" : "Separate" }}
     </button>
-  </div>
+  </NodeCardContainer>
 </template>
