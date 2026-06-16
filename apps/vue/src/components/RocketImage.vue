@@ -17,14 +17,12 @@ const props = defineProps<{
   worldScale: number;
   separated?: boolean;
   opacity?: number;
+  columnANodesA: string[];
 }>();
 
 const entry = computed(() => {
-  console.log("RocketImage props", props.rocket);
   const diagram = diagrams[props.rocket.id];
-  console.log(diagram, "diagram for rocket", props.rocket.id);
   if (!diagram) {
-    console.warn(`No diagram found for rocket ${props.rocket.id}`);
     return null;
   }
   return diagram;
@@ -258,19 +256,68 @@ function onRocketMouseOver(e: any) {
     </v-group>
   </v-group>
 
-  <DiagramContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y">
+  <DiagramContextMenu
+    v-if="contextMenu"
+    :x="contextMenu.x"
+    :y="contextMenu.y"
+    variant="terminal"
+  >
+    <div
+      class="border-b border-emerald-900 px-3 py-1 text-[10px] text-emerald-600"
+    >
+      +-- {{ contextMenu.target }}
+    </div>
     <button
-      class="w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+      :disabled="props.columnANodesA.includes(contextMenu.target)"
+      :class="{
+        disabled: props.columnANodesA.includes(contextMenu.target),
+      }"
+      class="terminal-menu-item"
       @click="onShowConfigurationNode(contextMenu.target)"
     >
-      Configuration
+      <span class="text-emerald-500">&gt;</span>
+      <span>configuration</span>
     </button>
     <button
       v-if="contextMenu.target === 'engine_stage_01'"
-      class="w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+      class="terminal-menu-item"
       @click="onShowThrust"
     >
-      Show thrust
+      <span class="text-emerald-500">&gt;</span>
+      <span>render thrust_trace</span>
     </button>
   </DiagramContextMenu>
 </template>
+<style scoped>
+.terminal-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  text-align: left;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: #d9f99d;
+  text-transform: uppercase;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.terminal-menu-item:hover {
+  background: #052e16;
+  color: #f7fee7;
+}
+
+.terminal-menu-item:focus-visible {
+  outline: 1px solid #bef264;
+  outline-offset: -2px;
+}
+
+.disabled {
+  color: #3f6212;
+  opacity: 0.7;
+  pointer-events: none;
+}
+</style>

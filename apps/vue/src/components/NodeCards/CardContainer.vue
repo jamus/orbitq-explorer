@@ -36,7 +36,7 @@ const handleToggleNode = function () {
             'text-yellow-400': owner === 'shared',
           }"
         >
-          <span class="sr-only">Close</span>[ x ]
+          <span class="sr-only">Close</span>[ &mdash; ]
         </button>
       </div>
     </div>

@@ -74,7 +74,6 @@ function onHideThrust() {
 }
 
 function onShowConfigurationNode(target: string) {
-  console.log("onShowConfigurationNode", target);
   handleNodeToggle(target as NodeTypeId);
 }
 
@@ -223,7 +222,6 @@ function scheduleAfterColumn(event: Parameters<typeof send>[0]) {
 onUnmounted(cancelPending);
 
 function handleNodeToggle(typeId: NodeTypeId) {
-  console.log("handleNodeToggle", typeId);
   const isCurrentlyEnabled =
     nodeList.value.find((n) => n.typeId === typeId)?.active ?? false;
 
@@ -432,6 +430,7 @@ function plumeHeight(thrust: number | null): number {
             :worldScale="animatedWorldScale"
             :separated="separationVisible"
             :opacity="rocketAOpacity"
+            :columnANodesA="columnANodesDisplay.map((n) => n.typeId)"
             @show-thrust="onShowThrust"
             @show-configuration-node="onShowConfigurationNode"
           />
