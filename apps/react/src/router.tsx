@@ -1,10 +1,10 @@
-import { createBrowserRouter } from 'react-router-dom'
-import App from './App'
-import HomeView from './views/HomeView'
+import { createBrowserRouter } from "react-router-dom";
+import App from "./App";
+import HomeView from "./views/HomeView";
 
 export const router = createBrowserRouter([
   {
-    path: '/',
+    path: "/",
     element: <App />,
     children: [
       {
@@ -13,4 +13,4 @@ export const router = createBrowserRouter([
       },
     ],
   },
-])
+]);
