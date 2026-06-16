@@ -18,6 +18,7 @@ const props = defineProps<{
   separated?: boolean;
   opacity?: number;
   columnANodesA: string[];
+  columnBNodesA: string[];
 }>();
 
 const entry = computed(() => {

@@ -431,6 +431,7 @@ function plumeHeight(thrust: number | null): number {
             :separated="separationVisible"
             :opacity="rocketAOpacity"
             :columnANodesA="columnANodesDisplay.map((n) => n.typeId)"
+            :columnBNodesA="columnBNodesDisplay.map((n) => n.typeId)"
             @show-thrust="onShowThrust"
             @show-configuration-node="onShowConfigurationNode"
           />
@@ -451,6 +452,8 @@ function plumeHeight(thrust: number | null): number {
             :worldScale="animatedWorldScale"
             :separated="separationVisible"
             :opacity="rocketBOpacity"
+            :columnANodesA="columnANodesDisplay.map((n) => n.typeId)"
+            :columnBNodesA="columnBNodesDisplay.map((n) => n.typeId)"
             @show-thrust="onShowThrust"
             @show-configuration-node="onShowConfigurationNode"
           />
