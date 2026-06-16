@@ -8,9 +8,11 @@
     "dev:vue": "pnpm --filter @orbitq/vue dev",
     "build:react": "pnpm --filter @orbitq/react build",
     "build:vue": "pnpm --filter @orbitq/vue build",
+    "dev:angular": "pnpm --filter @orbitq/angular dev",
+    "build:angular": "pnpm --filter @orbitq/angular build",
     "format": "oxfmt format apps/react/src apps/vue/src shared",
     "lint": "oxlint apps/react/src apps/vue/src shared/graphql/src",
-    "typecheck": "pnpm --filter @orbitq/react typecheck && pnpm --filter @orbitq/vue typecheck",
+    "typecheck": "pnpm --filter @orbitq/react typecheck && pnpm --filter @orbitq/vue typecheck && pnpm --filter @orbitq/angular typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "simple-git-hooks"
