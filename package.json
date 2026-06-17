@@ -39,6 +39,7 @@
       "xstate": "5.31.0"
     },
     "onlyBuiltDependencies": [
+      "esbuild",
       "simple-git-hooks",
       "vue-demi"
     ],
