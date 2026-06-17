@@ -14,7 +14,12 @@ import NodeColumn from "./NodeColumn.vue";
 import {
   BASE_PADDING_FRAC,
   BOTTOM_PADDING_FRAC,
+  CANVAS_PAD,
   CSS_COLUMN_DURATION_MS,
+  EDGE_GAP,
+  HUMAN_NATIVE_H,
+  HUMAN_NATIVE_W,
+  HUMAN_REAL_H_M,
   KN_PER_PLUME_METRE,
 } from "@shared/const/canvas";
 import { diagrams } from "@shared/const/diagrams";
@@ -75,7 +80,9 @@ function onShowConfigurationNode(target: string) {
 // Layout helpers — derived from reactive board dimensions
 // ---------------------------------------------------------------------------
 
-const humanOnlyScale = computed(() => (boardHeight.value * 0.4) / 1.75);
+const humanOnlyScale = computed(
+  () => (boardHeight.value * 0.4) / HUMAN_REAL_H_M,
+);
 
 const DEFAULT_BASELINE = computed(
   () => boardHeight.value * (1 - BOTTOM_PADDING_FRAC / BASE_PADDING_FRAC),
@@ -324,12 +331,6 @@ const stageCountB = computed(() =>
 // ---------------------------------------------------------------------------
 // Canvas positioning
 // ---------------------------------------------------------------------------
-
-const HUMAN_NATIVE_W = 30;
-const HUMAN_NATIVE_H = 175;
-const HUMAN_REAL_H_M = 1.75;
-const EDGE_GAP = 80;
-const CANVAS_PAD = 20;
 
 const xHuman = computed(() => boardWidth.value * 0.5);
 
