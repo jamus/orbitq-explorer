@@ -11,6 +11,12 @@ import HumanFigure from "./HumanFigure.vue";
 import ThrustIndicator from "./ThrustIndicator.vue";
 import CanvasPanel from "./CanvasPanel.vue";
 import NodeColumn from "./NodeColumn.vue";
+import {
+  BASE_PADDING_FRAC,
+  BOTTOM_PADDING_FRAC,
+  CSS_COLUMN_DURATION_MS,
+  KN_PER_PLUME_METRE,
+} from "@shared/const/canvas";
 import { diagrams } from "@shared/const/diagrams";
 import ScaleMagnifier from "./ScaleMagnifier.vue";
 import { useContextMenu } from "../composables/useContextMenu";
@@ -21,18 +27,6 @@ const props = defineProps<{
   rocketAFetching: boolean;
   rocketBFetching: boolean;
 }>();
-
-// ---------------------------------------------------------------------------
-// Layout constants
-// ---------------------------------------------------------------------------
-
-const TOP_PADDING_FRAC = 0.14;
-const BOTTOM_PADDING_FRAC = 0.25;
-const BASE_PADDING_FRAC = 1 + TOP_PADDING_FRAC + BOTTOM_PADDING_FRAC;
-const KN_PER_PLUME_METRE = 250;
-
-// Duration of the NodeColumn CSS width transition (must match NodeColumn.vue).
-const CSS_COLUMN_DURATION_MS = 300;
 
 // ---------------------------------------------------------------------------
 // Board size (reactive, driven by ResizeObserver on the board container)
