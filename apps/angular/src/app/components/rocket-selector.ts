@@ -1,5 +1,8 @@
-import { Component, computed, signal } from "@angular/core";
+import { Component, computed, signal, OnInit } from "@angular/core";
 import { UiCombobox, type UiComboboxOption } from "./ui/ui-combobox";
+import { Apollo, gql } from "apollo-angular";
+
+import { ROCKET_CONFIGS } from "@orbitq/graphql";
 
 type Rocket = {
   id: number;
@@ -7,38 +10,9 @@ type Rocket = {
   manufacturer: { name: string } | null;
 };
 
-const ROCKETS: Rocket[] = [
-  {
-    id: 527,
-    fullName: "SpaceX Starship V2",
-    manufacturer: { name: "SpaceX" },
-  },
-  {
-    id: 1,
-    fullName: "Saturn V",
-    manufacturer: { name: "NASA" },
-  },
-  {
-    id: 2,
-    fullName: "Falcon 9 Block 5",
-    manufacturer: { name: "SpaceX" },
-  },
-  {
-    id: 3,
-    fullName: "Ariane 5 ECA",
-    manufacturer: { name: "Arianespace" },
-  },
-  {
-    id: 4,
-    fullName: "Electron",
-    manufacturer: { name: "Rocket Lab" },
-  },
-  {
-    id: 5,
-    fullName: "New Glenn",
-    manufacturer: { name: "Blue Origin" },
-  },
-];
+type RocketConfigsQuery = {
+  rocketConfigs: Rocket[];
+};
 
 @Component({
   selector: "rocket-selector",
@@ -121,11 +95,14 @@ const ROCKETS: Rocket[] = [
     </section>
   `,
 })
-export class RocketSelector {
+export class RocketSelector implements OnInit {
   protected readonly loading = signal(false);
   protected readonly error = signal(false);
+  protected readonly rockets = signal<Rocket[]>([]);
 
-  protected readonly rocketA = signal<Rocket | null>(ROCKETS[0] ?? null);
+  constructor(private readonly apollo: Apollo) {}
+
+  protected readonly rocketA = signal<Rocket | null>(null);
   protected readonly rocketB = signal<Rocket | null>(null);
 
   protected readonly queryA = signal("");
@@ -133,6 +110,28 @@ export class RocketSelector {
   protected readonly openA = signal(false);
   protected readonly openB = signal(false);
   protected readonly compareMode = signal(false);
+
+  ngOnInit() {
+    this.loading.set(true);
+
+    this.apollo
+      .query<RocketConfigsQuery>({
+        query: ROCKET_CONFIGS,
+      })
+      .subscribe({
+        next: (result) => {
+          if (result && result.data && result.data.rocketConfigs) {
+            this.rockets.set(result.data.rocketConfigs);
+            this.loading.set(false);
+          }
+        },
+        error: (err) => {
+          console.error("Error fetching rocket configs:", err);
+          this.error.set(true);
+          this.loading.set(false);
+        },
+      });
+  }
 
   protected readonly optionsA = computed(() =>
     this.filterRockets(this.queryA()).map(toOption),
@@ -149,14 +148,14 @@ export class RocketSelector {
 
   protected selectA(option: UiComboboxOption) {
     if (option.id === this.rocketB()?.id) return;
-    this.rocketA.set(findRocket(option.id));
+    this.rocketA.set(this.findRocket(option.id));
     this.queryA.set("");
     this.openA.set(false);
   }
 
   protected selectB(option: UiComboboxOption) {
     if (option.id === this.rocketA()?.id) return;
-    this.rocketB.set(findRocket(option.id));
+    this.rocketB.set(this.findRocket(option.id));
     this.queryB.set("");
     this.openB.set(false);
   }
@@ -170,10 +169,14 @@ export class RocketSelector {
 
   private filterRockets(query: string) {
     const q = query.trim().toLowerCase();
-    if (!q) return ROCKETS;
-    return ROCKETS.filter((rocket) =>
+    if (!q) return this.rockets();
+    return this.rockets().filter((rocket) =>
       rocket.fullName.toLowerCase().includes(q),
     );
+  }
+
+  private findRocket(id: number): Rocket | null {
+    return this.rockets().find((rocket: Rocket) => rocket.id === id) ?? null;
   }
 }
 
@@ -183,8 +186,4 @@ function toOption(rocket: Rocket): UiComboboxOption {
     label: rocket.fullName,
     description: rocket.manufacturer?.name,
   };
-}
-
-function findRocket(id: number): Rocket | null {
-  return ROCKETS.find((rocket) => rocket.id === id) ?? null;
 }
