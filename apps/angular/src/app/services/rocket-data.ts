@@ -23,10 +23,11 @@ export class RocketDataService {
   readonly error = this.errorState.asReadonly();
 
   // ...
-  fetchRocketData(rocketAId: string, rocketBId: string) {
+  fetchRocketData(rocketAId: string | null, rocketBId: string | null) {
     console.log(`Fetching rocket data for IDs: ${rocketAId}, ${rocketBId}`);
 
     const ids = [rocketAId, rocketBId]
+      .filter((id): id is string => id !== null)
       .map(Number)
       .filter(Number.isInteger)
       .sort((a, b) => a - b);

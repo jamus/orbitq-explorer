@@ -1,5 +1,5 @@
 // home-view.ts
-import { Component, inject, signal } from "@angular/core";
+import { Component, inject, signal, effect } from "@angular/core";
 import { RocketDataService } from "../services/rocket-data";
 
 import { RocketSelector } from "../components/rocket-selector";
@@ -32,6 +32,10 @@ export class HomeView {
   rocketBData = signal<RocketBasic | null>(null);
 
   constructor() {
-    this.rocketData.fetchRocketData("527", "2"); // Example IDs for rocket A and B
+    effect(() => {
+      const rocketAId = this.rocketA()?.id.toString() ?? null;
+      const rocketBId = this.rocketB()?.id.toString() ?? null;
+      this.rocketData.fetchRocketData(rocketAId, rocketBId);
+    });
   }
 }
