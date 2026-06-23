@@ -1,12 +1,16 @@
-import { Component, computed, signal, OnInit, model } from "@angular/core";
+import {
+  Component,
+  computed,
+  signal,
+  OnInit,
+  model,
+  inject,
+} from "@angular/core";
 import { UiCombobox, type UiComboboxOption } from "./ui/ui-combobox";
 import { Apollo, gql } from "apollo-angular";
+import { RocketDataService } from "../services/rocket-data";
 
-import {
-  ROCKET_CONFIGS,
-  type RocketConfigsQuery,
-  type RocketBasic,
-} from "@orbitq/graphql";
+import { type RocketBasic } from "@orbitq/graphql";
 
 @Component({
   selector: "rocket-selector",
@@ -94,7 +98,7 @@ export class RocketSelector implements OnInit {
   protected readonly error = signal(false);
   protected readonly rockets = signal<RocketBasic[]>([]);
 
-  constructor(private readonly apollo: Apollo) {}
+  private readonly rocketData = inject(RocketDataService);
 
   protected readonly queryA = signal("");
   protected readonly queryB = signal("");
@@ -107,24 +111,17 @@ export class RocketSelector implements OnInit {
 
   ngOnInit() {
     this.loading.set(true);
-
-    this.apollo
-      .query<RocketConfigsQuery>({
-        query: ROCKET_CONFIGS,
-      })
-      .subscribe({
-        next: (result) => {
-          if (result && result.data && result.data.rocketConfigs) {
-            this.rockets.set(result.data.rocketConfigs);
-            this.loading.set(false);
-          }
-        },
-        error: (err) => {
-          console.error("Error fetching rocket configs:", err);
-          this.error.set(true);
-          this.loading.set(false);
-        },
-      });
+    this.rocketData.getRocketConfigs().subscribe({
+      next: (data) => {
+        this.rockets.set(data);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        console.error("Error fetching rocket configs:", err);
+        this.error.set(true);
+        this.loading.set(false);
+      },
+    });
   }
 
   protected readonly optionsA = computed(() =>
