@@ -71,9 +71,6 @@ importers:
       apollo-angular:
         specifier: ^14.1.0
         version: 14.1.0(@angular/core@21.2.16(@angular/compiler@21.2.16)(rxjs@7.8.2))(@apollo/client@4.1.9(graphql@16.13.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rxjs@7.8.2))(graphql@16.13.2)(rxjs@7.8.2)
-      build:dev-server:
-        specifier: link:@angular/build:dev-server
-        version: link:@angular/build:dev-server
       graphql:
         specifier: ^16
         version: 16.13.2
