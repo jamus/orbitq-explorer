@@ -7,7 +7,6 @@ import {
   inject,
 } from "@angular/core";
 import { UiCombobox, type UiComboboxOption } from "./ui/ui-combobox";
-import { Apollo, gql } from "apollo-angular";
 import { RocketDataService } from "../services/rocket-data";
 
 import { type RocketBasic } from "@orbitq/graphql";
@@ -16,10 +15,11 @@ import { type RocketBasic } from "@orbitq/graphql";
   selector: "rocket-selector",
   imports: [UiCombobox],
   template: `
+    <pre>{{ rocketData.loading() }} </pre>
     <section class="w-full px-6 py-3">
-      @if (loading()) {
+      @if (rocketData.loading()) {
         <p class="font-mono text-orbitq-600 text-sm text-center">Loading...</p>
-      } @else if (error()) {
+      } @else if (rocketData.error()) {
         <p class="font-mono text-status-negative text-sm text-center">
           Failed to load rockets. Please try again later.
         </p>
@@ -94,11 +94,7 @@ import { type RocketBasic } from "@orbitq/graphql";
   `,
 })
 export class RocketSelector implements OnInit {
-  protected readonly loading = signal(false);
-  protected readonly error = signal(false);
-  protected readonly rockets = signal<RocketBasic[]>([]);
-
-  private readonly rocketData = inject(RocketDataService);
+  protected readonly rocketData = inject(RocketDataService);
 
   protected readonly queryA = signal("");
   protected readonly queryB = signal("");
@@ -110,18 +106,7 @@ export class RocketSelector implements OnInit {
   rocketB = model<RocketBasic | null>(null);
 
   ngOnInit() {
-    this.loading.set(true);
-    this.rocketData.getRocketConfigs().subscribe({
-      next: (data) => {
-        this.rockets.set(data);
-        this.loading.set(false);
-      },
-      error: (err) => {
-        console.error("Error fetching rocket configs:", err);
-        this.error.set(true);
-        this.loading.set(false);
-      },
-    });
+    this.rocketData.fetchRocketConfigs();
   }
 
   protected readonly optionsA = computed(() =>
@@ -160,14 +145,14 @@ export class RocketSelector implements OnInit {
 
   private filterRockets(query: string) {
     const q = query.trim().toLowerCase();
-    if (!q) return this.rockets();
-    return this.rockets().filter((rocket) =>
-      rocket.fullName.toLowerCase().includes(q),
-    );
+    if (!q) return this.rocketData.rockets();
+    return this.rocketData
+      .rockets()
+      .filter((rocket) => rocket.fullName.toLowerCase().includes(q));
   }
 
   private findRocket(id: number): RocketBasic | null {
-    return this.rockets().find((rocket) => rocket.id === id) ?? null;
+    return this.rocketData.rockets().find((rocket) => rocket.id === id) ?? null;
   }
 }
 
