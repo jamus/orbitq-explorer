@@ -1,5 +1,5 @@
 import { inject, Injectable, signal } from "@angular/core";
-import { Apollo, gql } from "apollo-angular";
+import { Apollo } from "apollo-angular";
 import { finalize, map } from "rxjs";
 
 import {
