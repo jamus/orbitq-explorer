@@ -21,7 +21,6 @@
     "@angular/router": "^21.2.0",
     "@orbitq/assets": "workspace:*",
     "apollo-angular": "^14.1.0",
-    "build:dev-server": "link:@angular/build:dev-server",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "@apollo/client": "^4.0.1",
