@@ -48,12 +48,14 @@ export type RocketConfig = {
   landingStats: LandingStats | null;
 };
 
+export type RocketBasic = {
+  id: number;
+  fullName: string;
+  manufacturer: { name: string } | null;
+};
+
 export type RocketConfigsQuery = {
-  rocketConfigs: {
-    id: number;
-    fullName: string;
-    manufacturer: { name: string } | null;
-  }[];
+  rocketConfigs: RocketBasic[];
 };
 
 export type RocketConfigsByIdsQuery = {

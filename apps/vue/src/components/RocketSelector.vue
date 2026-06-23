@@ -2,7 +2,7 @@
 import { ref, computed, watch } from "vue";
 import { useQuery } from "@vue/apollo-composable";
 import { ROCKET_CONFIGS } from "@orbitq/graphql";
-import type { RocketConfigsQuery } from "@orbitq/graphql";
+import type { RocketBasic, RocketConfigsQuery } from "@orbitq/graphql";
 import {
   Combobox,
   ComboboxInput,
@@ -11,14 +11,12 @@ import {
   ComboboxOption,
 } from "@headlessui/vue";
 
-type Rocket = RocketConfigsQuery["rocketConfigs"][number];
-
 const { result, loading, error } = useQuery<RocketConfigsQuery>(ROCKET_CONFIGS);
 
-const rocketA = defineModel<Rocket | null>("rocketA", { default: null });
+const rocketA = defineModel<RocketBasic | null>("rocketA", { default: null });
 const queryA = ref("");
 
-const rocketB = defineModel<Rocket | null>("rocketB", { default: null });
+const rocketB = defineModel<RocketBasic | null>("rocketB", { default: null });
 const queryB = ref("");
 
 const compareMode = ref(false);
@@ -50,12 +48,12 @@ function filterRockets(query: string) {
 const filteredA = computed(() => filterRockets(queryA.value));
 const filteredB = computed(() => filterRockets(queryB.value));
 
-function handleSelectA(val: Rocket | null) {
+function handleSelectA(val: RocketBasic | null) {
   if (val === null) return;
   rocketA.value = val;
 }
 
-function handleSelectB(val: Rocket | null) {
+function handleSelectB(val: RocketBasic | null) {
   if (val === null) return;
   rocketB.value = val;
 }
@@ -93,7 +91,7 @@ function removeCompare() {
             <ComboboxInput
               class="w-full border border-orbitq-700 text-orbitq-50 font-mono text-sm rounded-sm px-3 py-2 pr-8 focus:outline-none focus:border-orbitq-600 transition-colors placeholder:text-orbitq-600"
               :displayValue="
-                (r: unknown) => (r as Rocket | null)?.fullName ?? ''
+                (r: unknown) => (r as RocketBasic | null)?.fullName ?? ''
               "
               placeholder="Select rocket A"
               @focus="
@@ -186,7 +184,7 @@ function removeCompare() {
                 <ComboboxInput
                   class="w-full border border-orbitq-700 text-orbitq-50 font-mono text-sm rounded-sm px-3 py-2 pr-8 focus:outline-none focus:border-orbitq-600 transition-colors placeholder:text-orbitq-600"
                   :displayValue="
-                    (r: unknown) => (r as Rocket | null)?.fullName ?? ''
+                    (r: unknown) => (r as RocketBasic | null)?.fullName ?? ''
                   "
                   placeholder="Select rocket B"
                   @focus="

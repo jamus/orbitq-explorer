@@ -3,12 +3,12 @@ import type { Ref } from "vue";
 import { useQuery } from "@vue/apollo-composable";
 import { ROCKET_CONFIGS_BY_IDS } from "@orbitq/graphql";
 import type {
-  RocketConfigsQuery,
   RocketConfigsByIdsQuery,
   RocketConfigsByIdsVariables,
+  RocketBasic,
 } from "@orbitq/graphql";
 
-export type SlimRocket = RocketConfigsQuery["rocketConfigs"][number];
+export type SlimRocket = RocketBasic;
 
 export function useRocketData(
   rocketA: Ref<SlimRocket | null>,
