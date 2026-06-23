@@ -1,4 +1,4 @@
-import { Component, computed, signal, OnInit } from "@angular/core";
+import { Component, computed, signal, OnInit, model } from "@angular/core";
 import { UiCombobox, type UiComboboxOption } from "./ui/ui-combobox";
 import { Apollo, gql } from "apollo-angular";
 
@@ -102,14 +102,14 @@ export class RocketSelector implements OnInit {
 
   constructor(private readonly apollo: Apollo) {}
 
-  protected readonly rocketA = signal<Rocket | null>(null);
-  protected readonly rocketB = signal<Rocket | null>(null);
-
   protected readonly queryA = signal("");
   protected readonly queryB = signal("");
   protected readonly openA = signal(false);
   protected readonly openB = signal(false);
   protected readonly compareMode = signal(false);
+
+  rocketA = model<Rocket | null>(null);
+  rocketB = model<Rocket | null>(null);
 
   ngOnInit() {
     this.loading.set(true);
