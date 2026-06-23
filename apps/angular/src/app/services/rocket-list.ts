@@ -9,7 +9,7 @@ import {
 } from "@orbitq/graphql";
 
 @Injectable({ providedIn: "root" })
-export class RocketDataService {
+export class RocketListService {
   private readonly apollo = inject(Apollo);
 
   private readonly rocketData = signal<RocketBasic[]>([]);

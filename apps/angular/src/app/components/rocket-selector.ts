@@ -7,7 +7,7 @@ import {
   inject,
 } from "@angular/core";
 import { UiCombobox, type UiComboboxOption } from "./ui/ui-combobox";
-import { RocketDataService } from "../services/rocket-data";
+import { RocketListService } from "../services/rocket-list";
 
 import { type RocketBasic } from "@orbitq/graphql";
 
@@ -94,7 +94,7 @@ import { type RocketBasic } from "@orbitq/graphql";
   `,
 })
 export class RocketSelector implements OnInit {
-  protected readonly rocketData = inject(RocketDataService);
+  protected readonly rocketData = inject(RocketListService);
 
   protected readonly queryA = signal("");
   protected readonly queryB = signal("");
