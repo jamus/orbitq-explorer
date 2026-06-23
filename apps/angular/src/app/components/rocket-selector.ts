@@ -2,17 +2,11 @@ import { Component, computed, signal, OnInit, model } from "@angular/core";
 import { UiCombobox, type UiComboboxOption } from "./ui/ui-combobox";
 import { Apollo, gql } from "apollo-angular";
 
-import { ROCKET_CONFIGS } from "@orbitq/graphql";
-
-type Rocket = {
-  id: number;
-  fullName: string;
-  manufacturer: { name: string } | null;
-};
-
-type RocketConfigsQuery = {
-  rocketConfigs: Rocket[];
-};
+import {
+  ROCKET_CONFIGS,
+  type RocketConfigsQuery,
+  type RocketBasic,
+} from "@orbitq/graphql";
 
 @Component({
   selector: "rocket-selector",
@@ -98,7 +92,7 @@ type RocketConfigsQuery = {
 export class RocketSelector implements OnInit {
   protected readonly loading = signal(false);
   protected readonly error = signal(false);
-  protected readonly rockets = signal<Rocket[]>([]);
+  protected readonly rockets = signal<RocketBasic[]>([]);
 
   constructor(private readonly apollo: Apollo) {}
 
@@ -108,8 +102,8 @@ export class RocketSelector implements OnInit {
   protected readonly openB = signal(false);
   protected readonly compareMode = signal(false);
 
-  rocketA = model<Rocket | null>(null);
-  rocketB = model<Rocket | null>(null);
+  rocketA = model<RocketBasic | null>(null);
+  rocketB = model<RocketBasic | null>(null);
 
   ngOnInit() {
     this.loading.set(true);
@@ -175,12 +169,12 @@ export class RocketSelector implements OnInit {
     );
   }
 
-  private findRocket(id: number): Rocket | null {
-    return this.rockets().find((rocket: Rocket) => rocket.id === id) ?? null;
+  private findRocket(id: number): RocketBasic | null {
+    return this.rockets().find((rocket) => rocket.id === id) ?? null;
   }
 }
 
-function toOption(rocket: Rocket): UiComboboxOption {
+function toOption(rocket: RocketBasic): UiComboboxOption {
   return {
     id: rocket.id,
     label: rocket.fullName,

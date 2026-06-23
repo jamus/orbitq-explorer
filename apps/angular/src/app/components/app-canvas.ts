@@ -1,11 +1,6 @@
 // app-canvas.ts
 import { Component, input, Input } from "@angular/core";
-
-type Rocket = {
-  id: number;
-  fullName: string;
-  manufacturer: { name: string } | null;
-};
+import type { RocketBasic } from "@orbitq/graphql";
 
 @Component({
   selector: "app-canvas",
@@ -20,6 +15,6 @@ type Rocket = {
   `,
 })
 export class AppCanvas {
-  rocketAData = input<Rocket | null>();
-  rocketBData = input<Rocket | null>();
+  rocketAData = input<RocketBasic | null>();
+  rocketBData = input<RocketBasic | null>();
 }

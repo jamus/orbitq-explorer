@@ -2,12 +2,7 @@
 import { Component, signal } from "@angular/core";
 import { RocketSelector } from "../components/rocket-selector";
 import { AppCanvas } from "../components/app-canvas";
-
-type Rocket = {
-  id: number;
-  fullName: string;
-  manufacturer: { name: string } | null;
-};
+import type { RocketBasic } from "@orbitq/graphql";
 
 @Component({
   selector: "home-view",
@@ -25,6 +20,6 @@ type Rocket = {
 })
 export class HomeView {
   // Component behavior is defined in here
-  rocketA = signal<Rocket | null>(null);
-  rocketB = signal<Rocket | null>(null);
+  rocketA = signal<RocketBasic | null>(null);
+  rocketB = signal<RocketBasic | null>(null);
 }
