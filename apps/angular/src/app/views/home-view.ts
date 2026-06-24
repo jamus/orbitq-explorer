@@ -1,18 +1,12 @@
 // home-view.ts
-import {
-  Component,
-  inject,
-  signal,
-  effect,
-  computed,
-  Signal,
-} from "@angular/core";
+import { Component, inject, signal, effect, computed } from "@angular/core";
 import { RocketDataService } from "../services/rocket-data";
 
 import { RocketSelector } from "../components/rocket-selector";
 import { AppCanvas } from "../components/app-canvas";
 
 import type { RocketBasic, RocketConfig } from "@orbitq/graphql";
+import { RocketListService } from "../services/rocket-list";
 
 @Component({
   selector: "home-view",
@@ -29,18 +23,19 @@ import type { RocketBasic, RocketConfig } from "@orbitq/graphql";
   `,
 })
 export class HomeView {
+  protected readonly rocketList = inject(RocketListService);
   protected readonly rocketData = inject(RocketDataService);
   // Component behavior is defined in here
   rocketA = signal<RocketBasic | null>(null);
   rocketB = signal<RocketBasic | null>(null);
 
-  rocketAData = computed(() => {
+  rocketAData = computed<RocketConfig | null>(() => {
     if (!this.rocketA()) return null;
     return (
       this.rocketData.rockets().find((r) => r.id === this.rocketA()!.id) ?? null
     );
   });
-  rocketBData = computed(() => {
+  rocketBData = computed<RocketConfig | null>(() => {
     if (!this.rocketB()) return null;
     return (
       this.rocketData.rockets().find((r) => r.id === this.rocketB()!.id) ?? null
@@ -48,6 +43,14 @@ export class HomeView {
   });
 
   constructor() {
+    effect(() => {
+      if (this.rocketA() !== null) return;
+      const defaultRocket =
+        this.rocketList.rockets().find((rocket) => rocket.id === 527) ?? null;
+      if (defaultRocket) {
+        this.rocketA.set(defaultRocket);
+      }
+    });
     effect(() => {
       const rocketAId = this.rocketA()?.id.toString() ?? null;
       const rocketBId = this.rocketB()?.id.toString() ?? null;
