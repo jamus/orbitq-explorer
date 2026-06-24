@@ -54,7 +54,7 @@ export class HomeView {
     effect(() => {
       const rocketAId = this.rocketA()?.id.toString() ?? null;
       const rocketBId = this.rocketB()?.id.toString() ?? null;
-      this.rocketData.fetchRocketData(rocketAId, rocketBId);
+      this.rocketData.setSelectedRockets(rocketAId, rocketBId);
     });
   }
 }
