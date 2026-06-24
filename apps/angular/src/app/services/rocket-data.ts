@@ -24,7 +24,10 @@ export class RocketDataService {
 
   // ...
   fetchRocketData(rocketAId: string | null, rocketBId: string | null) {
-    console.log(`Fetching rocket data for IDs: ${rocketAId}, ${rocketBId}`);
+    if (rocketAId === null && rocketBId === null) {
+      this.rocketData.set([]);
+      return;
+    }
 
     const ids = [rocketAId, rocketBId]
       .filter((id): id is string => id !== null)
