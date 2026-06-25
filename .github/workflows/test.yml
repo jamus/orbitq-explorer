@@ -17,6 +17,7 @@ jobs:
           cache: "pnpm"
       - run: pnpm install
       - run: pnpm test
+      - run: pnpm --filter @orbitq/angular test
 
   build:
     runs-on: ubuntu-latest
