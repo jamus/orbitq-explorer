@@ -19,6 +19,8 @@ import { RocketListService } from "../services/rocket-list";
     <app-canvas
       [rocketAData]="rocketAData()"
       [rocketBData]="rocketBData()"
+      [rocketAFetching]="rocketAFetching()"
+      [rocketBFetching]="rocketBFetching()"
     ></app-canvas>
   `,
 })
@@ -41,6 +43,9 @@ export class HomeView {
       this.rocketData.rockets().find((r) => r.id === this.rocketB()!.id) ?? null
     );
   });
+
+  rocketAFetching = computed(() => !!this.rocketA() && !this.rocketAData());
+  rocketBFetching = computed(() => !!this.rocketB() && !this.rocketBData());
 
   constructor() {
     effect(() => {
