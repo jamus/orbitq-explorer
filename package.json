@@ -14,6 +14,8 @@
     "lint": "oxlint apps/react/src apps/vue/src apps/angular/src shared/graphql/src",
     "typecheck": "pnpm --filter @orbitq/react typecheck && pnpm --filter @orbitq/vue typecheck && pnpm --filter @orbitq/angular typecheck",
     "test": "vitest run",
+    "test:shared": "vitest run shared",
+    "test:vue": "vitest run apps/vue/src",
     "test:watch": "vitest",
     "prepare": "simple-git-hooks"
   },
