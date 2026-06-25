@@ -7,6 +7,11 @@ import { AppCanvas } from "../components/app-canvas";
 
 import type { RocketBasic, RocketConfig } from "@orbitq/graphql";
 import { RocketListService } from "../services/rocket-list";
+import {
+  findSelectedRocketData,
+  isRocketFetching,
+  pickDefaultRocketA,
+} from "../services/rocket-data-utils";
 
 @Component({
   selector: "home-view",
@@ -32,27 +37,27 @@ export class HomeView {
   rocketB = signal<RocketBasic | null>(null);
 
   rocketAData = computed<RocketConfig | null>(() => {
-    if (!this.rocketA()) return null;
-    return (
-      this.rocketData.rockets().find((r) => r.id === this.rocketA()!.id) ?? null
-    );
+    return findSelectedRocketData(this.rocketA(), this.rocketData.rockets());
   });
   rocketBData = computed<RocketConfig | null>(() => {
-    if (!this.rocketB()) return null;
-    return (
-      this.rocketData.rockets().find((r) => r.id === this.rocketB()!.id) ?? null
-    );
+    return findSelectedRocketData(this.rocketB(), this.rocketData.rockets());
   });
 
-  rocketAFetching = computed(() => !!this.rocketA() && !this.rocketAData());
-  rocketBFetching = computed(() => !!this.rocketB() && !this.rocketBData());
+  rocketAFetching = computed(() =>
+    isRocketFetching(this.rocketA(), this.rocketAData()),
+  );
+  rocketBFetching = computed(() =>
+    isRocketFetching(this.rocketB(), this.rocketBData()),
+  );
 
   constructor() {
     effect(() => {
-      if (this.rocketA() !== null) return;
-      const defaultRocket =
-        this.rocketList.rockets().find((rocket) => rocket.id === 527) ?? null;
-      if (defaultRocket) {
+      const currentRocketA = this.rocketA();
+      const defaultRocket = pickDefaultRocketA(
+        this.rocketList.rockets(),
+        currentRocketA,
+      );
+      if (currentRocketA === null && defaultRocket) {
         this.rocketA.set(defaultRocket);
       }
     });

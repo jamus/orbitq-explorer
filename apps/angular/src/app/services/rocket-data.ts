@@ -17,26 +17,11 @@ import {
   type RocketConfigsByIdsQuery,
   type RocketConfigsByIdsVariables,
 } from "@orbitq/graphql";
-
-type RocketSelection = [string | null, string | null];
-
-// Convert the UI's string ids to the canonical request shape. Sorting makes
-// selecting A then B equivalent to selecting B then A.
-function toRocketIds(selection: RocketSelection): number[] {
-  return selection
-    .filter((id): id is string => id !== null)
-    .map(Number)
-    .filter(Number.isInteger)
-    .sort((a, b) => a - b);
-}
-
-// RxJS needs an explicit comparison for array values.
-function haveSameIds(previous: number[], current: number[]): boolean {
-  return (
-    previous.length === current.length &&
-    previous.every((id, index) => id === current[index])
-  );
-}
+import {
+  haveSameIds,
+  toRocketIds,
+  type RocketSelection,
+} from "./rocket-data-utils";
 
 @Injectable({ providedIn: "root" })
 export class RocketDataService {
