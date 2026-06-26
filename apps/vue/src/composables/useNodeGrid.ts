@@ -31,6 +31,17 @@ const NODE_REGISTRY: Record<NodeTypeId, NodeTypeDef> = {
 };
 
 export const NODE_COLUMN_WIDTH = 260;
+export const NODE_CARD_PRIORITY_ORDER: readonly NodeTypeId[] = [
+  "overview",
+  "stages",
+  "engine_stage_02",
+  "engine_stage_01",
+  "thrust",
+];
+
+const NODE_CARD_PRIORITY = new Map(
+  NODE_CARD_PRIORITY_ORDER.map((typeId, index) => [typeId, index]),
+);
 
 export function useNodeGrid() {
   // isEnabled: drives CSS column open/close; worldscale for diagram nodes.
@@ -92,6 +103,11 @@ export function useNodeGrid() {
             isEnabled[typeId] &&
             (NODE_REGISTRY[typeId].owner === side ||
               NODE_REGISTRY[typeId].owner === "both"),
+        )
+        .sort(
+          (a, b) =>
+            (NODE_CARD_PRIORITY.get(a) ?? Number.MAX_SAFE_INTEGER) -
+            (NODE_CARD_PRIORITY.get(b) ?? Number.MAX_SAFE_INTEGER),
         )
         .map((typeId) => ({
           typeId,

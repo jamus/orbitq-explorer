@@ -238,6 +238,23 @@ describe("useNodeGrid", () => {
       expect(columnBNodes.value).toHaveLength(3);
     });
 
+    it("orders overview first and thrust last in node-card columns", () => {
+      const { enableNode, columnANodes } = useNodeGrid();
+      enableNode("thrust");
+      enableNode("overview");
+      enableNode("stages");
+      enableNode("engine_stage_01");
+      enableNode("engine_stage_02");
+
+      expect(columnANodes.value.map((n) => n.typeId)).toEqual([
+        "overview",
+        "stages",
+        "engine_stage_01",
+        "engine_stage_02",
+        "thrust",
+      ]);
+    });
+
     it("column list shrinks after disabling one node", () => {
       const { enableNode, disableNode, columnANodes } = useNodeGrid();
       enableNode("thrust");
