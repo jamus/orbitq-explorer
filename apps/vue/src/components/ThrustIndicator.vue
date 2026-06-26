@@ -62,6 +62,7 @@ const props = defineProps<{
   rocketWidth: number;
   thrust: number | null;
   plumeHeight: number;
+  glitchEffectsEnabled: boolean;
 }>();
 
 const { closeSignal } = useContextMenu();
@@ -119,6 +120,7 @@ const thrustGlitch = useKonvaGlitch(
   THRUST_APPLY_GLITCH,
   () => plumeBounds.value,
   STROKE_WIDTH,
+  computed(() => props.glitchEffectsEnabled),
 );
 
 const formattedThrust = computed(() =>

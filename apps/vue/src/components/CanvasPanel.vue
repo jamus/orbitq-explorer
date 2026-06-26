@@ -3,6 +3,8 @@ import { ref } from "vue";
 
 const props = defineProps<{
   showScaleReference: boolean;
+  glitchEffectsEnabled: boolean;
+  prefersReducedMotion: boolean;
   isAnimating: boolean;
   nodes: {
     typeId: string;
@@ -14,6 +16,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "update:showScaleReference": [value: boolean];
+  "update:glitchEffectsEnabled": [value: boolean];
   "toggle-node": [typeId: string];
 }>();
 
@@ -62,7 +65,7 @@ const isOpen = ref(false);
           <p
             class="font-mono text-xs text-orbitq-500 uppercase tracking-widest"
           >
-            Canvas Controls
+            Settings
           </p>
         </div>
 
@@ -86,6 +89,33 @@ const isOpen = ref(false);
               />
               <span class="text-sm text-orbitq-200">Scale Reference</span>
             </label>
+            <label
+              class="mt-3 flex items-center gap-2"
+              :class="
+                props.prefersReducedMotion
+                  ? 'cursor-not-allowed opacity-60'
+                  : 'cursor-pointer'
+              "
+            >
+              <input
+                type="checkbox"
+                :checked="props.glitchEffectsEnabled"
+                :disabled="props.prefersReducedMotion"
+                @change="
+                  emit(
+                    'update:glitchEffectsEnabled',
+                    ($event.target as HTMLInputElement).checked,
+                  )
+                "
+              />
+              <span class="text-sm text-orbitq-200">Glitch effects</span>
+            </label>
+            <p
+              v-if="props.prefersReducedMotion"
+              class="mt-2 text-xs text-orbitq-600"
+            >
+              Disabled by your browser motion setting.
+            </p>
           </div>
 
           <div
@@ -156,11 +186,51 @@ const isOpen = ref(false);
             <p
               class="font-mono text-xs text-orbitq-500 uppercase tracking-widest mb-3"
             >
-              Components
+              Credits &amp; thanks
             </p>
-            <p class="text-xs text-orbitq-600 italic">
-              Click diagram parts to activate — coming soon
-            </p>
+            <ul class="space-y-2 text-xs text-orbitq-500">
+              <li>
+                Human icon by
+                <a
+                  href="https://thenounproject.com/creator/yangdonggyoo/"
+                  target="_blank"
+                  rel="noopener"
+                  class="underline hover:text-orbitq-300 transition-colors"
+                  >Dong Gyu Yang</a
+                >
+                via Noun Project.
+              </li>
+              <li>
+                Glitch effect reference:
+                <a
+                  href="https://deloughry.co.uk/posts/building-glitch-effects-with-css/"
+                  target="_blank"
+                  rel="noopener"
+                  class="underline hover:text-orbitq-300 transition-colors"
+                  >Building glitch effects with CSS</a
+                >.
+              </li>
+              <li>
+                Rocket and launch data:
+                <a
+                  href="https://thespacedevs.com/llapi"
+                  target="_blank"
+                  rel="noopener"
+                  class="underline hover:text-orbitq-300 transition-colors"
+                  >The Space Devs LL2 API</a
+                >.
+              </li>
+              <li>
+                Built alongside the
+                <a
+                  href="https://www.orbitq.app/"
+                  target="_blank"
+                  rel="noopener"
+                  class="underline hover:text-orbitq-300 transition-colors"
+                  >OrbitQ launch tracker app</a
+                >.
+              </li>
+            </ul>
           </div>
         </div>
       </div>

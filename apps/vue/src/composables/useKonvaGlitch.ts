@@ -1,4 +1,4 @@
-import { computed, onUnmounted, ref } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
 
 export type GlitchBounds = {
@@ -101,6 +101,7 @@ export function useKonvaGlitch(
   config: KonvaGlitchConfig,
   getBounds: () => GlitchBounds | null,
   strokeWidth: ComputedRef<number> | number,
+  isEnabled: ComputedRef<boolean> | boolean = true,
 ) {
   const active = ref(false);
   const concealed = ref(false);
@@ -126,6 +127,9 @@ export function useKonvaGlitch(
 
   const resolvedStrokeWidth = computed(() =>
     typeof strokeWidth === "number" ? strokeWidth : strokeWidth.value,
+  );
+  const enabled = computed(() =>
+    typeof isEnabled === "boolean" ? isEnabled : isEnabled.value,
   );
 
   const layerConfig = computed(() => ({
@@ -329,7 +333,7 @@ export function useKonvaGlitch(
   }
 
   function start(options: StartOptions = {}) {
-    if (prefersReducedMotion() || !getBounds()) {
+    if (!enabled.value || prefersReducedMotion() || !getBounds()) {
       stop();
       return;
     }
@@ -348,6 +352,10 @@ export function useKonvaGlitch(
       run();
     }, delayMs);
   }
+
+  watch(enabled, (value) => {
+    if (!value) stop();
+  });
 
   onUnmounted(stop);
 

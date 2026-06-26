@@ -72,6 +72,7 @@ function asElement(el: Element): HTMLElement {
 
 export function useDomGlitchTransition(
   config: Partial<DomGlitchTransitionConfig> = {},
+  isEnabled: () => boolean = () => true,
 ) {
   const resolved = { ...DEFAULT_DOM_GLITCH, ...config };
   const timeouts = new Set<number>();
@@ -85,6 +86,8 @@ export function useDomGlitchTransition(
   }
 
   function beforeEnter(el: Element) {
+    if (!isEnabled()) return;
+
     const node = asElement(el);
     node.style.opacity = "0";
     node.style.transform = `translateY(${resolved.initialY}px)`;
@@ -93,7 +96,7 @@ export function useDomGlitchTransition(
   function enter(el: Element, done: () => void) {
     const node = asElement(el);
 
-    if (prefersReducedMotion()) {
+    if (!isEnabled() || prefersReducedMotion()) {
       node.style.opacity = "";
       node.style.transform = "";
       done();

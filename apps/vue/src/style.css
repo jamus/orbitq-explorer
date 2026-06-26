@@ -21,41 +21,36 @@
 
 .dom-glitch-entering::before {
   border: 1px solid var(--dom-glitch-cyan, rgba(0, 217, 255, 0.42));
-  background:
-    linear-gradient(
-      to bottom,
-      transparent 0 var(--dom-glitch-scan-a, 18%),
-      var(--dom-glitch-scanline, rgba(255, 255, 255, 0.14))
-        var(--dom-glitch-scan-a, 18%) var(--dom-glitch-scan-b, 20%),
-      transparent var(--dom-glitch-scan-b, 20%)
-        var(--dom-glitch-scan-c, 42%),
-      var(--dom-glitch-cyan, rgba(0, 217, 255, 0.42))
-        var(--dom-glitch-scan-c, 42%) var(--dom-glitch-scan-d, 44%),
-      transparent var(--dom-glitch-scan-d, 44%) 100%
-    );
+  background: linear-gradient(
+    to bottom,
+    transparent 0 var(--dom-glitch-scan-a, 18%),
+    var(--dom-glitch-scanline, rgba(255, 255, 255, 0.14))
+      var(--dom-glitch-scan-a, 18%) var(--dom-glitch-scan-b, 20%),
+    transparent var(--dom-glitch-scan-b, 20%) var(--dom-glitch-scan-c, 42%),
+    var(--dom-glitch-cyan, rgba(0, 217, 255, 0.42))
+      var(--dom-glitch-scan-c, 42%) var(--dom-glitch-scan-d, 44%),
+    transparent var(--dom-glitch-scan-d, 44%) 100%
+  );
   animation: dom-glitch-cyan var(--dom-glitch-duration, 260ms) steps(2, end)
     both;
 }
 
 .dom-glitch-entering::after {
   border: 1px solid var(--dom-glitch-red, rgba(255, 71, 87, 0.46));
-  background:
-    linear-gradient(
-      to right,
-      transparent 0 var(--dom-glitch-block-a, 12%),
-      var(--dom-glitch-red, rgba(255, 71, 87, 0.46))
-        var(--dom-glitch-block-a, 12%) var(--dom-glitch-block-b, 28%),
-      transparent var(--dom-glitch-block-b, 28%)
-        var(--dom-glitch-block-c, 62%),
-      var(--dom-glitch-cyan, rgba(0, 217, 255, 0.42))
-        var(--dom-glitch-block-c, 62%) var(--dom-glitch-block-d, 78%),
-      transparent var(--dom-glitch-block-d, 78%) 100%
-    );
+  background: linear-gradient(
+    to right,
+    transparent 0 var(--dom-glitch-block-a, 12%),
+    var(--dom-glitch-red, rgba(255, 71, 87, 0.46))
+      var(--dom-glitch-block-a, 12%) var(--dom-glitch-block-b, 28%),
+    transparent var(--dom-glitch-block-b, 28%) var(--dom-glitch-block-c, 62%),
+    var(--dom-glitch-cyan, rgba(0, 217, 255, 0.42))
+      var(--dom-glitch-block-c, 62%) var(--dom-glitch-block-d, 78%),
+    transparent var(--dom-glitch-block-d, 78%) 100%
+  );
   clip-path: inset(
     var(--dom-glitch-clip-a, 18%) 0 var(--dom-glitch-clip-b, 58%) 0
   );
-  animation: dom-glitch-red var(--dom-glitch-duration, 260ms) steps(2, end)
-    both;
+  animation: dom-glitch-red var(--dom-glitch-duration, 260ms) steps(2, end) both;
 }
 
 @keyframes dom-glitch-materialize {

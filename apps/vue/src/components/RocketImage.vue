@@ -105,6 +105,7 @@ const props = defineProps<{
   opacity?: number;
   columnANodesA: string[];
   columnBNodesA: string[];
+  glitchEffectsEnabled: boolean;
 }>();
 
 const entry = computed(() => {
@@ -216,12 +217,14 @@ const loadGlitch = useKonvaGlitch(
   ROCKET_LOAD_GLITCH,
   () => entry.value?.viewBox ?? null,
   STROKE_WIDTH,
+  computed(() => props.glitchEffectsEnabled),
 );
 const engineGlitchTarget = ref<string | null>(null);
 const engineGlitch = useKonvaGlitch(
   ENGINE_ROLLOVER_GLITCH,
   () => entry.value?.viewBox ?? null,
   STROKE_WIDTH,
+  computed(() => props.glitchEffectsEnabled),
 );
 
 watch(

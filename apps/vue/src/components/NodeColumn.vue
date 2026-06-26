@@ -22,6 +22,7 @@ const props = defineProps<{
   width: number;
   separationActive: boolean;
   isAnimating: boolean;
+  glitchEffectsEnabled: boolean;
   stageCount?: number;
 }>();
 
@@ -30,7 +31,7 @@ const emit = defineEmits<{
   "toggle-node": [typeId: string];
 }>();
 
-const cardGlitch = useDomGlitchTransition();
+const cardGlitch = useDomGlitchTransition({}, () => props.glitchEffectsEnabled);
 
 const getNodeComponent = (typeId: string) => {
   if (typeId === "stages") {
