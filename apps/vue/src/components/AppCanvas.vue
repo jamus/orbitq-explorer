@@ -289,14 +289,14 @@ const hasRocketWithStages = computed(
   () => hasRocketAWithStages.value || hasRocketBWithStages.value,
 );
 
-// Auto-show the stages node when any staged rocket is loaded.
-// Reset separation when stages disappear.
+// Auto-show the overview node when any staged rocket is loaded.
+// Reset separation when overview disappear.
 watch(
   hasRocketWithStages,
   (has) => {
-    if (has) enableNode("stages");
+    if (has) enableNode("overview");
     else {
-      disableNode("stages");
+      disableNode("overview");
       separationVisible.value = false;
     }
   },
@@ -431,6 +431,7 @@ function plumeHeight(thrust: number | null): number {
       :isAnimating="isAnimating"
       :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
       :stageCount="stageCountA"
+      :rocket="displayRocketA"
       @trigger-separation="handleSeparationToggle()"
       @toggle-node="handleNodeToggle($event as NodeTypeId)"
     />
@@ -453,6 +454,7 @@ function plumeHeight(thrust: number | null): number {
             :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
             @show-thrust="onShowThrust"
             @show-configuration-node="onShowConfigurationNode"
+            @trigger-separation="handleSeparationToggle"
           />
           <ThrustIndicator
             v-if="displayRocketA && thrustRenderVisible"
@@ -477,6 +479,7 @@ function plumeHeight(thrust: number | null): number {
             :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
             @show-thrust="onShowThrust"
             @show-configuration-node="onShowConfigurationNode"
+            @trigger-separation="handleSeparationToggle"
           />
           <ThrustIndicator
             v-if="displayRocketB && thrustRenderVisible"
@@ -513,6 +516,7 @@ function plumeHeight(thrust: number | null): number {
       :isAnimating="isAnimating"
       :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
       :stageCount="stageCountB"
+      :rocket="displayRocketB"
       @trigger-separation="handleSeparationToggle()"
       @toggle-node="handleNodeToggle($event as NodeTypeId)"
     />
