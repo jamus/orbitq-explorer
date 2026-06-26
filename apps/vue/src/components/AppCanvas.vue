@@ -289,14 +289,14 @@ const hasRocketWithStages = computed(
   () => hasRocketAWithStages.value || hasRocketBWithStages.value,
 );
 
-// Auto-show the stages node when any staged rocket is loaded.
-// Reset separation when stages disappear.
+// Auto-show the overview node when any staged rocket is loaded.
+// Reset separation when overview disappear.
 watch(
   hasRocketWithStages,
   (has) => {
-    if (has) enableNode("stages");
+    if (has) enableNode("overview");
     else {
-      disableNode("stages");
+      disableNode("overview");
       separationVisible.value = false;
     }
   },
