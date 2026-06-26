@@ -431,6 +431,7 @@ function plumeHeight(thrust: number | null): number {
       :isAnimating="isAnimating"
       :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
       :stageCount="stageCountA"
+      :rocket="displayRocketA"
       @trigger-separation="handleSeparationToggle()"
       @toggle-node="handleNodeToggle($event as NodeTypeId)"
     />
@@ -513,6 +514,7 @@ function plumeHeight(thrust: number | null): number {
       :isAnimating="isAnimating"
       :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
       :stageCount="stageCountB"
+      :rocket="displayRocketB"
       @trigger-separation="handleSeparationToggle()"
       @toggle-node="handleNodeToggle($event as NodeTypeId)"
     />

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import NodeCard from "./NodeCards/NodeCard.vue";
 import NodeCardEngine from "./NodeCards/EngineCard.vue";
+import OverviewCard from "./NodeCards/OverviewCard.vue";
 import StagesCard from "./NodeCards/StagesCard.vue";
 import BlankNode from "./NodeCards/BlankNode.vue";
+import type { RocketConfig } from "@orbitq/graphql";
 import type { NodeOwner } from "../composables/useNodeGrid";
 import { NODE_COLUMN_WIDTH } from "../composables/useNodeGrid";
 import { useDomGlitchTransition } from "../composables/useDomGlitchTransition";
@@ -24,6 +26,7 @@ const props = defineProps<{
   isAnimating: boolean;
   glitchEffectsEnabled: boolean;
   stageCount?: number;
+  rocket: RocketConfig | null;
 }>();
 
 const emit = defineEmits<{
@@ -34,6 +37,10 @@ const emit = defineEmits<{
 const cardGlitch = useDomGlitchTransition({}, () => props.glitchEffectsEnabled);
 
 const getNodeComponent = (typeId: string) => {
+  if (typeId === "overview") {
+    return OverviewCard;
+  }
+
   if (typeId === "stages") {
     return StagesCard;
   }
@@ -46,6 +53,15 @@ const getNodeComponent = (typeId: string) => {
 };
 
 const getNodeProps = (node: nodeType) => {
+  if (node.typeId === "overview") {
+    return {
+      typeId: node.typeId,
+      label: node.label,
+      owner: node.owner,
+      rocket: props.rocket,
+    };
+  }
+
   if (node.typeId === "stages") {
     return {
       typeId: node.typeId,
