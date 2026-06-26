@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { canvasColors } from "@orbitq/styles/canvas";
-import DiagramContextMenu from "./DiagramContextMenu.vue";
+import ContextMenu from "./ui/ContextMenu.vue";
 import { useContextMenu } from "../composables/useContextMenu";
 import { useKonvaGlitch } from "../composables/useKonvaGlitch";
 import type { KonvaGlitchConfig } from "../composables/useKonvaGlitch";
@@ -144,8 +144,8 @@ const emit = defineEmits<{
   "hide-thrust": [];
 }>();
 
-type ContextMenu = { x: number; y: number };
-const contextMenu = ref<ContextMenu | null>(null);
+type ContextMenuState = { x: number; y: number };
+const contextMenu = ref<ContextMenuState | null>(null);
 
 watch(
   () => props.thrust,
@@ -225,12 +225,10 @@ function onMouseLeave(e: any) {
     </v-group>
     <v-text :config="textConfig" />
   </v-group>
-  <DiagramContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y">
-    <button
-      class="w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
-      @click="onHideThrust"
-    >
-      Hide thrust
+  <ContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y">
+    <button class="context-menu-item" @click="onHideThrust">
+      <span aria-hidden="true">&gt;</span>
+      <span>hide thrust</span>
     </button>
-  </DiagramContextMenu>
+  </ContextMenu>
 </template>

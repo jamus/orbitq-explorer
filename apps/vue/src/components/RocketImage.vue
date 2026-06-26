@@ -5,7 +5,7 @@ import type { RocketConfig } from "@orbitq/graphql";
 import { diagrams } from "@shared/const/diagrams";
 import { CSS_COLUMN_DURATION_MS } from "@shared/const/canvas";
 import { canvasColors } from "@orbitq/styles/canvas";
-import DiagramContextMenu from "./DiagramContextMenu.vue";
+import ContextMenu from "./ui/ContextMenu.vue";
 import { useContextMenu } from "../composables/useContextMenu";
 import { useKonvaGlitch } from "../composables/useKonvaGlitch";
 import type { KonvaGlitchConfig } from "../composables/useKonvaGlitch";
@@ -241,8 +241,8 @@ watch(closeSignal, () => {
   contextMenu.value = null;
 });
 
-type ContextMenu = { target: string; x: number; y: number };
-const contextMenu = ref<ContextMenu | null>(null);
+type ContextMenuState = { target: string; x: number; y: number };
+const contextMenu = ref<ContextMenuState | null>(null);
 
 function onEngineContextMenu(e: any) {
   e.evt.preventDefault();
@@ -506,68 +506,26 @@ function onRocketMouseOver(e: any) {
     </v-group>
   </v-group>
 
-  <DiagramContextMenu
-    v-if="contextMenu"
-    :x="contextMenu.x"
-    :y="contextMenu.y"
-    variant="terminal"
-  >
-    <div
-      class="border-b border-emerald-900 px-3 py-1 text-[10px] text-emerald-600"
-    >
-      +-- {{ contextMenu.target }}
-    </div>
+  <ContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y">
+    <div class="context-menu-header">[ {{ contextMenu.target }} ]</div>
     <button
       :disabled="props.columnANodesA.includes(contextMenu.target)"
       :class="{
         disabled: props.columnANodesA.includes(contextMenu.target),
       }"
-      class="terminal-menu-item"
+      class="context-menu-item"
       @click="onShowConfigurationNode(contextMenu.target)"
     >
-      <span class="text-emerald-500">&gt;</span>
+      <span aria-hidden="true">&gt;</span>
       <span>configuration</span>
     </button>
     <button
       v-if="contextMenu.target === 'engine_stage_01'"
-      class="terminal-menu-item"
+      class="context-menu-item"
       @click="onShowThrust"
     >
-      <span class="text-emerald-500">&gt;</span>
+      <span aria-hidden="true">&gt;</span>
       <span>render thrust_trace</span>
     </button>
-  </DiagramContextMenu>
+  </ContextMenu>
 </template>
-<style scoped>
-.terminal-menu-item {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.375rem 0.75rem;
-  text-align: left;
-  font-size: 0.75rem;
-  line-height: 1rem;
-  color: #d9f99d;
-  text-transform: uppercase;
-  transition:
-    background-color 150ms ease,
-    color 150ms ease;
-}
-
-.terminal-menu-item:hover {
-  background: #052e16;
-  color: #f7fee7;
-}
-
-.terminal-menu-item:focus-visible {
-  outline: 1px solid #bef264;
-  outline-offset: -2px;
-}
-
-.disabled {
-  color: #3f6212;
-  opacity: 0.7;
-  pointer-events: none;
-}
-</style>
