@@ -5,6 +5,7 @@ import StagesCard from "./NodeCards/StagesCard.vue";
 import BlankNode from "./NodeCards/BlankNode.vue";
 import type { NodeOwner } from "../composables/useNodeGrid";
 import { NODE_COLUMN_WIDTH } from "../composables/useNodeGrid";
+import { useDomGlitchTransition } from "../composables/useDomGlitchTransition";
 
 interface nodeType {
   typeId: string;
@@ -28,6 +29,8 @@ const emit = defineEmits<{
   "trigger-separation": [];
   "toggle-node": [typeId: string];
 }>();
+
+const cardGlitch = useDomGlitchTransition();
 
 const getNodeComponent = (typeId: string) => {
   if (typeId === "stages") {
@@ -88,9 +91,14 @@ function handleToggleNode(typeId: string) {
     class="overflow-hidden shrink-0 transition-[width] duration-300 ease-in-out"
     :style="{ width: `${width}px` }"
   >
-    <div
+    <TransitionGroup
+      tag="div"
       class="h-full p-3 flex flex-col gap-8"
       :style="{ width: `${NODE_COLUMN_WIDTH}px` }"
+      :css="false"
+      @before-enter="cardGlitch.beforeEnter"
+      @enter="cardGlitch.enter"
+      @leave="cardGlitch.leave"
     >
       <component
         v-for="node in nodes"
@@ -100,6 +108,6 @@ function handleToggleNode(typeId: string) {
         @toggle-node="handleToggleNode($event as string)"
         @trigger-separation="emit('trigger-separation')"
       />
-    </div>
+    </TransitionGroup>
   </div>
 </template>
