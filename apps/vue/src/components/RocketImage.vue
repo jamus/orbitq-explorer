@@ -257,6 +257,7 @@ function closeContextMenu() {
 const emit = defineEmits<{
   "show-thrust": [];
   "show-configuration-node": [target: string];
+  "trigger-separation": [];
 }>();
 
 function onShowThrust() {
@@ -267,6 +268,11 @@ function onShowThrust() {
 
 function onShowConfigurationNode(target: string) {
   emit("show-configuration-node", target);
+  closeContextMenu();
+}
+
+function onTriggerSeparation() {
+  emit("trigger-separation");
   closeContextMenu();
 }
 
@@ -483,6 +489,14 @@ function onRocketPointerMove(e: any) {
     >
       <span aria-hidden="true">&gt;</span>
       <span>render thrust_trace</span>
+    </button>
+    <button
+      v-if="contextMenu.target.startsWith('stage_')"
+      class="context-menu-item"
+      @click="onTriggerSeparation"
+    >
+      <span aria-hidden="true">&gt;</span>
+      <span>{{ props.separated ? "join stages" : "separate stages" }}</span>
     </button>
   </ContextMenu>
 </template>

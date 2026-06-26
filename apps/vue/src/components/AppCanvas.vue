@@ -454,6 +454,7 @@ function plumeHeight(thrust: number | null): number {
             :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
             @show-thrust="onShowThrust"
             @show-configuration-node="onShowConfigurationNode"
+            @trigger-separation="handleSeparationToggle"
           />
           <ThrustIndicator
             v-if="displayRocketA && thrustRenderVisible"
@@ -478,6 +479,7 @@ function plumeHeight(thrust: number | null): number {
             :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
             @show-thrust="onShowThrust"
             @show-configuration-node="onShowConfigurationNode"
+            @trigger-separation="handleSeparationToggle"
           />
           <ThrustIndicator
             v-if="displayRocketB && thrustRenderVisible"
