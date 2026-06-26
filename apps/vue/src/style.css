@@ -1,2 +1,140 @@
 @import "tailwindcss";
 @import "@orbitq/styles/theme.css";
+
+.dom-glitch-entering {
+  position: relative;
+  isolation: isolate;
+  animation: dom-glitch-materialize var(--dom-glitch-duration, 260ms)
+    steps(2, end) both;
+}
+
+.dom-glitch-entering::before,
+.dom-glitch-entering::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: 20;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+
+.dom-glitch-entering::before {
+  border: 1px solid var(--dom-glitch-cyan, rgba(0, 217, 255, 0.42));
+  background: linear-gradient(
+    to bottom,
+    transparent 0 var(--dom-glitch-scan-a, 18%),
+    var(--dom-glitch-scanline, rgba(255, 255, 255, 0.14))
+      var(--dom-glitch-scan-a, 18%) var(--dom-glitch-scan-b, 20%),
+    transparent var(--dom-glitch-scan-b, 20%) var(--dom-glitch-scan-c, 42%),
+    var(--dom-glitch-cyan, rgba(0, 217, 255, 0.42))
+      var(--dom-glitch-scan-c, 42%) var(--dom-glitch-scan-d, 44%),
+    transparent var(--dom-glitch-scan-d, 44%) 100%
+  );
+  animation: dom-glitch-cyan var(--dom-glitch-duration, 260ms) steps(2, end)
+    both;
+}
+
+.dom-glitch-entering::after {
+  border: 1px solid var(--dom-glitch-red, rgba(255, 71, 87, 0.46));
+  background: linear-gradient(
+    to right,
+    transparent 0 var(--dom-glitch-block-a, 12%),
+    var(--dom-glitch-red, rgba(255, 71, 87, 0.46))
+      var(--dom-glitch-block-a, 12%) var(--dom-glitch-block-b, 28%),
+    transparent var(--dom-glitch-block-b, 28%) var(--dom-glitch-block-c, 62%),
+    var(--dom-glitch-cyan, rgba(0, 217, 255, 0.42))
+      var(--dom-glitch-block-c, 62%) var(--dom-glitch-block-d, 78%),
+    transparent var(--dom-glitch-block-d, 78%) 100%
+  );
+  clip-path: inset(
+    var(--dom-glitch-clip-a, 18%) 0 var(--dom-glitch-clip-b, 58%) 0
+  );
+  animation: dom-glitch-red var(--dom-glitch-duration, 260ms) steps(2, end) both;
+}
+
+@keyframes dom-glitch-materialize {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) translateX(calc(var(--dom-glitch-x, 7px) * -1));
+    filter: brightness(var(--dom-glitch-brightness, 1.45));
+    clip-path: inset(0 0 82% 0);
+  }
+  18% {
+    opacity: 0.9;
+    transform: translateY(calc(var(--dom-glitch-y, 2px) * -1))
+      translateX(var(--dom-glitch-x, 7px));
+    clip-path: inset(24% 0 42% 0);
+  }
+  34% {
+    opacity: 0.72;
+    transform: translateY(var(--dom-glitch-y, 2px))
+      translateX(calc(var(--dom-glitch-x, 7px) * -0.45));
+    clip-path: inset(48% 0 16% 0);
+  }
+  58% {
+    opacity: 1;
+    transform: translateY(0) translateX(calc(var(--dom-glitch-x, 7px) * 0.25));
+    clip-path: inset(0 0 0 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+    filter: brightness(1);
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes dom-glitch-cyan {
+  0%,
+  62% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  18%,
+  38% {
+    opacity: var(--dom-glitch-opacity, 0.85);
+    transform: translateX(calc(var(--dom-glitch-x, 7px) * -0.7));
+  }
+  82% {
+    opacity: 0.25;
+    transform: translateX(calc(var(--dom-glitch-x, 7px) * 0.35));
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+}
+
+@keyframes dom-glitch-red {
+  0%,
+  70% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  24%,
+  48% {
+    opacity: calc(var(--dom-glitch-opacity, 0.85) * 0.82);
+    transform: translateX(calc(var(--dom-glitch-x, 7px) * 0.8));
+  }
+  86% {
+    opacity: 0.24;
+    transform: translateX(calc(var(--dom-glitch-x, 7px) * -0.3));
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dom-glitch-entering {
+    animation: none;
+  }
+
+  .dom-glitch-entering::before,
+  .dom-glitch-entering::after {
+    animation: none;
+    opacity: 0;
+  }
+}

@@ -164,7 +164,29 @@ const {
 // ---------------------------------------------------------------------------
 
 const showScaleReference = ref(true);
+const glitchEffectsEnabled = ref(true);
+const prefersReducedMotion = ref(
+  typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+);
+const effectiveGlitchEffectsEnabled = computed(
+  () => glitchEffectsEnabled.value && !prefersReducedMotion.value,
+);
 const separationVisible = ref(false);
+
+if (typeof window !== "undefined") {
+  const reducedMotionQuery = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  );
+  const handleReducedMotionChange = (event: MediaQueryListEvent) => {
+    prefersReducedMotion.value = event.matches;
+  };
+
+  reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
+  onUnmounted(() => {
+    reducedMotionQuery.removeEventListener("change", handleReducedMotionChange);
+  });
+}
 
 const { send, isAnimating } = useCanvasMachine({
   animate,
@@ -407,6 +429,7 @@ function plumeHeight(thrust: number | null): number {
       :width="columnAWidthDisplay"
       :separationActive="separationVisible"
       :isAnimating="isAnimating"
+      :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
       :stageCount="stageCountA"
       @trigger-separation="handleSeparationToggle()"
       @toggle-node="handleNodeToggle($event as NodeTypeId)"
@@ -427,6 +450,7 @@ function plumeHeight(thrust: number | null): number {
             :opacity="rocketAOpacity"
             :columnANodesA="columnANodesDisplay.map((n) => n.typeId)"
             :columnBNodesA="columnBNodesDisplay.map((n) => n.typeId)"
+            :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
             @show-thrust="onShowThrust"
             @show-configuration-node="onShowConfigurationNode"
           />
@@ -437,6 +461,7 @@ function plumeHeight(thrust: number | null): number {
             :rocketWidth="2 * rocketHalfW(displayRocketA)"
             :thrust="displayRocketA.toThrust"
             :plumeHeight="plumeHeight(displayRocketA.toThrust)"
+            :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
             @hide-thrust="onHideThrust"
           />
           <RocketImage
@@ -449,6 +474,7 @@ function plumeHeight(thrust: number | null): number {
             :opacity="rocketBOpacity"
             :columnANodesA="columnANodesDisplay.map((n) => n.typeId)"
             :columnBNodesA="columnBNodesDisplay.map((n) => n.typeId)"
+            :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
             @show-thrust="onShowThrust"
             @show-configuration-node="onShowConfigurationNode"
           />
@@ -459,6 +485,7 @@ function plumeHeight(thrust: number | null): number {
             :rocketWidth="2 * rocketHalfW(displayRocketB)"
             :thrust="displayRocketB.toThrust"
             :plumeHeight="plumeHeight(displayRocketB.toThrust)"
+            :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
             @hide-thrust="onHideThrust"
           />
 
@@ -484,6 +511,7 @@ function plumeHeight(thrust: number | null): number {
       :width="displayRocketB ? columnBWidthDisplay : 0"
       :separationActive="separationVisible"
       :isAnimating="isAnimating"
+      :glitchEffectsEnabled="effectiveGlitchEffectsEnabled"
       :stageCount="stageCountB"
       @trigger-separation="handleSeparationToggle()"
       @toggle-node="handleNodeToggle($event as NodeTypeId)"
@@ -491,6 +519,8 @@ function plumeHeight(thrust: number | null): number {
 
     <CanvasPanel
       v-model:showScaleReference="showScaleReference"
+      v-model:glitchEffectsEnabled="glitchEffectsEnabled"
+      :prefersReducedMotion="prefersReducedMotion"
       :nodes="panelNodes"
       :isAnimating="isAnimating"
       @toggle-node="handleNodeToggle($event as NodeTypeId)"

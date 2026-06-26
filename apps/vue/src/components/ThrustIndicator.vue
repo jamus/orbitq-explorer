@@ -1,8 +1,60 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { canvasColors } from "@orbitq/styles/canvas";
-import DiagramContextMenu from "./DiagramContextMenu.vue";
+import ContextMenu from "./ui/ContextMenu.vue";
 import { useContextMenu } from "../composables/useContextMenu";
+import { useKonvaGlitch } from "../composables/useKonvaGlitch";
+import type { KonvaGlitchConfig } from "../composables/useKonvaGlitch";
+
+const STROKE_WIDTH = 1.5;
+const THRUST_APPLY_GLITCH = {
+  startDelayMs: 0,
+  durationMs: 260,
+  stepMs: 18,
+  fadeStartProgress: 0.58,
+  opacity: {
+    floor: 0.1,
+    burst: 0.55,
+  },
+  colors: {
+    red: "rgba(255, 71, 87, 0.56)",
+    cyan: "rgba(0, 217, 255, 0.5)",
+    green: "rgba(0, 255, 135, 0.36)",
+    scanline: "rgba(255, 255, 255, 0.16)",
+  },
+  channelOffset: {
+    redBaseX: 2.4,
+    cyanBaseX: 2.2,
+    cyanJitterRatio: 1.4,
+    redY: { high: -0.9, low: 0.5 },
+    cyanY: { high: 0.9, low: -0.5 },
+  },
+  mainJitter: {
+    xRatio: 0.08,
+    y: 0.35,
+  },
+  scanlines: {
+    count: 12,
+    accentEvery: 3,
+    strokeWidthRatio: 0.003,
+    minStrokeWidth: 0.8,
+    evenOpacity: 0.18,
+    oddOpacity: 0.08,
+  },
+  blocks: {
+    count: 3,
+    seedStep: 19,
+    yRangePercent: 82,
+    xBandPercent: 38,
+    minWidthRatio: 0.22,
+    widthStepPercent: 9,
+    heightRatio: 0.018,
+    minHeight: 2,
+    evenOpacity: 0.48,
+    oddOpacity: 0.28,
+    visibleEverySteps: 2,
+  },
+} as const satisfies KonvaGlitchConfig;
 
 const props = defineProps<{
   x: number;
@@ -10,6 +62,7 @@ const props = defineProps<{
   rocketWidth: number;
   thrust: number | null;
   plumeHeight: number;
+  glitchEffectsEnabled: boolean;
 }>();
 
 const { closeSignal } = useContextMenu();
@@ -45,11 +98,30 @@ const lineConfig = computed(() => {
     stroke: thrustHovered.value
       ? canvasColors.interactionHighlight
       : "transparent",
-    strokeWidth: 1.5,
+    strokeWidth: STROKE_WIDTH,
     strokeScaleEnabled: false,
     listening: true,
   };
 });
+
+const plumeBounds = computed(() => {
+  const halfWidth = rocketWidth.value / 2;
+  const height = plumeHeight.value;
+  if (halfWidth <= 0 || height <= 0) return null;
+  return {
+    minX: -halfWidth,
+    minY: 0,
+    width: halfWidth * 2,
+    height,
+  };
+});
+
+const thrustGlitch = useKonvaGlitch(
+  THRUST_APPLY_GLITCH,
+  () => plumeBounds.value,
+  STROKE_WIDTH,
+  computed(() => props.glitchEffectsEnabled),
+);
 
 const formattedThrust = computed(() =>
   props.thrust !== null ? `${props.thrust.toLocaleString("en-US")} kN` : "",
@@ -74,8 +146,16 @@ const emit = defineEmits<{
   "hide-thrust": [];
 }>();
 
-type ContextMenu = { x: number; y: number };
-const contextMenu = ref<ContextMenu | null>(null);
+type ContextMenuState = { x: number; y: number };
+const contextMenu = ref<ContextMenuState | null>(null);
+
+watch(
+  () => props.thrust,
+  () => {
+    thrustGlitch.start();
+  },
+  { immediate: true },
+);
 
 function onTrustContextMenu(e: any) {
   e.evt.preventDefault();
@@ -92,14 +172,13 @@ function closeContextMenu() {
 }
 
 function onMouseEnter(e: any) {
-  console.log("mouse enter thrust", e);
+  e.target.getStage()?.container().style.setProperty("cursor", "pointer");
   thrustHovered.value = true;
-  // document.body.style.cursor = "pointer";
 }
 
-function onMouseLeave() {
+function onMouseLeave(e: any) {
+  e.target.getStage()?.container().style.setProperty("cursor", "");
   thrustHovered.value = false;
-  // document.body.style.cursor = "default";
 }
 </script>
 
@@ -111,14 +190,47 @@ function onMouseLeave() {
     @contextmenu="onTrustContextMenu($event)"
   >
     <v-line :config="lineConfig" />
+    <v-group
+      v-if="thrustGlitch.active.value"
+      :config="thrustGlitch.layerConfig.value"
+    >
+      <v-line
+        :config="{
+          ...lineConfig,
+          ...thrustGlitch.redPathConfig.value,
+          x: thrustGlitch.redOffset.value.x,
+          y: thrustGlitch.redOffset.value.y,
+        }"
+      />
+      <v-line
+        :config="{
+          ...lineConfig,
+          ...thrustGlitch.cyanPathConfig.value,
+          x: thrustGlitch.cyanOffset.value.x,
+          y: thrustGlitch.cyanOffset.value.y,
+        }"
+      />
+      <v-line
+        v-for="line in thrustGlitch.scanlineConfig.value"
+        :key="line.key"
+        :config="line"
+      />
+      <v-rect
+        v-for="(block, index) in thrustGlitch.blocks.value"
+        :key="`thrust-glitch-block-${index}`"
+        :config="{
+          ...block,
+          listening: false,
+          globalCompositeOperation: 'screen',
+        }"
+      />
+    </v-group>
     <v-text :config="textConfig" />
   </v-group>
-  <DiagramContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y">
-    <button
-      class="w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
-      @click="onHideThrust"
-    >
-      Hide thrust
+  <ContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y">
+    <button class="context-menu-item" @click="onHideThrust">
+      <span aria-hidden="true">&gt;</span>
+      <span>hide thrust</span>
     </button>
-  </DiagramContextMenu>
+  </ContextMenu>
 </template>

@@ -3,12 +3,98 @@ import { computed, ref, watch, onUnmounted } from "vue";
 import Konva from "konva";
 import type { RocketConfig } from "@orbitq/graphql";
 import { diagrams } from "@shared/const/diagrams";
+import { CSS_COLUMN_DURATION_MS } from "@shared/const/canvas";
 import { canvasColors } from "@orbitq/styles/canvas";
-import DiagramContextMenu from "./DiagramContextMenu.vue";
+import ContextMenu from "./ui/ContextMenu.vue";
 import { useContextMenu } from "../composables/useContextMenu";
+import { useKonvaGlitch } from "../composables/useKonvaGlitch";
+import type { KonvaGlitchConfig } from "../composables/useKonvaGlitch";
 
 const SEPARATION_DURATION = 500;
 const STROKE_WIDTH = 1.5;
+
+const ROCKET_LOAD_GLITCH = {
+  startDelayMs: CSS_COLUMN_DURATION_MS + 200,
+  durationMs: 270,
+  stepMs: 16,
+  fadeStartProgress: 0.62,
+  opacity: {
+    floor: 0.1,
+    burst: 0.2,
+  },
+  colors: {
+    red: "rgba(255, 71, 87, 0.62)",
+    cyan: "rgba(0, 217, 255, 0.56)",
+    green: "rgba(0, 255, 135, 0.5)",
+    scanline: "rgba(255, 255, 255, 0.18)",
+  },
+  channelOffset: {
+    redBaseX: 3.2,
+    cyanBaseX: 3,
+    cyanJitterRatio: 5,
+    redY: { high: -1.2, low: 0.6 },
+    cyanY: { high: 1.2, low: -0.7 },
+  },
+  mainJitter: {
+    xRatio: 1000,
+    y: 0,
+  },
+  scanlines: {
+    count: 16,
+    accentEvery: 3,
+    strokeWidthRatio: 0.0018,
+    minStrokeWidth: 0.8,
+    evenOpacity: 0.26,
+    oddOpacity: 0.12,
+  },
+  blocks: {
+    count: 4,
+    seedStep: 17,
+    yRangePercent: 86,
+    xBandPercent: 31,
+    minWidthRatio: 0.18,
+    widthStepPercent: 7,
+    heightRatio: 0.012,
+    minHeight: 2,
+    evenOpacity: 0.74,
+    oddOpacity: 0.48,
+    visibleEverySteps: 2,
+  },
+} as const satisfies KonvaGlitchConfig;
+
+const ENGINE_ROLLOVER_GLITCH = {
+  ...ROCKET_LOAD_GLITCH,
+  startDelayMs: 0,
+  durationMs: 180,
+  opacity: {
+    floor: 0.08,
+    burst: 0.5,
+  },
+  channelOffset: {
+    ...ROCKET_LOAD_GLITCH.channelOffset,
+    redBaseX: 1.8,
+    cyanBaseX: 1.8,
+    cyanJitterRatio: 1.5,
+  },
+  mainJitter: {
+    xRatio: 0,
+    y: 0,
+  },
+  scanlines: {
+    ...ROCKET_LOAD_GLITCH.scanlines,
+    count: 6,
+    evenOpacity: 0.2,
+    oddOpacity: 0.08,
+  },
+  blocks: {
+    ...ROCKET_LOAD_GLITCH.blocks,
+    count: 2,
+    minWidthRatio: 0.28,
+    heightRatio: 0.02,
+    evenOpacity: 0.55,
+    oddOpacity: 0.32,
+  },
+} as const satisfies KonvaGlitchConfig;
 
 const props = defineProps<{
   rocket: RocketConfig;
@@ -19,6 +105,7 @@ const props = defineProps<{
   opacity?: number;
   columnANodesA: string[];
   columnBNodesA: string[];
+  glitchEffectsEnabled: boolean;
 }>();
 
 const entry = computed(() => {
@@ -64,8 +151,7 @@ const stageOffsets = ref<number[]>([]);
 watch(
   entry,
   (e) => {
-    stageOffsets.value = new Array(e?.stages.length ?? 0).fill(0);
-    console.log("RocketImage entry", entry.value);
+    stageOffsets.value = Array.from({ length: e?.stages.length ?? 0 }, () => 0);
   },
   { immediate: true },
 );
@@ -117,13 +203,39 @@ watch(
         stages!.map((s) => (midpointSuffix - suffixOf(s)) * gap),
       );
     } else {
-      animateToOffsets(new Array(n).fill(0));
+      animateToOffsets(Array.from({ length: n }, () => 0));
     }
   },
   { immediate: true },
 );
 
 onUnmounted(() => anim?.stop());
+
+// --- Glitch effects ---
+
+const loadGlitch = useKonvaGlitch(
+  ROCKET_LOAD_GLITCH,
+  () => entry.value?.viewBox ?? null,
+  STROKE_WIDTH,
+  computed(() => props.glitchEffectsEnabled),
+);
+const engineGlitchTarget = ref<string | null>(null);
+const engineGlitch = useKonvaGlitch(
+  ENGINE_ROLLOVER_GLITCH,
+  () => entry.value?.viewBox ?? null,
+  STROKE_WIDTH,
+  computed(() => props.glitchEffectsEnabled),
+);
+
+watch(
+  () => props.rocket.id,
+  () => {
+    loadGlitch.start({ conceal: true });
+    engineGlitch.stop();
+    engineGlitchTarget.value = null;
+  },
+  { immediate: true },
+);
 
 // --- Engine hover + context menu ---
 
@@ -132,8 +244,8 @@ watch(closeSignal, () => {
   contextMenu.value = null;
 });
 
-type ContextMenu = { target: string; x: number; y: number };
-const contextMenu = ref<ContextMenu | null>(null);
+type ContextMenuState = { target: string; x: number; y: number };
+const contextMenu = ref<ContextMenuState | null>(null);
 
 function onEngineContextMenu(e: any) {
   e.evt.preventDefault();
@@ -157,7 +269,6 @@ function onShowThrust() {
 }
 
 function onShowConfigurationNode(target: string) {
-  console.log("onShowConfigurationNode", target);
   emit("show-configuration-node", target);
   closeContextMenu();
 }
@@ -193,6 +304,15 @@ function findEngineAncestor(node: any): any {
   return null;
 }
 
+const engineGlitchStage = computed(() => {
+  if (!entry.value || !engineGlitchTarget.value) return null;
+  for (const [stageIndex, stage] of entry.value.stages.entries()) {
+    const engine = stage.engines.find((e) => e.id === engineGlitchTarget.value);
+    if (engine) return { engine, stageIndex };
+  }
+  return null;
+});
+
 function onRocketEnter() {
   const rootNode = rootGroupRef.value?.getNode();
   if (!rootNode) return;
@@ -205,6 +325,8 @@ function onRocketEnter() {
 
 function onRocketLeave(e: any) {
   setCanvasCursor(e, "");
+  engineGlitchTarget.value = null;
+  engineGlitch.stop();
   engineTweens.forEach((t) => t.destroy());
   const rootNode = rootGroupRef.value?.getNode();
   if (!rootNode) return;
@@ -214,7 +336,17 @@ function onRocketLeave(e: any) {
 }
 
 function onRocketMouseOver(e: any) {
-  setCanvasCursor(e, findEngineAncestor(e.target) ? "pointer" : "");
+  const engine = findEngineAncestor(e.target);
+  setCanvasCursor(e, engine ? "pointer" : "");
+  const engineId = engine?.id?.() ?? null;
+  if (!engineId) {
+    engineGlitchTarget.value = null;
+    engineGlitch.stop();
+    return;
+  }
+  if (engineId === engineGlitchTarget.value) return;
+  engineGlitchTarget.value = engineId;
+  engineGlitch.start();
 }
 </script>
 
@@ -230,7 +362,13 @@ function onRocketMouseOver(e: any) {
     <v-group
       v-for="(stage, i) in entry!.stages"
       :key="stage.id"
-      :config="{ y: stageOffsets[i] ?? 0 }"
+      :config="{
+        ...loadGlitch.baseVisibilityConfig.value,
+        x: loadGlitch.active.value ? loadGlitch.mainOffset.value.x : 0,
+        y:
+          (stageOffsets[i] ?? 0) +
+          (loadGlitch.active.value ? loadGlitch.mainOffset.value.y : 0),
+      }"
     >
       <v-path
         v-for="(path, index) in stage.paths"
@@ -255,70 +393,142 @@ function onRocketMouseOver(e: any) {
         />
       </v-group>
     </v-group>
+
+    <v-group
+      v-if="loadGlitch.active.value"
+      :config="loadGlitch.layerConfig.value"
+    >
+      <v-group :config="loadGlitch.redOffset.value">
+        <v-group
+          v-for="(stage, i) in entry!.stages"
+          :key="`glitch-red-${stage.id}`"
+          :config="{ y: stageOffsets[i] ?? 0 }"
+        >
+          <v-path
+            v-for="(path, index) in stage.paths"
+            :key="`stage-${index}`"
+            :config="{ ...loadGlitch.redPathConfig.value, data: path.d }"
+          />
+          <v-group
+            v-for="engine in stage.engines"
+            :key="engine.id"
+            :config="{ id: `glitch-red-${engine.id}` }"
+          >
+            <v-path
+              v-for="(path, index) in engine.paths"
+              :key="`engine-${index}`"
+              :config="{ ...loadGlitch.redPathConfig.value, data: path.d }"
+            />
+          </v-group>
+        </v-group>
+      </v-group>
+
+      <v-group :config="loadGlitch.cyanOffset.value">
+        <v-group
+          v-for="(stage, i) in entry!.stages"
+          :key="`glitch-cyan-${stage.id}`"
+          :config="{ y: stageOffsets[i] ?? 0 }"
+        >
+          <v-path
+            v-for="(path, index) in stage.paths"
+            :key="`stage-${index}`"
+            :config="{ ...loadGlitch.cyanPathConfig.value, data: path.d }"
+          />
+          <v-group
+            v-for="engine in stage.engines"
+            :key="engine.id"
+            :config="{ id: `glitch-cyan-${engine.id}` }"
+          >
+            <v-path
+              v-for="(path, index) in engine.paths"
+              :key="`engine-${index}`"
+              :config="{ ...loadGlitch.cyanPathConfig.value, data: path.d }"
+            />
+          </v-group>
+        </v-group>
+      </v-group>
+
+      <v-line
+        v-for="line in loadGlitch.scanlineConfig.value"
+        :key="line.key"
+        :config="line"
+      />
+      <v-rect
+        v-for="(block, index) in loadGlitch.blocks.value"
+        :key="`glitch-block-${index}`"
+        :config="{
+          ...block,
+          listening: false,
+          globalCompositeOperation: 'screen',
+        }"
+      />
+    </v-group>
+
+    <v-group
+      v-if="engineGlitch.active.value && engineGlitchStage"
+      :config="engineGlitch.layerConfig.value"
+    >
+      <v-group :config="engineGlitch.redOffset.value">
+        <v-group
+          :config="{ y: stageOffsets[engineGlitchStage.stageIndex] ?? 0 }"
+        >
+          <v-path
+            v-for="(path, index) in engineGlitchStage.engine.paths"
+            :key="`engine-hover-red-${index}`"
+            :config="{ ...engineGlitch.redPathConfig.value, data: path.d }"
+          />
+        </v-group>
+      </v-group>
+
+      <v-group :config="engineGlitch.cyanOffset.value">
+        <v-group
+          :config="{ y: stageOffsets[engineGlitchStage.stageIndex] ?? 0 }"
+        >
+          <v-path
+            v-for="(path, index) in engineGlitchStage.engine.paths"
+            :key="`engine-hover-cyan-${index}`"
+            :config="{ ...engineGlitch.cyanPathConfig.value, data: path.d }"
+          />
+        </v-group>
+      </v-group>
+
+      <v-line
+        v-for="line in engineGlitch.scanlineConfig.value"
+        :key="`engine-hover-${line.key}`"
+        :config="line"
+      />
+      <v-rect
+        v-for="(block, index) in engineGlitch.blocks.value"
+        :key="`engine-hover-block-${index}`"
+        :config="{
+          ...block,
+          listening: false,
+          globalCompositeOperation: 'screen',
+        }"
+      />
+    </v-group>
   </v-group>
 
-  <DiagramContextMenu
-    v-if="contextMenu"
-    :x="contextMenu.x"
-    :y="contextMenu.y"
-    variant="terminal"
-  >
-    <div
-      class="border-b border-emerald-900 px-3 py-1 text-[10px] text-emerald-600"
-    >
-      +-- {{ contextMenu.target }}
-    </div>
+  <ContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y">
+    <div class="context-menu-header">[ {{ contextMenu.target }} ]</div>
     <button
       :disabled="props.columnANodesA.includes(contextMenu.target)"
       :class="{
         disabled: props.columnANodesA.includes(contextMenu.target),
       }"
-      class="terminal-menu-item"
+      class="context-menu-item"
       @click="onShowConfigurationNode(contextMenu.target)"
     >
-      <span class="text-emerald-500">&gt;</span>
+      <span aria-hidden="true">&gt;</span>
       <span>configuration</span>
     </button>
     <button
       v-if="contextMenu.target === 'engine_stage_01'"
-      class="terminal-menu-item"
+      class="context-menu-item"
       @click="onShowThrust"
     >
-      <span class="text-emerald-500">&gt;</span>
+      <span aria-hidden="true">&gt;</span>
       <span>render thrust_trace</span>
     </button>
-  </DiagramContextMenu>
+  </ContextMenu>
 </template>
-<style scoped>
-.terminal-menu-item {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.375rem 0.75rem;
-  text-align: left;
-  font-size: 0.75rem;
-  line-height: 1rem;
-  color: #d9f99d;
-  text-transform: uppercase;
-  transition:
-    background-color 150ms ease,
-    color 150ms ease;
-}
-
-.terminal-menu-item:hover {
-  background: #052e16;
-  color: #f7fee7;
-}
-
-.terminal-menu-item:focus-visible {
-  outline: 1px solid #bef264;
-  outline-offset: -2px;
-}
-
-.disabled {
-  color: #3f6212;
-  opacity: 0.7;
-  pointer-events: none;
-}
-</style>
