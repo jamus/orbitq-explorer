@@ -249,8 +249,8 @@ describe("useNodeGrid", () => {
       expect(columnANodes.value.map((n) => n.typeId)).toEqual([
         "overview",
         "stages",
-        "engine_stage_01",
         "engine_stage_02",
+        "engine_stage_01",
         "thrust",
       ]);
     });
