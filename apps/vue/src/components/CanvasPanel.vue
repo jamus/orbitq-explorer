@@ -221,7 +221,7 @@ const isOpen = ref(false);
                 >.
               </li>
               <li>
-                Built alongside the
+                Built to accompany
                 <a
                   href="https://www.orbitq.app/"
                   target="_blank"
