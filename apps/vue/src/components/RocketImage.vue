@@ -12,6 +12,7 @@ import type { KonvaGlitchConfig } from "../composables/useKonvaGlitch";
 
 const SEPARATION_DURATION = 500;
 const STROKE_WIDTH = 1.5;
+const DIMMED_STROKE_OPACITY = 0.25;
 
 const ROCKET_LOAD_GLITCH = {
   startDelayMs: CSS_COLUMN_DURATION_MS + 200,
@@ -59,40 +60,6 @@ const ROCKET_LOAD_GLITCH = {
     evenOpacity: 0.74,
     oddOpacity: 0.48,
     visibleEverySteps: 2,
-  },
-} as const satisfies KonvaGlitchConfig;
-
-const ENGINE_ROLLOVER_GLITCH = {
-  ...ROCKET_LOAD_GLITCH,
-  startDelayMs: 0,
-  durationMs: 180,
-  opacity: {
-    floor: 0.08,
-    burst: 0.5,
-  },
-  channelOffset: {
-    ...ROCKET_LOAD_GLITCH.channelOffset,
-    redBaseX: 1.8,
-    cyanBaseX: 1.8,
-    cyanJitterRatio: 1.5,
-  },
-  mainJitter: {
-    xRatio: 0,
-    y: 0,
-  },
-  scanlines: {
-    ...ROCKET_LOAD_GLITCH.scanlines,
-    count: 6,
-    evenOpacity: 0.2,
-    oddOpacity: 0.08,
-  },
-  blocks: {
-    ...ROCKET_LOAD_GLITCH.blocks,
-    count: 2,
-    minWidthRatio: 0.28,
-    heightRatio: 0.02,
-    evenOpacity: 0.55,
-    oddOpacity: 0.32,
   },
 } as const satisfies KonvaGlitchConfig;
 
@@ -219,25 +186,16 @@ const loadGlitch = useKonvaGlitch(
   STROKE_WIDTH,
   computed(() => props.glitchEffectsEnabled),
 );
-const engineGlitchTarget = ref<string | null>(null);
-const engineGlitch = useKonvaGlitch(
-  ENGINE_ROLLOVER_GLITCH,
-  () => entry.value?.viewBox ?? null,
-  STROKE_WIDTH,
-  computed(() => props.glitchEffectsEnabled),
-);
 
 watch(
   () => props.rocket.id,
   () => {
     loadGlitch.start({ conceal: true });
-    engineGlitch.stop();
-    engineGlitchTarget.value = null;
   },
   { immediate: true },
 );
 
-// --- Engine hover + context menu ---
+// --- Part hover + context menu ---
 
 const { closeSignal } = useContextMenu();
 watch(closeSignal, () => {
@@ -245,12 +203,51 @@ watch(closeSignal, () => {
 });
 
 type ContextMenuState = { target: string; x: number; y: number };
+type HoverLabelState = { target: string; x: number; y: number };
 const contextMenu = ref<ContextMenuState | null>(null);
+const hoverLabel = ref<HoverLabelState | null>(null);
+const hoveredPartId = ref<string | null>(null);
 
-function onEngineContextMenu(e: any) {
+const labelConfig = computed(() => {
+  if (!hoverLabel.value || !scaleFactor.value) return null;
+  const inverseScale = 1 / scaleFactor.value;
+  return {
+    x: hoverLabel.value.x,
+    y: hoverLabel.value.y,
+    scaleX: inverseScale,
+    scaleY: inverseScale,
+    listening: false,
+  };
+});
+
+const labelTextConfig = computed(() => ({
+  text: hoverLabel.value?.target ?? "",
+  fontSize: 11,
+  fontFamily: "monospace",
+  fill: canvasColors.interactionHighlight,
+  padding: 5,
+  listening: false,
+}));
+
+const labelTagConfig = computed(() => ({
+  fill: canvasColors.rocketFill,
+  stroke: canvasColors.interactionHighlight,
+  strokeWidth: 1,
+  opacity: 0.95,
+  pointerDirection: "down" as const,
+  pointerWidth: 8,
+  pointerHeight: 6,
+  lineJoin: "round" as const,
+  listening: false,
+}));
+
+function onPartContextMenu(e: any) {
+  const target = findPartId(e.target);
+  if (!target) return;
   e.evt.preventDefault();
-  const target = e.target.parent.attrs.id;
-  contextMenu.value = { target: target, x: e.evt.clientX, y: e.evt.clientY };
+  hoverLabel.value = null;
+  hoveredPartId.value = null;
+  contextMenu.value = { target, x: e.evt.clientX, y: e.evt.clientY };
 }
 
 function closeContextMenu() {
@@ -277,76 +274,71 @@ function setCanvasCursor(e: any, cursor: string) {
   e.target.getStage()?.container().style.setProperty("cursor", cursor);
 }
 
-function tweenGroupPaths(
-  group: any,
-  stroke: string,
-  duration = 0.2,
-): Konva.Tween[] {
-  const tweens: Konva.Tween[] = group
-    .find("Path")
-    .map((path: any) => new Konva.Tween({ node: path, duration, stroke }));
-  tweens.forEach((t) => t.play());
-  return tweens;
-}
-
-let engineTweens: Konva.Tween[] = [];
-
 function isEngineGroup(node: any): boolean {
   return node.id?.()?.startsWith("engine") === true;
 }
 
-function findEngineAncestor(node: any): any {
-  let n = node;
-  while (n) {
-    if (isEngineGroup(n)) return n;
-    n = n.parent;
-  }
-  return null;
+function isStageGroup(node: any): boolean {
+  return node.id?.()?.startsWith("stage") === true;
 }
 
-const engineGlitchStage = computed(() => {
-  if (!entry.value || !engineGlitchTarget.value) return null;
-  for (const [stageIndex, stage] of entry.value.stages.entries()) {
-    const engine = stage.engines.find((e) => e.id === engineGlitchTarget.value);
-    if (engine) return { engine, stageIndex };
+function findPartId(node: any): string | null {
+  let stageId: string | null = null;
+  let n = node;
+  while (n) {
+    if (isEngineGroup(n)) return n.id();
+    if (!stageId && isStageGroup(n)) stageId = n.id();
+    n = n.parent;
   }
-  return null;
-});
+  return stageId;
+}
 
-function onRocketEnter() {
+function getPointerInRocket(e: any): { x: number; y: number } | null {
   const rootNode = rootGroupRef.value?.getNode();
-  if (!rootNode) return;
-  engineTweens.forEach((t) => t.destroy());
-  const engineGroups = rootNode.find((n: any) => isEngineGroup(n));
-  engineTweens = engineGroups.flatMap((group: any) =>
-    tweenGroupPaths(group, canvasColors.interactionHighlight),
-  );
+  const pointer = e.target.getStage()?.getPointerPosition();
+  if (!rootNode || !pointer) return null;
+  return rootNode.getAbsoluteTransform().copy().invert().point(pointer);
+}
+
+function configForPart(partId: string) {
+  const isHoveringAnotherPart =
+    hoveredPartId.value !== null && hoveredPartId.value !== partId;
+  return {
+    ...pathConfig.value,
+    stroke:
+      hoveredPartId.value === partId
+        ? canvasColors.interactionHighlight
+        : pathConfig.value.stroke,
+    strokeOpacity: isHoveringAnotherPart ? DIMMED_STROKE_OPACITY : 1,
+  };
 }
 
 function onRocketLeave(e: any) {
   setCanvasCursor(e, "");
-  engineGlitchTarget.value = null;
-  engineGlitch.stop();
-  engineTweens.forEach((t) => t.destroy());
-  const rootNode = rootGroupRef.value?.getNode();
-  if (!rootNode) return;
-  engineTweens = rootNode
-    .find((n: any) => isEngineGroup(n))
-    .flatMap((group: any) => tweenGroupPaths(group, canvasColors.rocketStroke));
+  hoverLabel.value = null;
+  hoveredPartId.value = null;
 }
 
-function onRocketMouseOver(e: any) {
-  const engine = findEngineAncestor(e.target);
-  setCanvasCursor(e, engine ? "pointer" : "");
-  const engineId = engine?.id?.() ?? null;
-  if (!engineId) {
-    engineGlitchTarget.value = null;
-    engineGlitch.stop();
+function onRocketPointerMove(e: any) {
+  if (contextMenu.value) {
+    hoverLabel.value = null;
+    hoveredPartId.value = null;
     return;
   }
-  if (engineId === engineGlitchTarget.value) return;
-  engineGlitchTarget.value = engineId;
-  engineGlitch.start();
+  const target = findPartId(e.target);
+  setCanvasCursor(e, target ? "pointer" : "");
+  const pointer = getPointerInRocket(e);
+  if (!target || !pointer) {
+    hoverLabel.value = null;
+    hoveredPartId.value = null;
+    return;
+  }
+  hoveredPartId.value = target;
+  hoverLabel.value = {
+    target,
+    x: pointer.x + 12 / (scaleFactor.value ?? 1),
+    y: pointer.y - 12 / (scaleFactor.value ?? 1),
+  };
 }
 </script>
 
@@ -355,14 +347,15 @@ function onRocketMouseOver(e: any) {
     v-if="groupConfig"
     :config="groupConfig"
     ref="rootGroupRef"
-    @mouseenter="onRocketEnter"
     @mouseleave="onRocketLeave"
-    @mouseover="onRocketMouseOver"
+    @mousemove="onRocketPointerMove"
+    @contextmenu="onPartContextMenu($event)"
   >
     <v-group
       v-for="(stage, i) in entry!.stages"
       :key="stage.id"
       :config="{
+        id: stage.id,
         ...loadGlitch.baseVisibilityConfig.value,
         x: loadGlitch.active.value ? loadGlitch.mainOffset.value.x : 0,
         y:
@@ -373,19 +366,19 @@ function onRocketMouseOver(e: any) {
       <v-path
         v-for="(path, index) in stage.paths"
         :key="index"
-        :config="{ ...pathConfig, data: path.d }"
+        :config="{ ...configForPart(stage.id), data: path.d }"
       />
       <v-group
         v-for="engine in stage.engines"
         :key="engine.id"
         :config="{ id: engine.id }"
-        @contextmenu="onEngineContextMenu($event)"
       >
         <v-path
           v-for="(path, index) in engine.paths"
           :key="index"
           :config="{
             ...pathConfig,
+            ...configForPart(engine.id),
             data: path.d,
             listening: true,
             hitStrokeWidth: 12,
@@ -463,55 +456,16 @@ function onRocketMouseOver(e: any) {
         }"
       />
     </v-group>
-
-    <v-group
-      v-if="engineGlitch.active.value && engineGlitchStage"
-      :config="engineGlitch.layerConfig.value"
-    >
-      <v-group :config="engineGlitch.redOffset.value">
-        <v-group
-          :config="{ y: stageOffsets[engineGlitchStage.stageIndex] ?? 0 }"
-        >
-          <v-path
-            v-for="(path, index) in engineGlitchStage.engine.paths"
-            :key="`engine-hover-red-${index}`"
-            :config="{ ...engineGlitch.redPathConfig.value, data: path.d }"
-          />
-        </v-group>
-      </v-group>
-
-      <v-group :config="engineGlitch.cyanOffset.value">
-        <v-group
-          :config="{ y: stageOffsets[engineGlitchStage.stageIndex] ?? 0 }"
-        >
-          <v-path
-            v-for="(path, index) in engineGlitchStage.engine.paths"
-            :key="`engine-hover-cyan-${index}`"
-            :config="{ ...engineGlitch.cyanPathConfig.value, data: path.d }"
-          />
-        </v-group>
-      </v-group>
-
-      <v-line
-        v-for="line in engineGlitch.scanlineConfig.value"
-        :key="`engine-hover-${line.key}`"
-        :config="line"
-      />
-      <v-rect
-        v-for="(block, index) in engineGlitch.blocks.value"
-        :key="`engine-hover-block-${index}`"
-        :config="{
-          ...block,
-          listening: false,
-          globalCompositeOperation: 'screen',
-        }"
-      />
-    </v-group>
+    <v-label v-if="labelConfig" :config="labelConfig">
+      <v-tag :config="labelTagConfig" />
+      <v-text :config="labelTextConfig" />
+    </v-label>
   </v-group>
 
   <ContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y">
     <div class="context-menu-header">[ {{ contextMenu.target }} ]</div>
     <button
+      v-if="contextMenu.target.startsWith('engine_stage_')"
       :disabled="props.columnANodesA.includes(contextMenu.target)"
       :class="{
         disabled: props.columnANodesA.includes(contextMenu.target),
