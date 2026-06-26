@@ -7,6 +7,8 @@ import { CSS_COLUMN_DURATION_MS } from "@shared/const/canvas";
 import { canvasColors } from "@orbitq/styles/canvas";
 import DiagramContextMenu from "./DiagramContextMenu.vue";
 import { useContextMenu } from "../composables/useContextMenu";
+import { useKonvaGlitch } from "../composables/useKonvaGlitch";
+import type { KonvaGlitchConfig } from "../composables/useKonvaGlitch";
 
 const SEPARATION_DURATION = 500;
 const STROKE_WIDTH = 1.5;
@@ -58,7 +60,41 @@ const ROCKET_LOAD_GLITCH = {
     oddOpacity: 0.48,
     visibleEverySteps: 2,
   },
-} as const;
+} as const satisfies KonvaGlitchConfig;
+
+const ENGINE_ROLLOVER_GLITCH = {
+  ...ROCKET_LOAD_GLITCH,
+  startDelayMs: 0,
+  durationMs: 180,
+  opacity: {
+    floor: 0.08,
+    burst: 0.5,
+  },
+  channelOffset: {
+    ...ROCKET_LOAD_GLITCH.channelOffset,
+    redBaseX: 1.8,
+    cyanBaseX: 1.8,
+    cyanJitterRatio: 1.5,
+  },
+  mainJitter: {
+    xRatio: 0,
+    y: 0,
+  },
+  scanlines: {
+    ...ROCKET_LOAD_GLITCH.scanlines,
+    count: 6,
+    evenOpacity: 0.2,
+    oddOpacity: 0.08,
+  },
+  blocks: {
+    ...ROCKET_LOAD_GLITCH.blocks,
+    count: 2,
+    minWidthRatio: 0.28,
+    heightRatio: 0.02,
+    evenOpacity: 0.55,
+    oddOpacity: 0.32,
+  },
+} as const satisfies KonvaGlitchConfig;
 
 const props = defineProps<{
   rocket: RocketConfig;
@@ -174,226 +210,29 @@ watch(
 
 onUnmounted(() => anim?.stop());
 
-// --- Initial rocket acquisition glitch ---
+// --- Glitch effects ---
 
-type GlitchBlock = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  fill: string;
-  opacity: number;
-};
-
-const glitchActive = ref(false);
-const glitchRedOffset = ref({ x: 0, y: 0 });
-const glitchCyanOffset = ref({ x: 0, y: 0 });
-const glitchMainOffset = ref({ x: 0, y: 0 });
-const glitchOpacity = ref(0);
-const glitchBlocks = ref<GlitchBlock[]>([]);
-const rocketConcealed = ref(false);
-
-let glitchAnimationFrame: number | null = null;
-let glitchStartDelay: number | null = null;
-let glitchStartTime: number | null = null;
-
-const glitchLayerConfig = computed(() => ({
-  listening: false,
-  opacity: glitchOpacity.value,
-}));
-
-const baseRocketVisibilityConfig = computed(() => ({
-  listening: !rocketConcealed.value,
-  opacity: rocketConcealed.value ? 0 : 1,
-}));
-
-const redPathConfig = computed(() => ({
-  fill: ROCKET_LOAD_GLITCH.colors.red,
-  stroke: ROCKET_LOAD_GLITCH.colors.red,
-  strokeWidth: STROKE_WIDTH,
-  strokeScaleEnabled: false,
-  listening: false,
-  globalCompositeOperation: "screen",
-}));
-
-const cyanPathConfig = computed(() => ({
-  fill: ROCKET_LOAD_GLITCH.colors.cyan,
-  stroke: ROCKET_LOAD_GLITCH.colors.cyan,
-  strokeWidth: STROKE_WIDTH,
-  strokeScaleEnabled: false,
-  listening: false,
-  globalCompositeOperation: "screen",
-}));
-
-const scanlineConfig = computed(() => {
-  if (!entry.value) return [];
-  const { viewBox } = entry.value;
-  const { scanlines } = ROCKET_LOAD_GLITCH;
-  const count = scanlines.count;
-  const spacing = viewBox.height / count;
-  return Array.from({ length: count }, (_, i) => ({
-    key: `scanline-${i}`,
-    points: [
-      viewBox.minX,
-      viewBox.minY + i * spacing,
-      viewBox.minX + viewBox.width,
-      viewBox.minY + i * spacing,
-    ],
-    stroke:
-      i % scanlines.accentEvery === 0
-        ? ROCKET_LOAD_GLITCH.colors.cyan
-        : ROCKET_LOAD_GLITCH.colors.scanline,
-    strokeWidth: Math.max(
-      scanlines.minStrokeWidth,
-      viewBox.height * scanlines.strokeWidthRatio,
-    ),
-    opacity: i % 2 === 0 ? scanlines.evenOpacity : scanlines.oddOpacity,
-    listening: false,
-  }));
-});
-
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
-function stopGlitch(revealRocket = true) {
-  if (glitchStartDelay !== null) {
-    window.clearTimeout(glitchStartDelay);
-    glitchStartDelay = null;
-  }
-  if (glitchAnimationFrame !== null) {
-    window.cancelAnimationFrame(glitchAnimationFrame);
-    glitchAnimationFrame = null;
-  }
-  glitchStartTime = null;
-  glitchActive.value = false;
-  glitchOpacity.value = 0;
-  glitchBlocks.value = [];
-  glitchRedOffset.value = { x: 0, y: 0 };
-  glitchCyanOffset.value = { x: 0, y: 0 };
-  glitchMainOffset.value = { x: 0, y: 0 };
-  if (revealRocket) rocketConcealed.value = false;
-}
-
-function makeGlitchBlocks(seed: number): GlitchBlock[] {
-  if (!entry.value) return [];
-  const { viewBox } = entry.value;
-  const { blocks, colors } = ROCKET_LOAD_GLITCH;
-  const blockColors = [colors.cyan, colors.red, colors.green];
-  return Array.from({ length: blocks.count }, (_, i) => {
-    const band = (seed + i * blocks.seedStep) % 97;
-    return {
-      x:
-        viewBox.minX +
-        viewBox.width * (((band * 3) % blocks.xBandPercent) / 100),
-      y:
-        viewBox.minY +
-        viewBox.height * (((band * 7) % blocks.yRangePercent) / 100),
-      width:
-        viewBox.width *
-        (blocks.minWidthRatio + ((band + i) % blocks.widthStepPercent) / 100),
-      height: Math.max(viewBox.height * blocks.heightRatio, blocks.minHeight),
-      fill: blockColors[i % blockColors.length],
-      opacity: i % 2 === 0 ? blocks.evenOpacity : blocks.oddOpacity,
-    };
-  });
-}
-
-function runGlitch() {
-  glitchActive.value = true;
-
-  const tick = (now: number) => {
-    if (glitchStartTime === null) glitchStartTime = now;
-    const elapsed = now - glitchStartTime;
-    const progress = Math.min(elapsed / ROCKET_LOAD_GLITCH.durationMs, 1);
-    const burst =
-      progress < ROCKET_LOAD_GLITCH.fadeStartProgress
-        ? 1
-        : Math.max(
-            0,
-            1 -
-              (progress - ROCKET_LOAD_GLITCH.fadeStartProgress) /
-                (1 - ROCKET_LOAD_GLITCH.fadeStartProgress),
-          );
-    const step = Math.floor(elapsed / ROCKET_LOAD_GLITCH.stepMs);
-    const polarity = step % 2 === 0 ? 1 : -1;
-    const jitter = burst * (1 + (step % 3));
-
-    glitchOpacity.value = Math.min(
-      1,
-      ROCKET_LOAD_GLITCH.opacity.burst * burst +
-        ROCKET_LOAD_GLITCH.opacity.floor,
-    );
-    glitchMainOffset.value = {
-      x: polarity * jitter * ROCKET_LOAD_GLITCH.mainJitter.xRatio,
-      y: step % 4 === 0 ? polarity * ROCKET_LOAD_GLITCH.mainJitter.y : 0,
-    };
-    glitchRedOffset.value = {
-      x: polarity * (ROCKET_LOAD_GLITCH.channelOffset.redBaseX + jitter),
-      y:
-        step % 3 === 0
-          ? ROCKET_LOAD_GLITCH.channelOffset.redY.high
-          : ROCKET_LOAD_GLITCH.channelOffset.redY.low,
-    };
-    glitchCyanOffset.value = {
-      x:
-        -polarity *
-        (ROCKET_LOAD_GLITCH.channelOffset.cyanBaseX +
-          jitter * ROCKET_LOAD_GLITCH.channelOffset.cyanJitterRatio),
-      y:
-        step % 3 === 1
-          ? ROCKET_LOAD_GLITCH.channelOffset.cyanY.high
-          : ROCKET_LOAD_GLITCH.channelOffset.cyanY.low,
-    };
-
-    if (step % ROCKET_LOAD_GLITCH.blocks.visibleEverySteps === 0) {
-      glitchBlocks.value = makeGlitchBlocks(step);
-    } else {
-      glitchBlocks.value = [];
-    }
-
-    if (progress >= 1) {
-      stopGlitch();
-      return;
-    }
-    glitchAnimationFrame = window.requestAnimationFrame(tick);
-  };
-
-  glitchAnimationFrame = window.requestAnimationFrame(tick);
-}
-
-function startGlitch() {
-  if (prefersReducedMotion() || !entry.value) {
-    stopGlitch();
-    return;
-  }
-
-  stopGlitch(false);
-  rocketConcealed.value = true;
-
-  if (ROCKET_LOAD_GLITCH.startDelayMs <= 0) {
-    runGlitch();
-    return;
-  }
-
-  glitchStartDelay = window.setTimeout(() => {
-    glitchStartDelay = null;
-    runGlitch();
-  }, ROCKET_LOAD_GLITCH.startDelayMs);
-}
+const loadGlitch = useKonvaGlitch(
+  ROCKET_LOAD_GLITCH,
+  () => entry.value?.viewBox ?? null,
+  STROKE_WIDTH,
+);
+const engineGlitchTarget = ref<string | null>(null);
+const engineGlitch = useKonvaGlitch(
+  ENGINE_ROLLOVER_GLITCH,
+  () => entry.value?.viewBox ?? null,
+  STROKE_WIDTH,
+);
 
 watch(
   () => props.rocket.id,
   () => {
-    startGlitch();
+    loadGlitch.start({ conceal: true });
+    engineGlitch.stop();
+    engineGlitchTarget.value = null;
   },
   { immediate: true },
 );
-
-onUnmounted(stopGlitch);
 
 // --- Engine hover + context menu ---
 
@@ -462,6 +301,15 @@ function findEngineAncestor(node: any): any {
   return null;
 }
 
+const engineGlitchStage = computed(() => {
+  if (!entry.value || !engineGlitchTarget.value) return null;
+  for (const [stageIndex, stage] of entry.value.stages.entries()) {
+    const engine = stage.engines.find((e) => e.id === engineGlitchTarget.value);
+    if (engine) return { engine, stageIndex };
+  }
+  return null;
+});
+
 function onRocketEnter() {
   const rootNode = rootGroupRef.value?.getNode();
   if (!rootNode) return;
@@ -474,6 +322,8 @@ function onRocketEnter() {
 
 function onRocketLeave(e: any) {
   setCanvasCursor(e, "");
+  engineGlitchTarget.value = null;
+  engineGlitch.stop();
   engineTweens.forEach((t) => t.destroy());
   const rootNode = rootGroupRef.value?.getNode();
   if (!rootNode) return;
@@ -483,7 +333,17 @@ function onRocketLeave(e: any) {
 }
 
 function onRocketMouseOver(e: any) {
-  setCanvasCursor(e, findEngineAncestor(e.target) ? "pointer" : "");
+  const engine = findEngineAncestor(e.target);
+  setCanvasCursor(e, engine ? "pointer" : "");
+  const engineId = engine?.id?.() ?? null;
+  if (!engineId) {
+    engineGlitchTarget.value = null;
+    engineGlitch.stop();
+    return;
+  }
+  if (engineId === engineGlitchTarget.value) return;
+  engineGlitchTarget.value = engineId;
+  engineGlitch.start();
 }
 </script>
 
@@ -500,9 +360,11 @@ function onRocketMouseOver(e: any) {
       v-for="(stage, i) in entry!.stages"
       :key="stage.id"
       :config="{
-        ...baseRocketVisibilityConfig,
-        x: glitchActive ? glitchMainOffset.x : 0,
-        y: (stageOffsets[i] ?? 0) + (glitchActive ? glitchMainOffset.y : 0),
+        ...loadGlitch.baseVisibilityConfig.value,
+        x: loadGlitch.active.value ? loadGlitch.mainOffset.value.x : 0,
+        y:
+          (stageOffsets[i] ?? 0) +
+          (loadGlitch.active.value ? loadGlitch.mainOffset.value.y : 0),
       }"
     >
       <v-path
@@ -529,8 +391,11 @@ function onRocketMouseOver(e: any) {
       </v-group>
     </v-group>
 
-    <v-group v-if="glitchActive" :config="glitchLayerConfig">
-      <v-group :config="glitchRedOffset">
+    <v-group
+      v-if="loadGlitch.active.value"
+      :config="loadGlitch.layerConfig.value"
+    >
+      <v-group :config="loadGlitch.redOffset.value">
         <v-group
           v-for="(stage, i) in entry!.stages"
           :key="`glitch-red-${stage.id}`"
@@ -539,7 +404,7 @@ function onRocketMouseOver(e: any) {
           <v-path
             v-for="(path, index) in stage.paths"
             :key="`stage-${index}`"
-            :config="{ ...redPathConfig, data: path.d }"
+            :config="{ ...loadGlitch.redPathConfig.value, data: path.d }"
           />
           <v-group
             v-for="engine in stage.engines"
@@ -549,13 +414,13 @@ function onRocketMouseOver(e: any) {
             <v-path
               v-for="(path, index) in engine.paths"
               :key="`engine-${index}`"
-              :config="{ ...redPathConfig, data: path.d }"
+              :config="{ ...loadGlitch.redPathConfig.value, data: path.d }"
             />
           </v-group>
         </v-group>
       </v-group>
 
-      <v-group :config="glitchCyanOffset">
+      <v-group :config="loadGlitch.cyanOffset.value">
         <v-group
           v-for="(stage, i) in entry!.stages"
           :key="`glitch-cyan-${stage.id}`"
@@ -564,7 +429,7 @@ function onRocketMouseOver(e: any) {
           <v-path
             v-for="(path, index) in stage.paths"
             :key="`stage-${index}`"
-            :config="{ ...cyanPathConfig, data: path.d }"
+            :config="{ ...loadGlitch.cyanPathConfig.value, data: path.d }"
           />
           <v-group
             v-for="engine in stage.engines"
@@ -574,16 +439,64 @@ function onRocketMouseOver(e: any) {
             <v-path
               v-for="(path, index) in engine.paths"
               :key="`engine-${index}`"
-              :config="{ ...cyanPathConfig, data: path.d }"
+              :config="{ ...loadGlitch.cyanPathConfig.value, data: path.d }"
             />
           </v-group>
         </v-group>
       </v-group>
 
-      <v-line v-for="line in scanlineConfig" :key="line.key" :config="line" />
+      <v-line
+        v-for="line in loadGlitch.scanlineConfig.value"
+        :key="line.key"
+        :config="line"
+      />
       <v-rect
-        v-for="(block, index) in glitchBlocks"
+        v-for="(block, index) in loadGlitch.blocks.value"
         :key="`glitch-block-${index}`"
+        :config="{
+          ...block,
+          listening: false,
+          globalCompositeOperation: 'screen',
+        }"
+      />
+    </v-group>
+
+    <v-group
+      v-if="engineGlitch.active.value && engineGlitchStage"
+      :config="engineGlitch.layerConfig.value"
+    >
+      <v-group :config="engineGlitch.redOffset.value">
+        <v-group
+          :config="{ y: stageOffsets[engineGlitchStage.stageIndex] ?? 0 }"
+        >
+          <v-path
+            v-for="(path, index) in engineGlitchStage.engine.paths"
+            :key="`engine-hover-red-${index}`"
+            :config="{ ...engineGlitch.redPathConfig.value, data: path.d }"
+          />
+        </v-group>
+      </v-group>
+
+      <v-group :config="engineGlitch.cyanOffset.value">
+        <v-group
+          :config="{ y: stageOffsets[engineGlitchStage.stageIndex] ?? 0 }"
+        >
+          <v-path
+            v-for="(path, index) in engineGlitchStage.engine.paths"
+            :key="`engine-hover-cyan-${index}`"
+            :config="{ ...engineGlitch.cyanPathConfig.value, data: path.d }"
+          />
+        </v-group>
+      </v-group>
+
+      <v-line
+        v-for="line in engineGlitch.scanlineConfig.value"
+        :key="`engine-hover-${line.key}`"
+        :config="line"
+      />
+      <v-rect
+        v-for="(block, index) in engineGlitch.blocks.value"
+        :key="`engine-hover-block-${index}`"
         :config="{
           ...block,
           listening: false,
