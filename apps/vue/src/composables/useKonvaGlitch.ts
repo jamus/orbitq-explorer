@@ -78,6 +78,25 @@ function prefersReducedMotion(): boolean {
   );
 }
 
+const RANDOM_PROFILE = {
+  durationJitterRatio: 0.14,
+  stepJitterRatio: 0.16,
+  channelOffsetRatio: 0.28,
+  mainJitterRatio: 0.24,
+  scanlineJitterRatio: 0.22,
+  blockPositionRatio: 0.18,
+  blockSizeRatio: 0.18,
+  opacityRatio: 0.1,
+} as const;
+
+function randomBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+function randomRatio(ratio: number): number {
+  return randomBetween(1 - ratio, 1 + ratio);
+}
+
 export function useKonvaGlitch(
   config: KonvaGlitchConfig,
   getBounds: () => GlitchBounds | null,
@@ -94,6 +113,16 @@ export function useKonvaGlitch(
   let animationFrame: number | null = null;
   let startDelay: number | null = null;
   let startTime: number | null = null;
+  let runSeed = Math.floor(Math.random() * 10_000);
+  let runDurationMs = config.durationMs;
+  let runStepMs = config.stepMs;
+  let channelOffsetMultiplier = 1;
+  let mainJitterMultiplier = 1;
+  let opacityMultiplier = 1;
+  let scanlinePhase = 0;
+  let blockPhase = 0;
+  let blockPositionMultiplier = 1;
+  let blockSizeMultiplier = 1;
 
   const resolvedStrokeWidth = computed(() =>
     typeof strokeWidth === "number" ? strokeWidth : strokeWidth.value,
@@ -136,9 +165,9 @@ export function useKonvaGlitch(
       key: `scanline-${i}`,
       points: [
         bounds.minX,
-        bounds.minY + i * spacing,
+        bounds.minY + i * spacing + scanlinePhase,
         bounds.minX + bounds.width,
-        bounds.minY + i * spacing,
+        bounds.minY + i * spacing + scanlinePhase,
       ],
       stroke:
         i % scanlines.accentEvery === 0
@@ -172,41 +201,70 @@ export function useKonvaGlitch(
     if (reveal) concealed.value = false;
   }
 
+  function prepareRun() {
+    const bounds = getBounds();
+    runSeed = Math.floor(Math.random() * 10_000);
+    runDurationMs = Math.max(
+      1,
+      config.durationMs * randomRatio(RANDOM_PROFILE.durationJitterRatio),
+    );
+    runStepMs = Math.max(
+      1,
+      config.stepMs * randomRatio(RANDOM_PROFILE.stepJitterRatio),
+    );
+    channelOffsetMultiplier = randomRatio(RANDOM_PROFILE.channelOffsetRatio);
+    mainJitterMultiplier = randomRatio(RANDOM_PROFILE.mainJitterRatio);
+    opacityMultiplier = randomRatio(RANDOM_PROFILE.opacityRatio);
+    scanlinePhase = bounds
+      ? randomBetween(-bounds.height, bounds.height) *
+        RANDOM_PROFILE.scanlineJitterRatio *
+        0.08
+      : 0;
+    blockPhase = Math.floor(randomBetween(0, 97));
+    blockPositionMultiplier = randomRatio(RANDOM_PROFILE.blockPositionRatio);
+    blockSizeMultiplier = randomRatio(RANDOM_PROFILE.blockSizeRatio);
+  }
+
   function makeBlocks(seed: number): GlitchBlock[] {
     const bounds = getBounds();
     if (!bounds) return [];
     const { blocks: blockConfig, colors } = config;
     const blockColors = [colors.cyan, colors.red, colors.green];
     return Array.from({ length: blockConfig.count }, (_, i) => {
-      const band = (seed + i * blockConfig.seedStep) % 97;
+      const band =
+        (seed + runSeed + blockPhase + i * blockConfig.seedStep) % 97;
+      const xPercent =
+        (((band * 3) % blockConfig.xBandPercent) / 100) *
+        blockPositionMultiplier;
+      const yPercent =
+        (((band * 7) % blockConfig.yRangePercent) / 100) *
+        blockPositionMultiplier;
       return {
-        x:
-          bounds.minX +
-          bounds.width * (((band * 3) % blockConfig.xBandPercent) / 100),
-        y:
-          bounds.minY +
-          bounds.height * (((band * 7) % blockConfig.yRangePercent) / 100),
+        x: bounds.minX + bounds.width * Math.min(xPercent, 0.98),
+        y: bounds.minY + bounds.height * Math.min(yPercent, 0.98),
         width:
           bounds.width *
           (blockConfig.minWidthRatio +
-            ((band + i) % blockConfig.widthStepPercent) / 100),
+            (((band + i) % blockConfig.widthStepPercent) / 100) *
+              blockSizeMultiplier),
         height: Math.max(
-          bounds.height * blockConfig.heightRatio,
+          bounds.height * blockConfig.heightRatio * blockSizeMultiplier,
           blockConfig.minHeight,
         ),
-        fill: blockColors[i % blockColors.length],
+        fill: blockColors[(i + runSeed) % blockColors.length],
         opacity: i % 2 === 0 ? blockConfig.evenOpacity : blockConfig.oddOpacity,
       };
     });
   }
 
   function run() {
+    prepareRun();
     active.value = true;
 
     const tick = (now: number) => {
       if (startTime === null) startTime = now;
       const elapsed = now - startTime;
-      const progress = Math.min(elapsed / config.durationMs, 1);
+      const progress = Math.min(elapsed / runDurationMs, 1);
       const burst =
         progress < config.fadeStartProgress
           ? 1
@@ -216,34 +274,42 @@ export function useKonvaGlitch(
                 (progress - config.fadeStartProgress) /
                   (1 - config.fadeStartProgress),
             );
-      const step = Math.floor(elapsed / config.stepMs);
-      const polarity = step % 2 === 0 ? 1 : -1;
-      const jitter = burst * (1 + (step % 3));
+      const step = Math.floor(elapsed / runStepMs);
+      const polarity = (step + runSeed) % 2 === 0 ? 1 : -1;
+      const jitter = burst * (1 + ((step + runSeed) % 3));
 
       opacity.value = Math.min(
         1,
-        config.opacity.burst * burst + config.opacity.floor,
+        (config.opacity.burst * burst + config.opacity.floor) *
+          opacityMultiplier,
       );
       mainOffset.value = {
-        x: polarity * jitter * config.mainJitter.xRatio,
-        y: step % 4 === 0 ? polarity * config.mainJitter.y : 0,
+        x: polarity * jitter * config.mainJitter.xRatio * mainJitterMultiplier,
+        y:
+          step % 4 === 0
+            ? polarity * config.mainJitter.y * mainJitterMultiplier
+            : 0,
       };
       redOffset.value = {
-        x: polarity * (config.channelOffset.redBaseX + jitter),
+        x:
+          polarity *
+          (config.channelOffset.redBaseX + jitter) *
+          channelOffsetMultiplier,
         y:
           step % 3 === 0
-            ? config.channelOffset.redY.high
-            : config.channelOffset.redY.low,
+            ? config.channelOffset.redY.high * channelOffsetMultiplier
+            : config.channelOffset.redY.low * channelOffsetMultiplier,
       };
       cyanOffset.value = {
         x:
           -polarity *
           (config.channelOffset.cyanBaseX +
-            jitter * config.channelOffset.cyanJitterRatio),
+            jitter * config.channelOffset.cyanJitterRatio) *
+          channelOffsetMultiplier,
         y:
           step % 3 === 1
-            ? config.channelOffset.cyanY.high
-            : config.channelOffset.cyanY.low,
+            ? config.channelOffset.cyanY.high * channelOffsetMultiplier
+            : config.channelOffset.cyanY.low * channelOffsetMultiplier,
       };
 
       if (step % config.blocks.visibleEverySteps === 0) {
