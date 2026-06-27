@@ -19,8 +19,8 @@ export const ROCKET_CONFIGS_BY_IDS = gql`
       name
       fullName
       variant
-      status
       description
+      active
       imageUrl
       manufacturer {
         name
